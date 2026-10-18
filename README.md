@@ -8,10 +8,10 @@ Memory reports evidence, not truth, and grants no authority: a record about yest
 
 ## Status
 
-The design is decided; the Go module skeleton is in place, with kernel semantics still to be implemented. This repository holds:
+The design is decided; the Go module skeleton and strict JSON/schema input boundary are in place, with evidence evaluation still to be implemented. This repository holds:
 
 - [`spec/`](spec/README.md) — the normative specification package (draft 0.2.7): the kernel semantics, 14 closed JSON Schemas, the decisions and synthetic profiles domain packages, the Swarma adapter contract and 74 conformance vectors (66 semantic, 8 protected-deployment). Two independent evaluators agree with the expected results on all 66 semantic vectors; the deployment vectors require a real protected deployment and are not qualified.
-- The Go module skeleton: package boundaries, the kernel interface, and a `memory version` CLI. Memory operations, the conformance runner and the agent skill are not implemented yet. The first working version's design is in [docs/architecture.md](docs/architecture.md).
+- The Go module: package boundaries, the kernel interface, strict JSON intake, canonical bytes and digests, closed-schema validation, and a `memory version` CLI. Memory operations, the conformance runner and the agent skill are not implemented yet. The first working version's design is in [docs/architecture.md](docs/architecture.md).
 
 ## Design in brief
 
@@ -36,6 +36,8 @@ python3 spec/checks/validate.py
 ```
 
 The binary goes to the ignored `bin/` directory. Vet, tests and the checker report to the terminal; Go's build and test caches use its configured cache directory. Optional saved logs belong in the ignored `.temp/` directory. CI runs the same vet, test and specification checks on pushes and pull requests.
+
+The `kernel` input boundary exposes `DecodeJSON`, `CanonicalJSON`, `DigestJSON` and `LoadSchemas`. Decoded trees use `int64` integers, never `float64`. Schema loading takes an `io/fs.FS`; tests supply `os.DirFS` for the package schemas. `Schemas.Validate` checks structure against an exact loaded package URI; `Schemas.ValidateRecord` also checks assertion domain references against caller-supplied exact `SchemaRef` versions. Domain content semantics and admission are separate work.
 
 ## Checking the specification
 

@@ -18,7 +18,7 @@ var pureStandardImports = map[string]bool{
 	"encoding/base64": true, "encoding/binary": true,
 	"encoding/hex": true, "encoding/json": true,
 	"errors": true, "fmt": true, "hash": true, "hash/fnv": true,
-	"io": true, "iter": true, "maps": true,
+	"io": true, "io/fs": true, "iter": true, "maps": true,
 	"math": true, "math/big": true, "math/bits": true,
 	"regexp": true, "slices": true, "sort": true,
 	"strconv": true, "strings": true, "unicode": true, "unicode/utf8": true,
@@ -72,6 +72,7 @@ func TestKernelImportControls(t *testing.T) {
 		denied string
 	}{
 		{name: "pure errors", source: `package kernel; import "errors"`},
+		{name: "filesystem interface", source: `package kernel; import "io/fs"`},
 		{name: "no imports", source: `package kernel`},
 		{name: "network control", source: `package kernel; import "net/http"`, denied: "net/http"},
 		{name: "net", source: `package kernel; import "net"`, denied: "net"},

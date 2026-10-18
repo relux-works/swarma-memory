@@ -23,9 +23,6 @@ type Record struct{}
 type Receipts struct{}
 
 // placeholder: defined by later stage-1 tasks
-type Refusal struct{}
-
-// placeholder: defined by later stage-1 tasks
 type Query struct{}
 
 // placeholder: defined by later stage-1 tasks
