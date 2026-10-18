@@ -66,7 +66,8 @@ func (s *State) lineageDeadlineLive(r any, at any, index map[string]any, seen ma
 }
 
 // releaseValid validates evidence, not a capability. Every new disclosure calls
-// it against live owner decisions and the exact structured output body digest.
+// it against active exact-version assessments, live owner decisions and the
+// exact structured output body digest, independently of the caller's read cut.
 func (s *State) releaseValid(output any, assessments []any, index map[string]any, at any) bool {
 	if env(output)["kind"] != "assertion" || len(assessments) == 0 || !s.completeLineage(output, index, map[string]bool{}) {
 		return false
@@ -79,12 +80,19 @@ func (s *State) releaseValid(output any, assessments []any, index map[string]any
 	if r != nil {
 		return false
 	}
+	// Use protected revision state, including revisions hidden from this reader.
+	// Replacement/correction retire the cited version; challenges do not.
+	records := make([]any, 0, len(index))
+	for _, record := range index {
+		records = append(records, record)
+	}
+	active := recordIndex(s.currentRecords(records))
 	refs, owners := []any{}, []any{}
 	var common map[string]any
 	for _, assessment := range assessments {
 		b, e := body(assessment), env(assessment)
 		pins, release := obj(b["pins"]), obj(b["declassification"])
-		if !s.completeLineage(assessment, index, map[string]bool{}) || s.fenced(assessment, index, map[string]bool{}) {
+		if active[refKey(ref(assessment))] == nil || !s.completeLineage(assessment, index, map[string]bool{}) || s.fenced(assessment, index, map[string]bool{}) {
 			return false
 		}
 		if e["kind"] != "assessment" || b["check_kind"] != "declassification" || b["result"] != "pass" || b["executor"] != "human" && b["executor"] != "deterministic" || s.fact(assessment)["kind"] == "model" || e["context"] != env(output)["context"] || e["space"] != env(output)["space"] {

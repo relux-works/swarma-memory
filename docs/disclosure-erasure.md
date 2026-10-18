@@ -24,6 +24,10 @@ never widened. Evidence records may have a different issuer from the submitting
 representative; the self-declaration identity constraint applies to assertions.
 
 New disclosure rechecks decisions, evidence completeness, expiry and disposition.
+Every cited assessment must remain active under current protected revision state,
+including revisions hidden from the reader and reads at an older transaction cut.
+Withdrawal, replacement and correction retire the exact cited version; a valid
+new version cannot silently replace that citation. Challenges preserve it.
 Revoking a decision leaves history intact and restores ordinary inherited
 constraints. The release permits only its exact audience/purpose pair. Audience
 items use admitted per-audience aliases and redact internal refs, source/proof
@@ -92,7 +96,8 @@ go run ./cmd/memory conformance
 
 All 66 whole vectors, 73 admission operations, boundary operations and six
 inventories match. Both ratchets are full; CI conformance is mandatory.
-Tests retain mismatched-pin and revoked/fenced-evidence witnesses, transitive
+Tests retain mismatched-pin and revoked/fenced-evidence witnesses, admitted
+assessment withdrawal/replacement/correction with challenge controls, transitive
 taint with a public control, hidden-record removal properties across corpus
 reads, custody/replay/restore/generation controls and instruction-like text
 delivered only as data. The noninterference property preserves public cuts,

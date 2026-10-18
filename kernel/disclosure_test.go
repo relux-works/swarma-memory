@@ -1,6 +1,109 @@
 package kernel
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
+
+// TestReleaseAssessmentRevisions proves admitted withdrawal, replacement and
+// correction of either required owner's evidence close fresh public reads and
+// prepared delivery, including reads at the old cut. Challenges preserve release.
+// Private revision labels cannot hide the authority change from public reads.
+func TestReleaseAssessmentRevisions(t *testing.T) {
+	for owner := 0; owner < 2; owner++ {
+		for _, relation := range []string{"withdraw", "replace", "correct", "challenge"} {
+			t.Run(fmt.Sprintf("owner%d/%s", owner, relation), func(t *testing.T) {
+				snapshot, _, ops := readFixture(t, "P05")
+				admit := obj(ops[1])
+				target := arr(admit["assessments"])[owner]
+				_, templates := writeFixture(t, "S17")
+				revise := obj(templates[0])
+				revise["context"] = copyJSON(admit["context"])
+				obj(obj(revise["context"])["retention_context"])["audience"] = "aud:private"
+				revise["idempotency_key"] = "key:revise-release"
+				revision := revise["revision"]
+				obj(revision)["envelope"] = copyJSON(env(target))
+				env(revision)["id"], env(revision)["kind"] = "rec:revise-release", "revision"
+				obj(env(revision)["disclosure"])["audiences"] = []any{"aud:private"}
+				b := body(revision)
+				b["relation"], b["target"], b["replacement"] = relation, ref(target), nil
+				revise["expected_version"], revise["replacement"] = ref(target), nil
+				if relation == "replace" || relation == "correct" {
+					replacement := copyJSON(target)
+					env(replacement)["version"] = int64(2)
+					revise["replacement"], b["replacement"] = replacement, ref(replacement)
+					authorizeProposal(snapshot, replacement)
+				}
+				authorizeProposal(snapshot, revision)
+				for _, raw := range arr(obj(snapshot["policy"])["representations"]) {
+					m := obj(raw)
+					m["relations"] = set(append(arr(m["relations"]), relation))
+				}
+				s := stateForTest(t, snapshot)
+				success(t, s, admit)
+				q := obj(obj(ops[2])["query"])
+				firstItem(t, readSuccess(t, s, q))
+				v, r := s.Capture(2, q)
+				if r != nil {
+					t.Fatal(r)
+				}
+				frozen := key(v)
+				success(t, s, obj(ops[3]))
+				success(t, s, revise)
+				stateForTest(t, s.Snapshot())
+				if key(s.Captured(2)) != frozen {
+					t.Fatal("revision rewrote frozen bytes")
+				}
+				index := recordIndex(arr(s.snapshot["records"]))
+				if !equalJSON(body(index[refKey(ref(target))]), body(target)) {
+					t.Fatal("revision changed immutable assessment body")
+				}
+				for _, raw := range arr(s.policy()["declassification_decisions"]) {
+					if obj(raw)["active"] != true {
+						t.Fatal("probe must leave owner decisions active")
+					}
+				}
+				for _, cut := range []any{obj(q["cut"])["memory"], s.runtime()["memory_cut"]} {
+					query := copyJSON(q).(map[string]any)
+					obj(query["cut"])["memory"] = cut
+					view := readSuccess(t, s, query)
+					if relation == "challenge" {
+						firstItem(t, view)
+					} else if len(arr(view["items"])) != 0 {
+						t.Error("inactive exact assessment still authorizes public read", cut)
+					}
+				}
+				if relation == "challenge" {
+					success(t, s, obj(ops[3]))
+				} else {
+					refusalUnchanged(t, s, obj(ops[3]), DisclosureRevoked)
+				}
+				output := index[refKey(ref(admit["output"]))]
+				if !s.disclosureAllows(output, "aud:private", "purpose:read", q["now"], index, map[string]bool{}) {
+					t.Fatal("revision removed ordinary private access")
+				}
+				if replacement := revise["replacement"]; replacement != nil {
+					// The new assessment keeps valid release pins and is active, but
+					// cannot silently replace the output's exact version-1 citation.
+					candidate := copyJSON(output)
+					assessments := []any{}
+					refs := []any{}
+					for i, a := range arr(admit["assessments"]) {
+						if i == owner {
+							a = replacement
+						}
+						assessments = append(assessments, index[refKey(ref(a))])
+						refs = append(refs, ref(a))
+					}
+					obj(env(candidate)["disclosure"])["declassification"] = set(refs)
+					if !s.releaseValid(candidate, assessments, index, q["now"]) {
+						t.Fatal("active replacement with exact updated citation is invalid")
+					}
+				}
+			})
+		}
+	}
+}
 
 // TestDeclassificationPins proves a matching multi-owner release commits in
 // proposal order; changed pins, missing owners and unknown lineage refuse
