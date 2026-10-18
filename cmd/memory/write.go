@@ -151,14 +151,25 @@ func writeCLI(ctx context.Context, h home, c localConfig, a arguments) (any, err
 	case "add":
 		common = append(common, "version", "subject", "issuer", "perspective", "perspective-principal", "schema", "schema-version", "statement-kind", "admission-class", "valid-from", "valid-to", "confirmed-at", "sources", "source-session", "source-text")
 	case "assess":
-		common = append(common, "version", "issuer", "perspective", "perspective-principal", "admission-class", "kind", "executor", "result", "polarity", "origin", "source-requirement", "sources", "source-session", "source-text")
+		common = append(common, "version", "expected-version", "expected-id", "expected-token", "issuer", "perspective", "perspective-principal", "admission-class", "kind", "executor", "result", "polarity", "origin", "source-requirement", "sources", "source-session", "source-text")
 	case "revise":
-		common = append(common, "version", "relation", "expected-version", "expected-id", "issuer", "admission-class")
+		common = append(common, "version", "relation", "expected-version", "expected-id", "expected-token", "issuer", "admission-class")
 	case "promote":
 		common = []string{"space", "to", "id", "idempotency-key", "at", "expected-generation", "version"}
 	}
 	if e := a.allow(common...); e != nil {
 		return nil, e
+	}
+	if cmd == "revise" || cmd == "assess" {
+		_, number := a.flags["expected-version"]
+		_, token := a.flags["expected-token"]
+		if !number && !token {
+			return nil, missingWriteToken{}
+		}
+		_, expectedID := a.flags["expected-id"]
+		if number && token || token && expectedID {
+			return nil, cliError{"usage", 2}
+		}
 	}
 	key, e := a.required("idempotency-key")
 	if e != nil {
@@ -226,7 +237,12 @@ func writeCLI(ctx context.Context, h home, c localConfig, a arguments) (any, err
 	}
 	var operation map[string]any
 	primaryID := id
-	written, e := r.Write(ctx, space.WriteRequest{Signer: k, MaxRetries: writeRetries, Build: func(snapshot map[string]any) (map[string]any, error) {
+	written, e := r.Write(ctx, space.WriteRequest{Signer: k, MaxRetries: writeRetries, Precondition: func(snapshot map[string]any, cursor string) error {
+		if cmd != "revise" && cmd != "assess" || priorWrite(snapshot, k.Identity(), selectedSpace.ID, key) != nil {
+			return nil // The kernel still checks current authority and exact replay intent.
+		}
+		return checkWriteTarget(snapshot, selectedSpace.ID, cursor, a)
+	}, Build: func(snapshot map[string]any) (map[string]any, error) {
 		prior := priorWrite(snapshot, k.Identity(), selectedSpace.ID, key)
 		generation := agentprofile.Object(snapshot["runtime"])["erasure_generation"].(int64)
 		if prior != nil {
@@ -256,7 +272,7 @@ func writeCLI(ctx context.Context, h home, c localConfig, a arguments) (any, err
 		case "revise":
 			record, e = in.revision(snapshot, prior, selectedSpace.ID, k.Identity(), id, operation)
 		case "assess":
-			record, e = in.assessment(snapshot, prior, selectedSpace.ID, k.Identity(), id)
+			record, e = in.assessment(snapshot, selectedSpace.ID, k.Identity(), id)
 		case "promote":
 			record = copyValue(promoted).(map[string]any)
 			env := agentprofile.Object(record["envelope"])
@@ -465,47 +481,14 @@ func (in writeInput) revision(snapshot, prior map[string]any, spaceID, actor, id
 	if relation != "replace" && relation != "withdraw" && relation != "correct" && relation != "challenge" {
 		return nil, cliError{"usage", 2}
 	}
-	version := int64(0)
-	if prior["op"] == "revise" {
-		version, _ = agentprofile.Object(agentprofile.Object(agentprofile.Object(prior["revision"])["body"])["target"])["version"].(int64)
-	}
-	var e error
-	version, e = numberFlag(a, "version", version, 1)
+	target, expected, e := pinnedWriteTarget(snapshot, spaceID, a)
 	if e != nil {
 		return nil, e
 	}
-	target, e := findRecord(snapshot, a.pos[1], version)
-	if e != nil {
-		return nil, e
-	}
-	targetEnv := agentprofile.Object(target["envelope"])
-	expected := recordRef(target)
-	// Select a verified token as input; only the kernel decides whether this is
-	// the unique current sequence head and whether the actor may extend it.
-	for _, raw := range agentprofile.Array(snapshot["records"]) {
-		r := agentprofile.Object(raw)
-		body := agentprofile.Object(r["body"])
-		if agentprofile.Object(r["envelope"])["kind"] == "revision" && body["relation"] != "challenge" && agentprofile.Object(body["target"])["id"] == a.pos[1] {
-			if replacement := agentprofile.Object(body["replacement"]); replacement != nil {
-				expected = replacement
-			} else {
-				expected = recordRef(r)
-			}
-		}
-	}
-	if prior["op"] == "revise" {
+	if prior["op"] == "revise" && a.flags["expected-token"] != "" {
 		expected = agentprofile.Object(prior["expected_version"])
 	}
-	if _, ok := a.flags["expected-id"]; ok && a.flags["expected-version"] == "" {
-		return nil, cliError{"usage", 2}
-	}
-	if _, ok := a.flags["expected-version"]; ok {
-		n, e := numberFlag(a, "expected-version", 0, 1)
-		if e != nil {
-			return nil, e
-		}
-		expected = agentprofile.Ref(defaultFlag(a, "expected-id", a.pos[1]), n)
-	}
+	targetEnv := agentprofile.Object(target["envelope"])
 	// --version chooses the target, never the new revision record's version.
 	envelopeInput := in
 	envelopeInput.a.flags = make(map[string]string, len(a.flags))
@@ -548,7 +531,7 @@ func (in writeInput) revision(snapshot, prior map[string]any, spaceID, actor, id
 	return record, nil
 }
 
-func (in writeInput) assessment(snapshot, prior map[string]any, spaceID, actor, id string) (map[string]any, error) {
+func (in writeInput) assessment(snapshot map[string]any, spaceID, actor, id string) (map[string]any, error) {
 	a := in.a
 	kind, e := a.required("kind")
 	if e != nil {
@@ -557,20 +540,7 @@ func (in writeInput) assessment(snapshot, prior map[string]any, spaceID, actor, 
 	if _, ok := a.flags["content"]; ok {
 		return nil, cliError{"usage", 2}
 	}
-	version := int64(0)
-	if prior["op"] == "admit" {
-		for _, raw := range agentprofile.Array(prior["proposals"]) {
-			r := agentprofile.Object(raw)
-			if agentprofile.Object(r["envelope"])["id"] == id {
-				version, _ = agentprofile.Object(agentprofile.Object(agentprofile.Object(r["body"])["pins"])["subject"])["version"].(int64)
-			}
-		}
-	}
-	version, e = numberFlag(a, "version", version, 1)
-	if e != nil {
-		return nil, e
-	}
-	target, e := findRecord(snapshot, a.pos[1], version)
+	target, _, e := pinnedWriteTarget(snapshot, spaceID, a)
 	if e != nil {
 		return nil, e
 	}

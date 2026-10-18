@@ -27,6 +27,10 @@ type cliError struct {
 
 func (e cliError) Error() string { return e.code }
 
+type missingWriteToken struct{}
+
+func (missingWriteToken) Error() string { return "usage" }
+
 type wireError struct {
 	Code string `json:"code"`
 	Exit int    `json:"exit"`
@@ -40,6 +44,10 @@ type result struct {
 }
 
 func classify(e error) wireError {
+	var missing missingWriteToken
+	if errors.As(e, &missing) {
+		return wireError{"usage", 2}
+	}
 	var c cliError
 	if errors.As(e, &c) {
 		return wireError{c.code, c.exit}
@@ -77,7 +85,12 @@ func emit(out, errout io.Writer, jsonMode bool, command string, data any, e erro
 		r.Type = "error"
 		r.Error = &w
 		code = w.Exit
-		fmt.Fprintf(errout, "memory: %s\n", w.Code)
+		var missing missingWriteToken
+		if errors.As(e, &missing) {
+			fmt.Fprintln(errout, "memory: usage: --expected-version or --expected-token is required")
+		} else {
+			fmt.Fprintf(errout, "memory: %s\n", w.Code)
+		}
 	}
 	b, err := json.Marshal(r)
 	if err != nil {

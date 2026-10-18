@@ -355,8 +355,8 @@ func TestGitConcurrentWriters(t *testing.T) {
 			if conflict {
 				h.template["domain_schemas"].([]any)[0].(map[string]any)["cardinality"].(map[string]any)["mode"] = "single"
 			}
-			a, _, _ := h.clone(t, "a")
-			b, _, _ := h.clone(t, "b")
+			a, aDir, _ := h.clone(t, "a")
+			b, bDir, _ := h.clone(t, "b")
 			barrier := &sync.WaitGroup{}
 			barrier.Add(2)
 			type outcome struct {
@@ -389,6 +389,16 @@ func TestGitConcurrentWriters(t *testing.T) {
 				check(t, y.err)
 				if x.result.PushAttempts+y.result.PushAttempts != 3 {
 					t.Fatalf("retry counts %d %d", x.result.PushAttempts, y.result.PushAttempts)
+				}
+			}
+			// Both a successful attempt and a refused NFF attempt leave the
+			// checkout/index/tree at that repository's last verified cursor.
+			for _, entry := range []struct {
+				repo *space.Repository
+				dir  string
+			}{{a, aDir}, {b, bDir}} {
+				if gitCommand(t, entry.dir, h.env, "rev-parse", "HEAD") != entry.repo.Cursor() || gitCommand(t, entry.dir, h.env, "write-tree") != gitCommand(t, entry.dir, h.env, "rev-parse", entry.repo.Cursor()+"^{tree}") || gitCommand(t, entry.dir, h.env, "status", "--porcelain", "--untracked-files=all") != "" {
+					t.Fatal("write left checkout/index/tree outside verified cursor")
 				}
 			}
 			check(t, a.Sync(context.Background()))

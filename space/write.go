@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/relux-works/swarma-memory/kernel"
 	"github.com/relux-works/swarma-memory/scan"
@@ -24,6 +25,10 @@ type WriteRequest struct {
 	Build      func(snapshot map[string]any) (map[string]any, error)
 	Signer     sign.WriteSigner
 	MaxRetries int
+	// Precondition is an optional application freshness guard, checked against
+	// detached verified state before each publication attempt and after a lost
+	// push. It grants no authority and never replaces kernel admission checks.
+	Precondition func(snapshot map[string]any, cursor string) error
 }
 type WriteResult struct {
 	Receipt      map[string]any
@@ -31,13 +36,28 @@ type WriteResult struct {
 	PushAttempts int
 }
 
-func (r *Repository) Write(ctx context.Context, request WriteRequest) (WriteResult, error) {
+func (r *Repository) Write(ctx context.Context, request WriteRequest) (result WriteResult, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	var result WriteResult
 	if request.Build == nil || request.Signer == nil || request.MaxRetries < 0 {
 		return result, fail("invalid_request")
 	}
+	status, e := r.git(ctx, nil, "status", "--porcelain", "--untracked-files=all")
+	if e != nil {
+		return result, e
+	}
+	if len(status) != 0 {
+		return result, fail("dirty_clone")
+	}
+	// Only move an initially clean, caller-owned clone. An ordinary switch
+	// preserves a losing signed attempt in reflog without keeping it checked out.
+	defer func() {
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer cancel()
+		if e := r.checkoutVerified(cleanup, true); e != nil {
+			err = e
+		}
+	}()
 	if e := r.sync(ctx); e != nil {
 		return result, e
 	}
@@ -65,6 +85,11 @@ func (r *Repository) Write(ctx context.Context, request WriteRequest) (WriteResu
 				return result, fail("version_conflict")
 			}
 			return result, fail(string(f.Code))
+		}
+		if request.Precondition != nil {
+			if e := request.Precondition(r.state.Snapshot(), r.current.Cursor); e != nil {
+				return result, e
+			}
 		}
 		records := candidate.Snapshot()["records"].([]any)[before:]
 		if len(records) == 0 {
@@ -171,6 +196,11 @@ func (r *Repository) Write(ctx context.Context, request WriteRequest) (WriteResu
 			}
 			return result, fail(string(f.Code))
 		}
+		if request.Precondition != nil {
+			if e := request.Precondition(r.state.Snapshot(), r.current.Cursor); e != nil {
+				return result, e
+			}
+		}
 		if f == nil && len(check.Snapshot()["records"].([]any)) == len(r.state.Snapshot()["records"].([]any)) {
 			result.Receipt = checkReceipt
 			result.Commit = r.current.Cursor
@@ -184,6 +214,25 @@ func (r *Repository) Write(ctx context.Context, request WriteRequest) (WriteResu
 		}
 	}
 }
+
+func (r *Repository) checkoutVerified(ctx context.Context, requireClean bool) error {
+	if r.current == nil {
+		return nil
+	}
+	status, e := r.git(ctx, nil, "status", "--porcelain", "--untracked-files=all")
+	if e != nil {
+		return e
+	}
+	if len(status) != 0 {
+		if requireClean {
+			return fail("dirty_clone")
+		}
+		return nil // Read/sync must preserve unrelated local changes.
+	}
+	_, e = r.git(ctx, nil, "switch", "--detach", r.current.Cursor)
+	return e
+}
+
 func (r *Repository) commit(ctx context.Context, head string, files map[string][]byte, txs []transaction) (string, error) {
 	b, e := r.git(ctx, nil, "status", "--porcelain", "--untracked-files=all")
 	if e != nil {

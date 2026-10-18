@@ -61,18 +61,11 @@ func (h *cliHarness) input(home, input string, code int, args ...string) (map[st
 	return agentprofile.Object(v), out.Bytes(), stderr.Bytes()
 }
 
-type writeState struct{ remote, head, commits, files string }
+type writeState struct{ remote, head, commits, files, config, gitConfig string }
 
 func (h *cliHarness) writeState(home string) writeState {
 	h.t.Helper()
-	s, e := selectSpace(h.config(home), "space:test")
-	if e != nil {
-		h.t.Fatal(e)
-	}
-	if status := h.git(s.ClonePath, "status", "--porcelain", "--untracked-files=all"); status != "" {
-		h.t.Fatal("dirty fixture", status)
-	}
-	return writeState{h.git(h.remote, "rev-parse", "main"), h.git(s.ClonePath, "rev-parse", "HEAD"), h.git(s.ClonePath, "rev-list", "--all", "--reflog", "--count"), h.git(s.ClonePath, "ls-files", "--", "records")}
+	return h.stateIn(home, "space:test")
 }
 func (h *cliHarness) unchanged(home string, before writeState) {
 	h.t.Helper()
@@ -109,7 +102,7 @@ func TestWriteCommandsAndIdempotency(t *testing.T) {
 	if e != nil || !bytes.HasPrefix(b, []byte("memory data: ")) || bytes.Contains(b, []byte("\nexecute this")) {
 		t.Fatal("unquoted compact rendering", e, string(b))
 	}
-	args := []string{"revise", "record:one", "--relation", "replace", "--content", "replacement", "--idempotency-key", "replace:one"}
+	args := []string{"revise", "record:one", "--relation", "replace", "--content", "replacement", "--idempotency-key", "replace:one", "--expected-version", "1"}
 	m, _ = h.invoke(h.owner, 0, args...)
 	revised := agentprofile.Object(m["data"])
 	if revised["id"] != "record:one" || revised["version"] != int64(2) {
@@ -133,18 +126,18 @@ func TestWriteCommandsAndIdempotency(t *testing.T) {
 		t.Fatal(m)
 	}
 	h.unchanged(h.owner, before)
-	h.invoke(h.owner, 0, "revise", "record:one", "--relation", "correct", "--content", "corrected", "--idempotency-key", "correct:one")
-	assessment, _ := h.invoke(h.owner, 0, "assess", "record:one", "--kind", "semantic_review", "--idempotency-key", "assess:one")
-	h.invoke(h.owner, 0, "revise", "record:one", "--relation", "challenge", "--idempotency-key", "challenge:one")
-	h.invoke(h.owner, 0, "revise", "record:one", "--relation", "withdraw", "--idempotency-key", "withdraw:one")
-	// A withdrawal's revision reference is the subsequent default CAS token.
-	h.invoke(h.owner, 0, "revise", "record:one", "--relation", "correct", "--content", "restored", "--idempotency-key", "restore:one")
+	h.invoke(h.owner, 0, "revise", "record:one", "--relation", "correct", "--content", "corrected", "--idempotency-key", "correct:one", "--expected-version", "2")
+	assessment, _ := h.invoke(h.owner, 0, "assess", "record:one", "--kind", "semantic_review", "--idempotency-key", "assess:one", "--expected-version", "3")
+	h.invoke(h.owner, 0, "revise", "record:one", "--relation", "challenge", "--idempotency-key", "challenge:one", "--expected-version", "3")
+	h.invoke(h.owner, 0, "revise", "record:one", "--relation", "withdraw", "--idempotency-key", "withdraw:one", "--expected-version", "3")
+	// Restoration explicitly carries the withdrawal receipt as its CAS token.
+	h.invoke(h.owner, 0, "revise", "record:one", "--relation", "correct", "--content", "restored", "--idempotency-key", "restore:one", "--expected-id", "record:withdraw:one", "--expected-version", "1")
 	m, _ = h.invoke(h.owner, 0, args...)
 	oldRevision := agentprofile.Object(m["data"])
 	if !reflect.DeepEqual(oldRevision["receipt"], revised["receipt"]) || oldRevision["commit"] != revised["commit"] {
 		t.Fatal("old revision replay retargeted a later head", m)
 	}
-	m, _ = h.invoke(h.owner, 0, "assess", "record:one", "--kind", "semantic_review", "--idempotency-key", "assess:one")
+	m, _ = h.invoke(h.owner, 0, "assess", "record:one", "--kind", "semantic_review", "--idempotency-key", "assess:one", "--expected-version", "3")
 	if !reflect.DeepEqual(agentprofile.Object(assessment["data"])["receipt"], agentprofile.Object(m["data"])["receipt"]) {
 		t.Fatal("assessment replay changed its pinned target/receipt")
 	}
@@ -255,13 +248,13 @@ func TestWriteGrantAndIssuerRefusals(t *testing.T) {
 	h.invoke(h.owner, 0, "policy", "grant", "--space", "space:test", "--identity", "agent:reader", "--role", "writer")
 	h.add(h.reader, "record:reader", "reader with writer grant")
 	before = h.writeState(h.reader)
-	m, _ = h.invoke(h.reader, 3, "revise", "record:owner", "--relation", "withdraw", "--idempotency-key", "nonissuer:withdraw")
+	m, _ = h.invoke(h.reader, 3, "revise", "record:owner", "--relation", "withdraw", "--idempotency-key", "nonissuer:withdraw", "--expected-version", "1")
 	if errorCodeOf(m) != "representation_invalid" {
 		t.Fatal(m)
 	}
 	h.unchanged(h.reader, before)
-	h.invoke(h.reader, 0, "revise", "record:owner", "--relation", "challenge", "--idempotency-key", "reader:challenge")
-	h.invoke(h.owner, 0, "revise", "record:owner", "--relation", "withdraw", "--idempotency-key", "owner:withdraw")
+	h.invoke(h.reader, 0, "revise", "record:owner", "--relation", "challenge", "--idempotency-key", "reader:challenge", "--expected-version", "1")
+	h.invoke(h.owner, 0, "revise", "record:owner", "--relation", "withdraw", "--idempotency-key", "owner:withdraw", "--expected-version", "1")
 	h.invoke(h.owner, 0, "check")
 }
 
@@ -295,7 +288,20 @@ func (h *cliHarness) stateIn(home, spaceID string) writeState {
 	if h.git(s.ClonePath, "status", "--porcelain", "--untracked-files=all") != "" {
 		h.t.Fatal("dirty clone")
 	}
-	return writeState{h.git(s.Remote, "rev-parse", s.Branch), h.git(s.ClonePath, "rev-parse", "HEAD"), h.git(s.ClonePath, "rev-list", "--all", "--reflog", "--count"), h.git(s.ClonePath, "ls-files", "--", "records")}
+	head := h.git(s.ClonePath, "rev-parse", "HEAD")
+	cache, e := os.ReadFile(filepath.Join(s.CachePath, "index.json"))
+	if e != nil {
+		h.t.Fatal(e)
+	}
+	v, f := kernel.DecodeJSON(cache)
+	if f != nil || agentprofile.Object(v)["cursor"] != head || h.git(s.ClonePath, "write-tree") != h.git(s.ClonePath, "rev-parse", "HEAD^{tree}") {
+		h.t.Fatal("HEAD/index/tree differ from last verified cursor", head)
+	}
+	config, e := os.ReadFile(filepath.Join(home, "config.json"))
+	if e != nil {
+		h.t.Fatal(e)
+	}
+	return writeState{h.git(s.Remote, "rev-parse", s.Branch), head, h.git(s.ClonePath, "rev-list", "--all", "--reflog", "--count"), h.git(s.ClonePath, "ls-files", "--", "records"), string(config), h.git(s.ClonePath, "config", "--local", "--list")}
 }
 
 // Promotion creates a separately attributed assertion and local documentary
@@ -363,10 +369,7 @@ func TestWritePromotion(t *testing.T) {
 // version 2. Its unpublished signed attempt stays only in the local reflog.
 func TestWriteConcurrentCAS(t *testing.T) {
 	h := newCLI(t)
-	m, _ := h.invoke(h.reader, 0, "keys", "init", "--identity", "agent:owner")
-	public := agentprofile.Object(m["data"])["public_key"].(string)
-	h.invoke(h.owner, 0, "keys", "register", "--space", "space:test", "--identity", "agent:owner", "--public-key", public)
-	h.invoke(h.reader, 0, "spaces", "add", "space:test", "--remote", h.remote, "--genesis", h.pin)
+	h.secondIssuerHome()
 	h.add(h.owner, "record:race", "base")
 	parent := h.git(h.remote, "rev-parse", "main")
 	h.invoke(h.reader, 0, "sync")
@@ -433,6 +436,7 @@ exit 0
 		} else {
 			t.Fatal("race did not reach intended CAS outcome", cmd.ProcessState.ExitCode(), outputs[i].String(), errorsOut[i].String())
 		}
+		h.writeState(homes[i])
 		s, _ := selectSpace(h.config(homes[i]), "space:test")
 		if h.git(s.ClonePath, "status", "--porcelain", "--untracked-files=all") != "" || h.git(s.ClonePath, "log", "-1", "--format=%G?") != "G" {
 			t.Fatal("race left dirty or unsigned clone")
@@ -498,9 +502,9 @@ func TestWriteRecordKindsAndSources(t *testing.T) {
 		t.Fatal(e)
 	}
 	h.invoke(h.owner, 0, "add", "assessment", "--idempotency-key", "assessment:full", "--body", bodyFile)
-	h.invoke(h.owner, 0, "assess", "record:claim", "--kind", "test_result", "--executor", "deterministic", "--sources", sources, "--idempotency-key", "test:valid")
+	h.invoke(h.owner, 0, "assess", "record:claim", "--kind", "test_result", "--executor", "deterministic", "--sources", sources, "--idempotency-key", "test:valid", "--expected-version", "1")
 	before := h.writeState(h.owner)
-	m, _ = h.invoke(h.owner, 3, "assess", "record:claim", "--kind", "test_result", "--executor", "model", "--idempotency-key", "test:invalid")
+	m, _ = h.invoke(h.owner, 3, "assess", "record:claim", "--kind", "test_result", "--executor", "model", "--idempotency-key", "test:invalid", "--expected-version", "1")
 	if errorCodeOf(m) != "assessment_kind_invalid" {
 		t.Fatal(m)
 	}
@@ -533,6 +537,10 @@ func TestWriteInputRefusals(t *testing.T) {
 		{"empty_content_and_body", "{}", "usage", 2, []string{"add", "assertion", "--idempotency-key", "invalid:one", "--content", "", "--body", "-"}},
 		{"malformed_session", "hello", "usage", 2, []string{"add", "assertion", "--idempotency-key", "invalid:one", "--content", "hello", "--source-session", "runtime:session", "--source-text", "-"}},
 		{"bad_number", "", "usage", 2, []string{"revise", "record:input", "--relation", "withdraw", "--expected-version", "0", "--idempotency-key", "invalid:one"}},
+		{"bad_read_token", "", "usage", 2, []string{"revise", "record:input", "--relation", "withdraw", "--expected-token", "write:1:bad", "--idempotency-key", "invalid:one"}},
+		{"conflicting_tokens", "", "usage", 2, []string{"revise", "record:input", "--relation", "withdraw", "--expected-token", "write:1:bad", "--expected-version", "1", "--idempotency-key", "invalid:one"}},
+		{"target_disagrees", "", "version_conflict", 3, []string{"revise", "record:input", "--relation", "withdraw", "--expected-version", "1", "--version", "2", "--idempotency-key", "invalid:one"}},
+		{"unknown_withdrawal", "", "version_conflict", 3, []string{"revise", "record:input", "--relation", "withdraw", "--expected-version", "1", "--expected-id", "revision:missing", "--idempotency-key", "invalid:one"}},
 		{"invalid_time", "", "invalid_time", 3, []string{"add", "assertion", "--idempotency-key", "invalid:one", "--content", "hello", "--at", "yesterday"}},
 		{"duplicate_json_key", `{"x":1,"x":2}`, "invalid_json", 3, []string{"add", "assertion", "--idempotency-key", "invalid:one", "--body", "-"}},
 		// Shape validation precedes admission scanning; a secret in an unknown
@@ -549,4 +557,181 @@ func TestWriteInputRefusals(t *testing.T) {
 		})
 	}
 	h.invoke(h.owner, 0, "add", "assertion", "--content", "", "--idempotency-key", "empty:valid")
+}
+
+func (h *cliHarness) secondIssuerHome() {
+	h.t.Helper()
+	m, _ := h.invoke(h.reader, 0, "keys", "init", "--identity", "agent:owner")
+	public := agentprofile.Object(m["data"])["public_key"].(string)
+	h.invoke(h.owner, 0, "keys", "register", "--space", "space:test", "--identity", "agent:owner", "--public-key", public)
+	h.invoke(h.reader, 0, "spaces", "add", "space:test", "--remote", h.remote, "--genesis", h.pin)
+}
+
+func (h *cliHarness) readToken(home, command, id string, version int64) string {
+	h.t.Helper()
+	args := []string{command, id}
+	if command == "explain" {
+		args = append(args, "--version", strconv64(version))
+	}
+	m, raw := h.invoke(home, 0, args...)
+	for _, space := range agentprofile.Array(agentprofile.Object(m["data"])["spaces"]) {
+		for _, view := range agentprofile.Array(agentprofile.Object(space)["views"]) {
+			for _, item := range agentprofile.Array(agentprofile.Object(view)["items"]) {
+				i := agentprofile.Object(item)
+				ref := agentprofile.Object(i["ref"])
+				if ref["id"] == id && ref["version"] == version {
+					token, ok := i["write_token"].(string)
+					if !ok || !strings.Contains(raw, `"write_token":"write:1:`) {
+						h.t.Fatal("read omitted explicit write token")
+					}
+					return token
+				}
+			}
+		}
+	}
+	h.t.Fatal("missing disclosed target/token")
+	return ""
+}
+
+// A reads v1 before B publishes v2: absent tokens refuse rather than retarget,
+// and explicit old numeric/read tokens conflict for all relations and assess.
+// Current tokens succeed, including explicit withdrawal restoration and original-token
+// retries after later writes. JSON and compact reads expose the same data token.
+func TestWriteReadBoundPreconditions(t *testing.T) {
+	h := newCLI(t)
+	h.secondIssuerHome()
+	h.add(h.owner, "record:read-race", "base")
+	token := h.readToken(h.owner, "explain", "record:read-race", 1)
+	h.readToken(h.reader, "explain", "record:read-race", 1)
+	cmd := exec.Command(binary, "--home", h.owner, "recall", "base")
+	cmd.Env, cmd.Dir = h.env, h.root
+	compact, e := cmd.CombinedOutput()
+	if e != nil || !bytes.HasPrefix(compact, []byte("memory data: ")) || !bytes.Contains(compact, []byte(`"write_token":"`+token+`"`)) {
+		t.Fatal("compact read omitted the JSON token", e, string(compact))
+	}
+	h.invoke(h.reader, 0, "revise", "record:read-race", "--relation", "replace", "--content", "B read v1", "--expected-version", "1", "--idempotency-key", "B:replace")
+	winner := h.git(h.remote, "rev-parse", "main")
+	before := h.writeState(h.owner) // A still has its verified v1 checkout.
+	commands := [][]string{}
+	for _, relation := range []string{"replace", "correct", "withdraw", "challenge"} {
+		args := []string{"revise", "record:read-race", "--relation", relation, "--idempotency-key", "A:" + relation}
+		if relation == "replace" || relation == "correct" {
+			args = append(args, "--content", "computed from A v1")
+		}
+		commands = append(commands, args)
+	}
+	commands = append(commands, []string{"assess", "record:read-race", "--kind", "semantic_review", "--idempotency-key", "A:assess"})
+	for _, args := range commands {
+		m, _, stderr := h.input(h.owner, "", 2, args...)
+		if errorCodeOf(m) != "usage" || !bytes.Contains(stderr, []byte("--expected-version")) || !bytes.Contains(stderr, []byte("--expected-token")) {
+			t.Fatal("missing token did not name required flags", m, string(stderr))
+		}
+		h.unchanged(h.owner, before)
+	}
+	// First stale command legitimately fetches B's commit; it must only align
+	// to that verified state, without publishing or retaining A's old checkout.
+	oldConfig, oldGitConfig := before.config, before.gitConfig
+	stale := append(append([]string{}, commands[0]...), "--expected-version", "1")
+	m, _ := h.invoke(h.owner, 3, stale...)
+	if errorCodeOf(m) != "version_conflict" || h.git(h.remote, "rev-parse", "main") != winner {
+		t.Fatal("stale v1 was silently retargeted", m)
+	}
+	before = h.writeState(h.owner)
+	if before.head != winner || before.config != oldConfig || before.gitConfig != oldGitConfig {
+		t.Fatal("refused write did not align to verified winner")
+	}
+	for _, args := range commands {
+		for _, flags := range [][]string{{"--expected-version", "1"}, {"--expected-token", token}} {
+			m, _ := h.invoke(h.owner, 3, append(append([]string{}, args...), flags...)...)
+			if errorCodeOf(m) != "version_conflict" {
+				t.Fatal("stale token admitted", m)
+			}
+			h.unchanged(h.owner, before)
+		}
+	}
+	current := h.readToken(h.owner, "explain", "record:read-race", 2)
+	args := []string{"assess", "record:read-race", "--kind", "semantic_review", "--expected-token", current, "--idempotency-key", "current:assessment"}
+	m, _ = h.invoke(h.owner, 0, args...)
+	receipt := agentprofile.Object(m["data"])["receipt"]
+	// A read token also rejects unrelated cursor movement, while a numeric
+	// token below tolerates it when the record lifecycle itself has not moved.
+	before = h.writeState(h.owner)
+	m, _ = h.invoke(h.owner, 3, "revise", "record:read-race", "--relation", "challenge", "--expected-token", current, "--idempotency-key", "cursor:stale")
+	if errorCodeOf(m) != "version_conflict" {
+		t.Fatal("read cursor precondition silently refreshed", m)
+	}
+	h.unchanged(h.owner, before)
+	h.add(h.reader, "record:neighbour", "later independent write")
+	m, _ = h.invoke(h.owner, 0, args...)
+	if !reflect.DeepEqual(receipt, agentprofile.Object(m["data"])["receipt"]) {
+		t.Fatal("original read-token replay lost receipt")
+	}
+	h.invoke(h.owner, 0, "revise", "record:read-race", "--relation", "challenge", "--expected-version", "2", "--idempotency-key", "current:challenge")
+	current = h.readToken(h.owner, "explain", "record:read-race", 2)
+	args = []string{"revise", "record:read-race", "--relation", "correct", "--content", "current corrected", "--expected-token", current, "--idempotency-key", "current:correct"}
+	m, _ = h.invoke(h.owner, 0, args...)
+	receipt = agentprofile.Object(m["data"])["receipt"]
+	h.invoke(h.owner, 0, "revise", "record:read-race", "--relation", "withdraw", "--expected-version", "3", "--idempotency-key", "current:withdraw")
+	h.invoke(h.owner, 0, "revise", "record:read-race", "--relation", "correct", "--content", "restored explicitly", "--expected-id", "record:current:withdraw", "--expected-version", "1", "--idempotency-key", "current:restore")
+	m, _ = h.invoke(h.owner, 0, args...)
+	if !reflect.DeepEqual(receipt, agentprofile.Object(m["data"])["receipt"]) {
+		t.Fatal("revision original-token replay lost receipt")
+	}
+	h.invoke(h.owner, 0, "check")
+}
+
+// An assessment/challenge reaches pre-push from v1, then a second real home
+// publishes v2 before that push. The stale retry must refuse even though kernel
+// historical assessment/challenge admission is valid. HEAD/index/tree are the
+// verified winner; later push/read/add never carry the refused candidate.
+func TestWriteTargetPreconditionAfterNFF(t *testing.T) {
+	for _, command := range []string{"assess", "challenge"} {
+		t.Run(command, func(t *testing.T) {
+			h := newCLI(t)
+			h.secondIssuerHome()
+			h.add(h.owner, "record:precondition", "base")
+			h.invoke(h.reader, 0, "sync")
+			parent := h.git(h.remote, "rev-parse", "main")
+			hooks := filepath.Join(h.root, "hooks")
+			if e := os.Mkdir(hooks, 0700); e != nil {
+				t.Fatal(e)
+			}
+			quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'" }
+			script := "#!/bin/sh\nif mkdir " + quote(filepath.Join(h.root, "once")) + " 2>/dev/null; then\n" + quote(binary) + " --home " + quote(h.reader) + " --json revise record:precondition --relation replace --content winner --expected-version 1 --idempotency-key winner > " + quote(filepath.Join(h.root, "nested-output")) + " 2>&1 || exit 87\nfi\n"
+			if e := os.WriteFile(filepath.Join(hooks, "pre-push"), []byte(script), 0700); e != nil {
+				t.Fatal(e)
+			}
+			for i, entry := range h.env {
+				if strings.HasPrefix(entry, "GIT_CONFIG_VALUE_4=") {
+					h.env[i] = "GIT_CONFIG_VALUE_4=" + hooks
+				}
+			}
+			args := []string{"assess", "record:precondition", "--kind", "semantic_review"}
+			if command == "challenge" {
+				args = []string{"revise", "record:precondition", "--relation", "challenge"}
+			}
+			args = append(args, "--id", "record:refused", "--expected-version", "1", "--idempotency-key", "refused")
+			m, _ := h.invoke(h.owner, 3, args...)
+			if errorCodeOf(m) != "version_conflict" || h.git(h.remote, "rev-list", "--count", parent+"..main") != "1" {
+				t.Fatal("stale post-push precondition accepted", m)
+			}
+			state := h.writeState(h.owner)
+			if state.head != state.remote || strings.Contains(state.files, hex.EncodeToString([]byte("record:refused"))) {
+				t.Fatal("refused attempt remained checked out", state)
+			}
+			s, _ := selectSpace(h.config(h.owner), "space:test")
+			h.git(s.ClonePath, "push", "origin", "HEAD:refs/heads/main")
+			h.invoke(h.owner, 0, "check")
+			h.readToken(h.owner, "explain", "record:precondition", 2)
+			args[len(args)-3] = "2"
+			args[len(args)-5] = "record:retry"
+			args[len(args)-1] = "retry"
+			h.invoke(h.owner, 0, args...)
+			h.add(h.owner, "record:after-refusal", "valid later write")
+			if strings.Contains(h.git(h.remote, "ls-tree", "-r", "--name-only", "main"), hex.EncodeToString([]byte("record:refused"))) {
+				t.Fatal("later publication carried refused candidate")
+			}
+			h.writeState(h.owner)
+		})
+	}
 }

@@ -105,6 +105,20 @@ unsigned commit-message field grants identity, representation or an intake fact.
 
 ## Replay and policy forks
 
+Sync aligns a clean checkout with its verified cursor using an ordinary detached
+switch; it preserves pre-existing dirty caller work. Write requires a clean
+clone and also restores that verified checkout on refusal, including a losing
+NFF attempt; the signed unpublished commit remains in reflog. Cleanup uses a
+bounded independent context so cancellation does not leave a refused commit
+checked out.
+
+An optional `WriteRequest.Precondition(snapshot, cursor)` applies application
+freshness constraints after kernel admission, before publication and after every
+NFF fetch. It receives detached verified data and grants no authority. The CLI
+uses it for explicit read-bound target tokens, including assessment/challenge
+operations whose kernel semantics allow historical targets. These preconditions
+do not change the signed kernel operation or its replay semantics.
+
 Sync fetches the configured branch and walks its **first-parent history**, oldest
 first. At each position:
 

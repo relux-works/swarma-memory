@@ -214,6 +214,7 @@ func readCLI(ctx context.Context, h home, c localConfig, a arguments) (any, erro
 				}
 				item["data_classification"] = "data"
 				item["source"] = map[string]any{"space": s.ID, "cursor": r.Cursor(), "refs": item["source_refs"]}
+				item["write_token"] = readWriteToken(s.ID, r.Cursor(), item["ref"])
 				for _, polarity := range []string{"support", "oppose"} {
 					delete(agentprofile.Object(item[polarity]), "authorized_snapshot_handle")
 				}

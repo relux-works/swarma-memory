@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/relux-works/swarma-memory/kernel"
 	"github.com/relux-works/swarma-memory/sign"
@@ -254,9 +255,19 @@ func (r *Repository) Snapshot() map[string]any {
 	}
 	return r.state.Snapshot()
 }
-func (r *Repository) Sync(ctx context.Context) error {
+
+// Sync also aligns a clean checkout with the verified cursor. Dirty caller work
+// is preserved; Write rejects it before taking ownership of any paths.
+func (r *Repository) Sync(ctx context.Context) (err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	defer func() {
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer cancel()
+		if e := r.checkoutVerified(cleanup, false); e != nil {
+			err = e
+		}
+	}()
 	return r.sync(ctx)
 }
 func (r *Repository) sync(ctx context.Context) error {

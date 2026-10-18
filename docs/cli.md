@@ -174,7 +174,7 @@ The kernel rejects missing or non-source refs with `invalid_reference`.
 memory revise record:observation --space project:example --relation replace \
   --content 'Updated observation' --expected-version 1 --idempotency-key update:one
 memory assess record:observation --space project:example --kind semantic_review \
-  --executor model --result pass --idempotency-key review:one
+  --executor model --result pass --expected-version 2 --idempotency-key review:one
 ```
 
 `revise` supports all four architecture relations. `replace`/`correct` require
@@ -185,17 +185,39 @@ itself uses `--id` (or `record:KEY`), version 1, and the target's subject. Its i
 defaults to the local identity (`--issuer` and `--admission-class` are explicit
 inputs, subject to kernel authority).
 
-`--version N` selects an exact target version. Otherwise the CLI selects the
-latest verified version of that opaque ID. `--expected-version N` pins CAS to that
-ID; `--expected-id ID` with it selects a different token ID, such as a withdrawal's
-revision reference. Without an explicit token the CLI takes it from verified
-revision history. The kernel alone decides whether this is a unique current
-head and whether the actor may revise it. Build runs once, so a concurrent head
-change never silently retargets the operation. On a key retry, omitted target,
-expected token and intake defaults come from the original verified operation,
-so an already completed revision returns its original receipt. Non-issuer
-replace/correct/withdraw refuses `representation_invalid`; a separately admitted
-writer may challenge.
+Every `revise` relation and `assess` requires an explicit caller-observed
+`--expected-version N` or `--expected-token TOKEN`. Missing both gives `usage`,
+exit 2, with stderr naming these flags. They are mutually exclusive. A stale
+precondition gives `version_conflict`, exit 3; a write never silently substitutes
+a newly fetched version for the one the caller observed.
+
+`recall` and `explain` expose `write_token` on each disclosed item in both JSON
+and compact output (null when the kernel withholds the item ref). Pass that exact
+string with `--expected-token`. It binds the disclosed space, record/version and
+verified read cursor. This conservative token becomes stale after **any** space
+commit, including an unrelated write: read again or use the numeric record-version
+token when unrelated commits should be tolerated. The token is quoted data, not
+an authorization capability, signed view or grant. It contains only metadata
+already disclosed by the read; it reveals no hidden revision identifiers.
+
+For a numeric token, use the disclosed item's `ref.version` with
+`--expected-version`; its ID is the command's record ID. This pins both the target
+version and expected token rather than selecting the latest version after sync.
+`--expected-id ID` with it can name a withdrawal receipt's revision reference;
+the target is then pinned to that withdrawal's original target. `--version N`,
+when supplied, must agree with the pinned target. A withdrawn record can be
+omitted by the kernel read projection; restoration then requires the explicit
+withdrawal receipt token, rather than inventing a read token for hidden data.
+
+Build runs once. An optional adapter freshness precondition is checked against
+verified state after kernel admission and after every NFF fetch. This also guards
+`challenge` and `assess`, where the kernel intentionally permits historical
+references. It changes the CLI's read/write precondition, not the kernel's
+admission semantics: authorization, representation and unique sequence-head
+admission remain kernel decisions. Original-token idempotent retries keep their
+original target and receipt under current authorization, even after later writes;
+a retry still must supply an explicit token. Non-issuer replace/correct/withdraw
+refuses `representation_invalid`; a separately admitted writer may challenge.
 
 `assess` accepts `--version` for the target and requires `--kind` from the closed
 assessment check kinds. Defaults are `--executor model`, `--result pass`,
@@ -204,7 +226,7 @@ Policy/environment pins come from the trusted profile; the check rule is the exa
 `check:KIND` version 1. Model checks remain restricted to `semantic_review` by the
 kernel. `--body` supplies the complete assessment body instead of these shortcuts;
 its check kind and subject pin must match the command and selected record. An
-assessment retry retains its originally selected target. Envelope issuer and
+assessment retry retains its explicitly selected target. Envelope issuer and
 perspective flags are accepted, while the target fixes subject and output version
 is 1. Assessments also accept source/session flags.
 
@@ -282,11 +304,11 @@ Pre-publication refusals create no record file or commit and perform no push.
 
 | Section | Ambiguity | Decision |
 | --- | --- | --- |
-| §7.1 / §11 | Common flags, stable implicit identity/time, original receipt vs current cursor | Required caller key; documented stable IDs/defaults, recover original omitted defaults from verified intent, preserve original receipt/commit and report current cursor separately. |
-| §7.1 | Retry bound and a losing push's local commit | Two additional attempts; unchanged library path; preserve signed unpublished attempt in reflog and report CAS conflict after fetch. |
+| §7.1 / §11 | Common flags, stable identity/time, original receipt vs current cursor | Required caller key; documented stable IDs/defaults, recover original intake defaults from verified intent, preserve original receipt/commit and report current cursor separately. |
+| §7.1 | Retry bound and a losing push's local commit | Two additional attempts; align the clean checkout to the last verified cursor on every Write return, keeping the signed unpublished attempt only in reflog. |
 | §7.1 | Provisional scan quarantine precedes the adapter's post-admission scan | Translate only confirmed scanner quarantine to typed redacted findings; no admission rule or profile change. |
 | §7.2 / closed source schema | Structured session locator and raw digest have no new fields | Origin holds canonical locator JSON, object holds raw SHA256 locator, excerpt is retained body data; no mislabelled canonical digest. |
-| §7.1 / K-REV-1 | Default CAS token and exact retry after its head changed | Select from verified history once; original intent supplies omitted retry defaults; kernel validates CAS/authority. |
+| §7.1 / K-REV-1 / review B1 | Read-to-write races and exact retry after head changes | Require caller-observed numeric/read tokens for revise and assess; pin target before sync can retarget it; recheck freshness after NFF; original-token replay retains its receipt and kernel authority checks. |
 | §11 | Assessment defaults and check execution | Pin documentary evidence; never execute the check or turn a model check into deterministic evidence. |
 | §11 / stage 5 boundary | Promotion before a directory or cross-space lineage integration exists | Only configured spaces; kernel source read plus target write; preserve disclosure and create a local documentary citation with unknown lineage. |
 
@@ -362,7 +384,7 @@ The closed `data` variants are:
 `policy` is the closed `space.Policy` payload. A diagnostic has exactly `commit`,
 `path`, `code`. A view follows the package's closed view schema with the single
 top-level `authorized_snapshot_handle` omitted. Each item follows its closed
-item shape, adds `data_classification: data` and
+item shape, adds `data_classification: data`, `write_token: STRING|null` and
 `source: {space: ID, cursor: COMMIT, refs: VERSION-REFS}`, and omits only the fresh
 `authorized_snapshot_handle` from each `support`/`oppose` channel. Ref fields,
 issuer, perspective, source references and every evaluation qualification remain.
@@ -405,7 +427,9 @@ own Git environment, including clearing unrelated `GIT_DIR`/`GIT_WORK_TREE`
 bindings. Every write and owner policy commit uses `git commit -S`, is verified before a
 normal feature/space branch push, and has no unsigned production switch. A failed
 signature restores only the command's own policy path; a racing push returns
-`version_conflict`, retaining the signed local attempt for inspection.
+`version_conflict` and moves HEAD, index and working tree to the last verified
+head using a normal detached switch. Its signed unpublished attempt remains only
+in reflog. Pre-existing dirty work is refused without overwriting it.
 
 CLI tests build the binary once per package and execute subprocesses with isolated
 homes and local bare remotes. SSH signing keys are ephemeral test-owned files;
@@ -413,7 +437,9 @@ explicit child environments disable host/system Git configuration, key agents
 and network transports. `ssh-keygen` generates those fixture keys and verifies
 real signed commits. Write tests include two registered homes reaching a real
 pre-push barrier from the same parent, every typed refusal with publication-state
-checks, raw scanner-output redaction, session excerpts, receipt retries, promotion
+checks (including HEAD/index/tree equality with the verified cursor), read-bound
+token and two-home prior-read/NFF regressions, raw scanner-output redaction,
+session excerpts, receipt retries, promotion
 read/write gates and quoted instruction-like data. Run `go test ./cmd/memory`,
 `go test -race ./space ./cmd/...`, `go vet ./...`,
 `python3 spec/checks/validate.py`, and `go run ./cmd/memory conformance`.
