@@ -80,6 +80,44 @@ func safeGitStderr(raw string) string {
 	return boundedGitExcerpt(strings.Join(lines, "\n"))
 }
 
+// Classify only recognized Git/transport diagnostics into fixed literals. No
+// operand or protocol text is retained. This describes the reported failure,
+// not an independent diagnosis of the remote or its authorization policy.
+func gitFailureCause(command string, stderr, stdout []byte) string {
+	if command == "push" {
+		// Porcelain puts rejection reasons on stdout. Inspect a bounded prefix;
+		// a reason beyond it remains unknown, never replaced with raw output.
+		for _, line := range strings.Split(string(stdout[:min(len(stdout), gitStderrCaptureLimit)]), "\n") {
+			fields := strings.Split(line, "\t")
+			if len(fields) == 3 && fields[0] == "!" && (fields[2] == "[rejected] (non-fast-forward)" || fields[2] == "[rejected] (fetch first)") {
+				return "non_fast_forward"
+			}
+		}
+	}
+	for _, line := range strings.Split(strings.ToLower(string(stderr)), "\n") {
+		line = strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(line, "fatal: unable to create ") && strings.Contains(line, "index.lock") && strings.HasSuffix(strings.TrimSuffix(line, "."), "file exists"):
+			return "index_locked"
+		case strings.HasPrefix(line, "fatal: couldn't find remote ref "):
+			return "remote_ref_missing"
+		case command == "push" && strings.HasPrefix(line, "! ") && strings.Contains(line, "[rejected]") && (strings.HasSuffix(line, "(non-fast-forward)") || strings.HasSuffix(line, "(fetch first)")):
+			return "non_fast_forward"
+		case strings.HasPrefix(line, "fatal: authentication failed") || strings.Contains(line, ": permission denied (publickey"):
+			return "auth_failed"
+		case strings.HasSuffix(strings.TrimSuffix(line, "."), ": permission denied") || strings.HasSuffix(strings.TrimSuffix(line, "."), ": operation not permitted"):
+			return "permission_denied"
+		case strings.HasPrefix(line, "fatal: not a git repository"):
+			return "not_a_repository"
+		case line == "fatal: needed a single revision" || (strings.HasPrefix(line, "fatal: ambiguous argument ") && strings.HasSuffix(line, "unknown revision or path not in the working tree.")):
+			return "revision_missing"
+		case (strings.HasPrefix(line, "fatal: repository ") && strings.HasSuffix(line, "does not exist")) || strings.HasSuffix(line, "does not appear to be a git repository") || strings.HasPrefix(line, "ssh: could not resolve hostname ") || (strings.HasPrefix(line, "fatal: unable to access ") && (strings.Contains(line, "could not resolve host:") || strings.Contains(line, "failed to connect to "))):
+			return "remote_unreachable"
+		}
+	}
+	return "unknown"
+}
+
 // Arguments are internal, but keep future unexpected input out of diagnostics.
 func gitSubcommand(args []string) string {
 	for len(args) >= 2 && args[0] == "-c" {
@@ -87,7 +125,7 @@ func gitSubcommand(args []string) string {
 	}
 	if len(args) > 0 {
 		switch args[0] {
-		case "clone", "rev-parse", "rev-list", "fetch", "push", "status", "switch", "restore", "rm", "add", "commit", "write-tree", "verify-commit", "symbolic-ref", "ls-tree", "cat-file", "diff-tree", "show":
+		case "clone", "rev-parse", "rev-list", "fetch", "push", "status", "switch", "restore", "rm", "add", "commit", "write-tree", "verify-commit", "symbolic-ref", "ls-tree", "cat-file", "diff-tree", "show", "ls-remote":
 			return args[0]
 		}
 	}
@@ -103,6 +141,9 @@ func (e *Error) Error() string {
 		status = fmt.Sprint(*e.ExitStatus)
 	}
 	message := fmt.Sprintf("%s: git %s (exit %s)", e.Code, e.Command, status)
+	if e.Cause != "" {
+		message += "; cause: " + e.Cause
+	}
 	if e.Detail != "" {
 		message += ": " + e.Detail
 	}

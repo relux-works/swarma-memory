@@ -25,6 +25,9 @@ type Git struct {
 
 func (g Git) run(ctx context.Context, input []byte, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
+	// After cancellation (or Git exit), close inherited pipes after 250 ms.
+	// CommandContext kills Git itself; descendants cannot prolong pipe draining.
+	cmd.WaitDelay = 250 * time.Millisecond
 	cmd.Dir = g.Directory
 	cmd.Env = g.Environment
 	cmd.Stdin = bytes.NewReader(input)
@@ -37,7 +40,8 @@ func (g Git) run(ctx context.Context, input []byte, args ...string) ([]byte, err
 		if cmd.ProcessState != nil {
 			status = cmd.ProcessState.ExitCode()
 		}
-		failure := &Error{Code: "git_failed", Command: gitSubcommand(args), ExitStatus: &status, Stderr: stderr.excerpt()}
+		command := gitSubcommand(args)
+		failure := &Error{Code: "git_failed", Command: command, ExitStatus: &status, Stderr: stderr.excerpt(), Cause: gitFailureCause(command, stderr.data, stdout.Bytes())}
 		var exited *exec.ExitError
 		if !errors.As(err, &exited) {
 			// Do not wrap the original error: exec errors can contain a private path.
@@ -49,7 +53,8 @@ func (g Git) run(ctx context.Context, input []byte, args ...string) ([]byte, err
 }
 
 // Error retains the typed code. Git failures add an allowlisted subcommand,
-// optional exit status (-1 for no normal exit), and bounded allowlisted text.
+// optional exit status (-1 for no normal exit), a fixed Cause category (unknown
+// for unrecognized diagnostics), and bounded allowlisted text.
 // Raw arguments, environment, paths, stderr and underlying errors are not retained.
 type Error struct {
 	Code       string
@@ -57,6 +62,7 @@ type Error struct {
 	ExitStatus *int
 	Stderr     string
 	Detail     string
+	Cause      string
 }
 
 func fail(code string) error { return &Error{Code: code} }
