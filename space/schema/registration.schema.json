@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:space:1:registration",
+  "type": "object",
+  "properties": {
+    "space_id": {
+      "type": "string"
+    },
+    "policy_version": {
+      "type": "integer"
+    },
+    "author": {
+      "type": "string"
+    },
+    "identity": {
+      "type": "string"
+    },
+    "key": {
+      "type": "string"
+    },
+    "alg": {
+      "type": "string",
+      "const": "ed25519"
+    },
+    "public_key": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "space_id",
+    "policy_version",
+    "author",
+    "identity",
+    "key",
+    "alg",
+    "public_key"
+  ],
+  "additionalProperties": false
+}

@@ -113,74 +113,7 @@ func (s *State) recordContract(r any, index map[string]any, at any) *Refusal {
 	}
 	switch e["kind"] {
 	case "assertion":
-		d := s.domain(r)
-		if d == nil {
-			report("/envelope/schema", UnknownSchema)
-			break
-		}
-		if b["statement_kind"] != d["statement_kind"] {
-			report("/body/statement_kind", InvalidDomainValue)
-		}
-		fields := map[string]map[string]any{}
-		for _, v := range arr(d["fields"]) {
-			f := obj(v)
-			fields[f["name"].(string)] = f
-		}
-		previous := ""
-		seen := map[string]bool{}
-		for i, v := range arr(b["content"]) {
-			f := obj(v)
-			name := f["field"].(string)
-			declaration := fields[name]
-			if declaration == nil || i > 0 && name <= previous {
-				report("/body/content", InvalidDomainValue)
-			}
-			previous = name
-			seen[name] = true
-			if declaration == nil {
-				continue
-			}
-			value := f["value"]
-			valid := false
-			switch declaration["type"] {
-			case "string":
-				_, valid = value.(string)
-			case "integer":
-				_, valid = value.(int64)
-			case "boolean":
-				_, valid = value.(bool)
-			case "string_set":
-				a, ok := value.([]any)
-				valid = ok && ordered(a)
-				for _, item := range a {
-					if _, ok := item.(string); !ok {
-						valid = false
-					}
-				}
-			}
-			if !valid {
-				report("/body/content", InvalidDomainValue)
-			}
-		}
-		for name, f := range fields {
-			if f["required"] == true && !seen[name] {
-				report("/body/content", InvalidDomainValue)
-			}
-		}
-		slot := []any{}
-		cardinality := obj(d["cardinality"])
-		if cardinality["mode"] == "single" {
-			for _, f := range arr(cardinality["slot_fields"]) {
-				v := contentValue(r, f)
-				if v == nil {
-					report("/body/slot", InvalidDomainValue)
-				}
-				slot = append(slot, v)
-			}
-		}
-		if b["slot"] != key(slot) {
-			report("/body/slot", InvalidDomainValue)
-		}
+		assertionContent(r, s.domain(r), report)
 	case "source":
 		// Retention-admission references name external adapter evidence, not records.
 		// The fixture policy supplies the trusted fact; retain is independently checked.
@@ -343,4 +276,76 @@ func graphCycle(graph map[string][]string) bool {
 		}
 	}
 	return false
+}
+
+// assertionContent shares exact domain content checks between intake and stored-record verification.
+func assertionContent(r any, d map[string]any, report func(string, RefusalCode)) {
+	b := body(r)
+	if d == nil {
+		report("/envelope/schema", UnknownSchema)
+		return
+	}
+	if b["statement_kind"] != d["statement_kind"] {
+		report("/body/statement_kind", InvalidDomainValue)
+	}
+	fields := map[string]map[string]any{}
+	for _, v := range arr(d["fields"]) {
+		f := obj(v)
+		fields[f["name"].(string)] = f
+	}
+	previous := ""
+	seen := map[string]bool{}
+	for i, v := range arr(b["content"]) {
+		f := obj(v)
+		name := f["field"].(string)
+		declaration := fields[name]
+		if declaration == nil || i > 0 && name <= previous {
+			report("/body/content", InvalidDomainValue)
+		}
+		previous = name
+		seen[name] = true
+		if declaration == nil {
+			continue
+		}
+		value := f["value"]
+		valid := false
+		switch declaration["type"] {
+		case "string":
+			_, valid = value.(string)
+		case "integer":
+			_, valid = value.(int64)
+		case "boolean":
+			_, valid = value.(bool)
+		case "string_set":
+			a, ok := value.([]any)
+			valid = ok && ordered(a)
+			for _, item := range a {
+				if _, ok := item.(string); !ok {
+					valid = false
+				}
+			}
+		}
+		if !valid {
+			report("/body/content", InvalidDomainValue)
+		}
+	}
+	for name, f := range fields {
+		if f["required"] == true && !seen[name] {
+			report("/body/content", InvalidDomainValue)
+		}
+	}
+	slot := []any{}
+	cardinality := obj(d["cardinality"])
+	if cardinality["mode"] == "single" {
+		for _, f := range arr(cardinality["slot_fields"]) {
+			v := contentValue(r, f)
+			if v == nil {
+				report("/body/slot", InvalidDomainValue)
+			}
+			slot = append(slot, v)
+		}
+	}
+	if b["slot"] != key(slot) {
+		report("/body/slot", InvalidDomainValue)
+	}
 }

@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:space:1:policy",
+  "type": "object",
+  "properties": {
+    "space_id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "agent",
+        "project",
+        "platform"
+      ]
+    },
+    "version": {
+      "type": "integer"
+    },
+    "previous": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "author": {
+      "type": "string"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "writers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "identity": {
+            "type": "string"
+          },
+          "admission_classes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "self_declaration",
+                "imported_publication",
+                "machine_observation",
+                "semantic_inference"
+              ]
+            }
+          },
+          "schemas": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "kinds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "assertion",
+                "source",
+                "justification",
+                "assessment",
+                "revision"
+              ]
+            }
+          }
+        },
+        "required": [
+          "identity",
+          "admission_classes",
+          "schemas",
+          "kinds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "readers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "identity": {
+            "type": "string"
+          },
+          "spaces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "identity",
+          "spaces"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "keys": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "registration": {
+            "$ref": "urn:bounded-evidence:space:1:registration"
+          },
+          "signature": {
+            "type": "object",
+            "properties": {
+              "purpose": {
+                "type": "string",
+                "const": "swarma-memory-key-registration/1"
+              },
+              "key": {
+                "type": "string"
+              },
+              "alg": {
+                "type": "string",
+                "const": "ed25519"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "purpose",
+              "key",
+              "alg",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "registration",
+          "signature"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "schemas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "ceiling": {
+      "type": "string",
+      "const": "non-sensitive"
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "max_record_bytes": {
+          "type": "integer"
+        },
+        "max_field_bytes": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_record_bytes",
+        "max_field_bytes"
+      ],
+      "additionalProperties": false
+    },
+    "resolvers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "area": {
+            "type": "string"
+          },
+          "identities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "area",
+          "identities"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "retention": {
+      "type": "object",
+      "properties": {
+        "on_owner_retire": {
+          "type": "string",
+          "enum": [
+            "retain",
+            "deny"
+          ]
+        },
+        "on_owner_revoke": {
+          "type": "string",
+          "enum": [
+            "retain",
+            "deny"
+          ]
+        }
+      },
+      "required": [
+        "on_owner_retire",
+        "on_owner_revoke"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "space_id",
+    "kind",
+    "version",
+    "previous",
+    "author",
+    "owners",
+    "writers",
+    "readers",
+    "keys",
+    "schemas",
+    "ceiling",
+    "limits",
+    "resolvers",
+    "retention"
+  ],
+  "additionalProperties": false
+}

@@ -25,40 +25,8 @@ func (s *State) validateSnapshot() *Refusal {
 			return refusal(InvalidShape)
 		}
 	}
-	domains := map[string]bool{}
-	for _, v := range arr(s.snapshot["domain_schemas"]) {
-		d := obj(v)
-		k := refKey(d)
-		if domains[k] {
-			return refusal(InvalidDomainValue)
-		}
-		domains[k] = true
-		if d["version"].(int64) < 1 {
-			return refusal(InvalidDomainValue)
-		}
-		names := map[string]bool{}
-		for _, f := range arr(d["fields"]) {
-			m := obj(f)
-			name := m["name"].(string)
-			if names[name] {
-				return refusal(InvalidDomainValue)
-			}
-			names[name] = true
-			if (m["type"] == "string_set") != (m["equality"] == "set") {
-				return refusal(InvalidDomainValue)
-			}
-		}
-		for _, incompatibility := range arr(d["incompatibilities"]) {
-			m := obj(incompatibility)
-			if !names[m["field"].(string)] || (len(arr(m["same"])) != 4 || !equalJSON(set(arr(m["same"])), []any{"perspective", "slot", "space", "subject"})) {
-				return refusal(InvalidDomainValue)
-			}
-		}
-		for _, name := range arr(obj(d["cardinality"])["slot_fields"]) {
-			if !names[name.(string)] {
-				return refusal(InvalidDomainValue)
-			}
-		}
+	if r := validateDomainDocuments(arr(s.snapshot["domain_schemas"])); r != nil {
+		return r
 	}
 	facts := map[string]bool{}
 	for _, v := range arr(policy["lineage_facts"]) {
@@ -318,6 +286,45 @@ func (s *State) eraseReplayBinding(entry, intent map[string]any) *Refusal {
 		}
 		if !found {
 			return refusal(InvalidReference)
+		}
+	}
+	return nil
+}
+
+func validateDomainDocuments(documents []any) *Refusal {
+	domains := map[string]bool{}
+	for _, v := range documents {
+		d := obj(v)
+		k := refKey(d)
+		if domains[k] {
+			return refusal(InvalidDomainValue)
+		}
+		domains[k] = true
+		if d["version"].(int64) < 1 {
+			return refusal(InvalidDomainValue)
+		}
+		names := map[string]bool{}
+		for _, f := range arr(d["fields"]) {
+			m := obj(f)
+			name := m["name"].(string)
+			if names[name] {
+				return refusal(InvalidDomainValue)
+			}
+			names[name] = true
+			if (m["type"] == "string_set") != (m["equality"] == "set") {
+				return refusal(InvalidDomainValue)
+			}
+		}
+		for _, incompatibility := range arr(d["incompatibilities"]) {
+			m := obj(incompatibility)
+			if !names[m["field"].(string)] || (len(arr(m["same"])) != 4 || !equalJSON(set(arr(m["same"])), []any{"perspective", "slot", "space", "subject"})) {
+				return refusal(InvalidDomainValue)
+			}
+		}
+		for _, name := range arr(obj(d["cardinality"])["slot_fields"]) {
+			if !names[name.(string)] {
+				return refusal(InvalidDomainValue)
+			}
 		}
 	}
 	return nil

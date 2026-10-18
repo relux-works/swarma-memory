@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:sign:1:signed-record",
+  "type": "object",
+  "properties": {
+    "record": {
+      "oneOf": [
+        {
+          "$ref": "urn:bounded-evidence:0.2.6:assertion"
+        },
+        {
+          "$ref": "urn:bounded-evidence:0.2.6:source"
+        },
+        {
+          "$ref": "urn:bounded-evidence:0.2.6:justification"
+        },
+        {
+          "$ref": "urn:bounded-evidence:0.2.6:assessment"
+        },
+        {
+          "$ref": "urn:bounded-evidence:0.2.6:revision"
+        }
+      ]
+    },
+    "signature": {
+      "type": "object",
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "const": "swarma-memory-record/1"
+        },
+        "key": {
+          "type": "string"
+        },
+        "alg": {
+          "type": "string",
+          "const": "ed25519"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "purpose",
+        "key",
+        "alg",
+        "value"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "record",
+    "signature"
+  ],
+  "additionalProperties": false
+}
