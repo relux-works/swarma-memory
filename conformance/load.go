@@ -3,6 +3,7 @@ package conformance
 import (
 	"fmt"
 	"io/fs"
+	"sort"
 	"strings"
 
 	"github.com/relux-works/swarma-memory/kernel"
@@ -87,6 +88,13 @@ func checkContract(doc map[string]any) error {
 		return fmt.Errorf("/expected%s: %s", p, s)
 	}
 	norm := doc["normalization"].(map[string]any)
+	// Derive the allowed slots from the schema-validated expected report, not
+	// from normalization metadata that could otherwise erase semantic fields.
+	paths := expectedHandleFields(expected)
+	fields := make(map[string]bool, len(paths))
+	for _, p := range paths {
+		fields[p] = true
+	}
 	slots := map[string]bool{}
 	for _, raw := range norm["fresh_handles"].([]any) {
 		p := raw.(string)
@@ -94,14 +102,22 @@ func checkContract(doc map[string]any) error {
 		if err != nil || len(parts) < 2 || (parts[0] != "operation_results" && parts[0] != "result") {
 			return fmt.Errorf("fresh_handles: invalid report slot %q", p)
 		}
-		x, ok := lookup(expected, p)
-		if _, str := x.(string); !ok || !str {
-			return fmt.Errorf("fresh_handles: missing string slot %q", p)
+		if !fields[p] {
+			return fmt.Errorf("fresh_handles: not a handle field %q", p)
 		}
 		if slots[p] {
 			return fmt.Errorf("fresh_handles: duplicate slot %q", p)
 		}
 		slots[p] = true
+	}
+	for _, p := range paths {
+		if !slots[p] {
+			return fmt.Errorf("fresh_handles: undeclared handle field %q", p)
+		}
+		value, _ := lookup(expected, p)
+		if !symbolicHandle(value) {
+			return fmt.Errorf("fresh_handles: expected symbolic handle @h[1-9][0-9]* at %q", p)
+		}
 	}
 	for _, name := range []string{"equal_handles", "distinct_handles"} {
 		for _, raw := range norm[name].([]any) {
@@ -163,4 +179,43 @@ func checkContract(doc map[string]any) error {
 		}
 	}
 	return nil
+}
+
+// The only normalized fields in the closed report schemas are snapshot and
+// receipt handles. Walk every nested object/array so coverage cannot omit a
+// polarity's repeated handle or a receipt inside operation_results.
+func expectedHandleFields(report any) []string {
+	var paths []string
+	var walk func(any, string)
+	walk = func(value any, path string) {
+		switch node := value.(type) {
+		case map[string]any:
+			for key, x := range node {
+				p := path + "/" + escape(key)
+				if key == "authorized_snapshot_handle" || key == "receipt_handle" {
+					paths = append(paths, p)
+				}
+				walk(x, p)
+			}
+		case []any:
+			for i, x := range node {
+				walk(x, fmt.Sprintf("%s/%d", path, i))
+			}
+		}
+	}
+	walk(report, "")
+	sort.Strings(paths)
+	return paths
+}
+func symbolicHandle(value any) bool {
+	s, ok := value.(string)
+	if !ok || len(s) < 3 || !strings.HasPrefix(s, "@h") || s[2] < '1' || s[2] > '9' {
+		return false
+	}
+	for i := 3; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
