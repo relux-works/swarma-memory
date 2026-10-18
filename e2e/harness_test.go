@@ -2,6 +2,7 @@ package e2e_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 )
 
@@ -72,12 +74,16 @@ func newFixture(t *testing.T) *fixture {
 }
 
 func (f *fixture) newAgent(name string) *agent {
+	return f.newAgentIdentity(name, "agent:"+name)
+}
+
+func (f *fixture) newAgentIdentity(name, identity string) *agent {
 	f.t.Helper()
 	root := filepath.Join(f.root, name)
 	if err := os.MkdirAll(root, 0700); err != nil {
 		f.t.Fatal(err)
 	}
-	a := &agent{t: f.t, root: root, home: filepath.Join(root, "memory"), identity: "agent:" + name}
+	a := &agent{t: f.t, root: root, home: filepath.Join(root, "memory"), identity: identity}
 	a.env = isolatedEnv(root)
 	sshKey := filepath.Join(root, "commit_signer")
 	a.exec(root, "ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", sshKey)
@@ -133,6 +139,7 @@ type reply struct {
 	Classification string          `json:"data_classification"`
 	Data           json.RawMessage `json:"data"`
 	Error          *wireError      `json:"error"`
+	raw            []byte
 }
 
 // closedObject rejects unknown, missing and duplicate keys, plus trailing JSON.
@@ -199,39 +206,80 @@ func text(t *testing.T, raw []byte) string {
 
 func (a *agent) run(wantExit int, args ...string) reply {
 	a.t.Helper()
-	cmd := exec.Command(memoryBinary, append([]string{"--home", a.home, "--json"}, args...)...)
-	cmd.Dir, cmd.Env = a.root, a.env
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	err := cmd.Run()
+	return a.start("", args...).finish(wantExit)
+}
+
+type invocation struct {
+	a              *agent
+	args           []string
+	cmd            *exec.Cmd
+	stdout, stderr bytes.Buffer
+	cancel         context.CancelFunc
+}
+
+func (a *agent) start(input string, args ...string) *invocation {
+	a.t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	c := &invocation{a: a, args: args, cancel: cancel}
+	c.cmd = exec.CommandContext(ctx, memoryBinary, append([]string{"--home", a.home, "--json"}, args...)...)
+	c.cmd.Dir, c.cmd.Env = a.root, a.env
+	c.cmd.Stdin = strings.NewReader(input)
+	c.cmd.Stdout, c.cmd.Stderr = &c.stdout, &c.stderr
+	c.cmd.WaitDelay = time.Second
+	if err := c.cmd.Start(); err != nil {
+		cancel()
+		a.t.Fatal(err)
+	}
+	a.t.Cleanup(func() {
+		cancel()
+		if c.cmd.ProcessState == nil {
+			_ = c.cmd.Process.Kill()
+			_ = c.cmd.Wait()
+		}
+	})
+	return c
+}
+
+func (c *invocation) finish(wantExit int) reply {
+	a, args := c.a, c.args
+	a.t.Helper()
+	err := c.cmd.Wait()
+	c.cancel()
 	if err != nil {
 		if _, ok := err.(*exec.ExitError); !ok {
 			a.t.Fatal(err)
 		}
 	}
-	if cmd.ProcessState.ExitCode() != wantExit {
-		a.t.Fatalf("%s memory %v: exit %d want %d\nstdout: %s\nstderr: %s", a.identity, args, cmd.ProcessState.ExitCode(), wantExit, stdout.String(), stderr.String())
+	if wantExit < 0 {
+		wantExit = c.cmd.ProcessState.ExitCode()
+		if wantExit != 0 && wantExit != 3 {
+			a.t.Fatalf("unexpected race exit %d: %s %s", wantExit, &c.stdout, &c.stderr)
+		}
 	}
-	object(a.t, stdout.Bytes(), "type", "command", "data_classification", "data", "error")
+	if c.cmd.ProcessState.ExitCode() != wantExit {
+		a.t.Fatalf("%s memory %v: exit %d want %d\nstdout: %s\nstderr: %s", a.identity, args, c.cmd.ProcessState.ExitCode(), wantExit, &c.stdout, &c.stderr)
+	}
+	object(a.t, c.stdout.Bytes(), "type", "command", "data_classification", "data", "error")
 	var result reply
-	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+	if err := json.Unmarshal(c.stdout.Bytes(), &result); err != nil {
 		a.t.Fatal(err)
 	}
 	if result.Command != args[0] || result.Classification != "data" {
 		a.t.Fatal("wrong command/classification", result)
 	}
 	if wantExit == 0 {
-		if result.Type != "result" || result.Error != nil || stderr.Len() != 0 {
-			a.t.Fatal("unexpected success shape", result, stderr.String())
+		if result.Type != "result" || result.Error != nil || c.stderr.Len() != 0 {
+			a.t.Fatal("unexpected success shape", result, c.stderr.String())
 		}
 	} else {
-		if result.Type != "error" || result.Error == nil || result.Error.Code == "" || result.Error.Exit != wantExit || stderr.Len() == 0 {
+		if result.Type != "error" || result.Error == nil || result.Error.Code == "" || result.Error.Exit != wantExit || c.stderr.Len() == 0 {
 			a.t.Fatal("unexpected refusal shape", result)
 		}
 		var envelope map[string]json.RawMessage
-		json.Unmarshal(stdout.Bytes(), &envelope)
+		json.Unmarshal(c.stdout.Bytes(), &envelope)
 		object(a.t, envelope["error"], "code", "exit")
 	}
+	result.raw = append([]byte(nil), c.stdout.Bytes()...)
 	return result
 }
 
