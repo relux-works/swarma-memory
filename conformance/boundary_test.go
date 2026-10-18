@@ -168,7 +168,7 @@ func TestRetainedFields(t *testing.T) {
 // refusals, sorts the report copy and excludes absent custody without touching
 // runtime state. Unknown harness operations publish no partial report.
 func TestRefusedInventories(t *testing.T) {
-	input := suite(t)[0].Input()
+	input := findVector(t, "S01").Input()
 	input.Operations = nil
 	input.Query["kind"] = "changes"
 	input.InitialState["records"] = input.InitialState["records"].([]any)[:1]
@@ -176,16 +176,19 @@ func TestRefusedInventories(t *testing.T) {
 	ref := map[string]any{"id": "rec:gone", "version": int64(1)}
 	runtime := input.InitialState["runtime"].(map[string]any)
 	runtime["erased"] = []any{ref}
-	runtime["dirty"] = []any{ref}
-	runtime["custody"] = []any{map[string]any{"id": "z", "present": true}, map[string]any{"id": "absent", "present": false}, map[string]any{"id": "a", "present": true}}
-	runtime["control_observations"] = []any{"b", "a"}
+	runtime["dirty"] = []any{}
+	item := func(id string, present bool) map[string]any {
+		return map[string]any{"id": id, "present": present, "kind": "payload", "inputs": []any{}, "controlled": true, "reachable": true}
+	}
+	runtime["custody"] = []any{item("z", true), item("absent", false), item("a", true)}
+	runtime["control_observations"] = []any{"stop_proceeded", "park_proceeded"}
 	runtime["external_effects"] = []any{"effect"}
 	before := clone(input.InitialState)
-	r, err := (KernelExecutor{}).Execute(input)
+	r, err := (KernelExecutor{Schemas: schemasForTest(t)}).Execute(input)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]any{"record_refs": []any{map[string]any{"id": env["id"], "version": env["version"]}}, "erased_refs": []any{ref}, "dirty": []any{ref}, "custody_present": []any{"a", "z"}, "control_observations": []any{"a", "b"}, "external_effects": []any{"effect"}}
+	want := map[string]any{"record_refs": []any{map[string]any{"id": env["id"], "version": env["version"]}}, "erased_refs": []any{ref}, "dirty": []any{}, "custody_present": []any{"a", "z"}, "control_observations": []any{"park_proceeded", "stop_proceeded"}, "external_effects": []any{"effect"}}
 	if !reflect.DeepEqual(r["postconditions"], want) || !reflect.DeepEqual(input.InitialState, before) {
 		t.Fatal(r["postconditions"])
 	}
@@ -193,12 +196,12 @@ func TestRefusedInventories(t *testing.T) {
 		t.Fatal(r["result"])
 	}
 	input.Query["kind"] = "unknown"
-	r, err = (KernelExecutor{}).Execute(input)
+	r, err = (KernelExecutor{Schemas: schemasForTest(t)}).Execute(input)
 	if err != nil || !reflect.DeepEqual(r["result"], unsupported()) {
 		t.Fatal(r, err)
 	}
 	input.Operations = []any{map[string]any{"op": "unknown"}}
-	if r, err = (KernelExecutor{}).Execute(input); err == nil || r != nil || !strings.Contains(err.Error(), "unsupported harness operation") {
+	if r, err = (KernelExecutor{Schemas: schemasForTest(t)}).Execute(input); err == nil || r != nil || !strings.Contains(err.Error(), "unsupported harness operation") {
 		t.Fatal(r, err)
 	}
 }

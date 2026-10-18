@@ -13,14 +13,20 @@ type Kernel interface {
 	Changes(ctx Context, c Cursor, b Bounds) (ChangeSet, *Refusal)
 }
 
-// placeholder: defined by later stage-1 tasks
-type Context struct{}
+// Context is authenticated by the intake adapter, never by proposed records.
+type Context struct {
+	Actor, At, AdmissionClass, IdempotencyKey string
+	ExpectedGeneration                        int64
+	RetentionContext                          RetentionContext
+}
 
-// placeholder: defined by later stage-1 tasks
-type Record struct{}
+type RetentionContext struct{ Audience, Purpose string }
 
-// placeholder: defined by later stage-1 tasks
-type Receipts struct{}
+// Record is a closed proposal in the exact decoded JSON value model.
+type Record map[string]any
+
+// Receipts carries one atomic write receipt.
+type Receipts struct{ Receipt map[string]any }
 
 // placeholder: defined by later stage-1 tasks
 type Query struct{}

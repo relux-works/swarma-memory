@@ -20,7 +20,7 @@ var pureStandardImports = map[string]bool{
 	"errors": true, "fmt": true, "hash": true, "hash/fnv": true,
 	"io": true, "io/fs": true, "iter": true, "maps": true,
 	"math": true, "math/big": true, "math/bits": true,
-	"regexp": true, "slices": true, "sort": true,
+	"regexp": true, "slices": true, "sort": true, "sync": true,
 	"strconv": true, "strings": true, "unicode": true, "unicode/utf8": true,
 }
 
@@ -71,6 +71,7 @@ func TestKernelImportControls(t *testing.T) {
 		source string
 		denied string
 	}{
+		{name: "transaction mutex", source: `package kernel; import "sync"`},
 		{name: "pure errors", source: `package kernel; import "errors"`},
 		{name: "filesystem interface", source: `package kernel; import "io/fs"`},
 		{name: "no imports", source: `package kernel`},

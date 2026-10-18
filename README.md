@@ -8,10 +8,10 @@ Memory reports evidence, not truth, and grants no authority: a record about yest
 
 ## Status
 
-The design is decided; the Go module skeleton and strict JSON/schema input boundary are in place, with evidence evaluation still to be implemented. This repository holds:
+The Go kernel implements strict input validation and atomic admission/revision writes. Evidence evaluation and persistent space adapters remain to be implemented. This repository holds:
 
 - [`spec/`](spec/README.md) — the normative specification package (draft 0.2.7): the kernel semantics, 14 closed JSON Schemas, the decisions and synthetic profiles domain packages, the Swarma adapter contract and 74 conformance vectors (66 semantic, 8 protected-deployment). Two independent evaluators agree with the expected results on all 66 semantic vectors; the deployment vectors require a real protected deployment and are not qualified.
-- The Go module: package boundaries, the kernel interface, strict JSON intake, canonical bytes and digests, closed-schema validation, and a semantic conformance runner/CLI. The current kernel refuses operations with `unsupported_operation` and passes 0/66 semantic vectors. Memory operations and the agent skill are not implemented yet. The first working version's design is in [docs/architecture.md](docs/architecture.md).
+- The Go module: package boundaries, the kernel interface, strict JSON intake, canonical bytes and digests, closed-schema validation, and a semantic conformance runner/CLI. The write kernel matches 70/73 admission results (70/70 in scope) and the load stimulus. Reads and other operations remain `unsupported_operation`, so whole-vector agreement is 0/66. See [write admission](docs/write-admission.md) for APIs, exclusions and validation. Persistent memory adapters and the agent skill are not implemented yet. The first working version's design is in [docs/architecture.md](docs/architecture.md).
 
 ## Design in brief
 
@@ -36,13 +36,23 @@ go test ./...
 python3 spec/checks/validate.py
 ```
 
-The binary goes to the ignored `bin/` directory. Vet, tests and the checker report to the terminal; Go's build and test caches use its configured cache directory. Optional saved logs belong in the ignored `.temp/` directory. CI runs the same vet, test and specification checks on pushes and pull requests. It also reports conformance progress without failing while stage 1 is incomplete; the ratchet test remains mandatory.
+The binary goes to the ignored `bin/` directory. Vet, tests and the checker report to the terminal; Go's build and test caches use its configured cache directory. Optional saved logs belong in the ignored `.temp/` directory. CI runs the same vet, test and specification checks on pushes and pull requests. It also reports conformance progress without failing while stage 1 is incomplete; both ratchet tests remain mandatory.
 
-The `kernel` input boundary exposes `DecodeJSON`, `CanonicalJSON`, `DigestJSON` and `LoadSchemas`. Decoded trees use `int64` integers, never `float64`. Schema loading takes an `io/fs.FS`; tests supply `os.DirFS` for the package schemas. `Schemas.Validate` checks structure against an exact loaded package URI; `Schemas.ValidateRecord` also checks assertion domain references against caller-supplied exact `SchemaRef` versions. Domain content semantics and admission are separate work.
+The `kernel` input boundary exposes `DecodeJSON`, `CanonicalJSON`, `DigestJSON` and `LoadSchemas`. Decoded trees use `int64` integers, never `float64`. Schema loading takes an `io/fs.FS`; tests supply `os.DirFS` for the package schemas. `Schemas.Validate` checks structure against an exact loaded package URI; `Schemas.ValidateRecord` also checks assertion domain references against caller-supplied exact `SchemaRef` versions. `NewState` and `State.Write` add domain-content validation, authenticated intake, retention checks, atomic batches, replay and issuer-local revision authority.
 
 The conformance command runs from the repository root and loads schemas from `spec/kernel/schemas`. An optional vectors directory selects a different semantic suite: `memory conformance <vectors-dir>`. It prints one verdict per vector and a summary, exits 0 only if all vectors pass, 1 on conformance failures, and 2 on harness/input errors. The 8 deployment vectors remain out of scope. Malformed, empty or mixed-profile suites are harness errors.
 
-`conformance.Load` accepts an `io/fs.FS` and loaded kernel schemas. Executors receive independent copies of the initial snapshot, operations and query, without the expected report. `Compare` preserves typed JSON, ordered results and exact timestamps, checks forbidden predicates against actual values, and normalizes only declared handles. Oracle acceptance and mutation controls exercise all applicable semantic vectors; they establish comparator behavior, not kernel evaluation or statistical randomness. `conformance/passing.txt` lists required passing vector IDs (currently empty); `go test ./...` rejects regressions or unknown entries and reports newly passing IDs with verbose output.
+`conformance.Load` accepts an `io/fs.FS` and loaded kernel schemas. Executors receive independent copies of the initial snapshot, operations and query, without the expected report. `Compare` preserves typed JSON, ordered results and exact timestamps, checks forbidden predicates against actual values, and normalizes only declared handles. Oracle acceptance and mutation controls exercise all applicable semantic vectors; they establish comparator behavior, not kernel evaluation or statistical randomness. `conformance/passing.txt` lists required passing vector IDs (currently empty); `conformance/passing-ops.txt` lists all 70 matching admission results. Both ratchets reject regressions, duplicates or unknown entries and report newly passing IDs. The CLI also prints operation and inventory agreement; [write admission](docs/write-admission.md) explains partial-result handle checks and the three prerequisite exclusions.
+
+## Tools
+
+| Tool | Purpose and entry point | Output |
+| --- | --- | --- |
+| Go 1.25+ | `go build -o bin/memory ./cmd/memory`, `go vet ./...`, `go test ./...` | Binary in ignored `bin/`; diagnostics in terminal |
+| Memory CLI | `go run ./cmd/memory conformance [vectors-dir]` | Vector, operation and inventory agreement in terminal |
+| Python 3.10+ | `python3 spec/checks/validate.py` | Structural specification checks in terminal |
+
+Optional validation logs and scratch artifacts go in ignored `.temp/`.
 
 ## Checking the specification
 

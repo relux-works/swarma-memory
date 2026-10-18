@@ -301,12 +301,12 @@ func plant(t *testing.T, root any, p string, value any) {
 	set(root, parts)
 }
 
-// TestKernelBaseline proves ordered closed refusals and unchanged inventories
-// for every corpus operation, with zero passing vectors today. The ratchet is
-// the future hard gate; newly passing vectors are logged rather than rejected.
-func TestKernelBaseline(t *testing.T) {
+// TestKernelWrites proves every in-scope admission result matches, all matched
+// operations are persisted in the ratchet, and queries remain honest refusals.
+func TestKernelWrites(t *testing.T) {
 	vs := suite(t)
-	verdicts, err := Run(vs, KernelExecutor{})
+	executor := KernelExecutor{Schemas: schemasForTest(t)}
+	verdicts, err := Run(vs, executor)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,39 +319,56 @@ func TestKernelBaseline(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, id := range added {
-		t.Logf("newly passing vector: %s", id)
+		t.Log("newly passing vector:", id)
 	}
-	passed := 0
-	names := map[string]bool{}
+	text, err = os.ReadFile("passing-ops.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	added, err = CheckOperationRatchet(verdicts, string(text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range added {
+		t.Log("newly matching operation:", id)
+	}
+	if len(added) != 0 {
+		t.Fatal("persist newly matching admission operations in passing-ops.txt")
+	}
+	excluded := map[string]string{"P11:13": "prior unsupported revoke", "P11:14": "prior unsupported revoke", "S26:1": "prior unsupported erase"}
 	for i, v := range vs {
-		if verdicts[i].Pass {
-			passed++
-		}
 		input := v.Input()
 		before := clone(input.InitialState)
-		report, err := (KernelExecutor{}).Execute(input)
+		report, err := executor.Execute(input)
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := map[string]any{"type": "refusal", "code": "unsupported_operation", "retryable": false}
-		for j, raw := range input.Operations {
-			names[raw.(map[string]any)["op"].(string)] = true
-			if !reflect.DeepEqual(report["operation_results"].([]any)[j], want) {
-				t.Fatal(v.ID(), "non-refusal operation")
-			}
-		}
-		if !reflect.DeepEqual(report["result"], want) || !reflect.DeepEqual(input.InitialState, before) {
-			t.Fatal(v.ID(), "query refusal or snapshot changed")
+		if !reflect.DeepEqual(report["result"], unsupported()) || !reflect.DeepEqual(before, input.InitialState) {
+			t.Fatal(v.ID(), "query refusal or input isolation")
 		}
 		if p, detail := inventoryError(map[string]any(report)); detail != "" {
 			t.Fatal(p, detail)
 		}
+		for _, p := range verdicts[i].Parts {
+			if admission(p.Kind) && !p.Pass {
+				if excluded[p.ID] == "" {
+					t.Errorf("%s: %s at %s", p.ID, p.Reason, p.Pointer)
+				} else {
+					t.Log(p.ID, excluded[p.ID])
+					delete(excluded, p.ID)
+				}
+			}
+		}
 	}
-	if len(names) != 13 {
-		t.Fatalf("mapped %d operation names", len(names))
+	if len(excluded) != 0 {
+		t.Fatal("exclusions must be revisited when behavior changes", excluded)
 	}
-	t.Logf("kernel baseline: %d/%d semantic vectors pass", passed, len(vs))
-
+	counts := CountParts(verdicts)
+	for kind, want := range map[string]Agreement{"admit": {42, 45}, "admit_raw": {2, 2}, "revise": {26, 26}, "load": {1, 1}} {
+		if counts[kind] != want {
+			t.Errorf("%s: %+v", kind, counts[kind])
+		}
+	}
 }
 
 // TestRatchetControls proves regressions, typos and duplicates fail; passing

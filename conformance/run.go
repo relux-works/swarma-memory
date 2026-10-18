@@ -2,6 +2,8 @@ package conformance
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
@@ -25,7 +27,9 @@ func Run(vectors []Vector, executor Executor) ([]Verdict, error) {
 		if err != nil {
 			return nil, fmt.Errorf("harness: %s: %w", v.ID(), err)
 		}
-		verdicts = append(verdicts, Compare(v, report))
+		verdict := Compare(v, report)
+		verdict.Parts = CompareParts(v, report)
+		verdicts = append(verdicts, verdict)
 	}
 	return verdicts, nil
 }
@@ -67,11 +71,17 @@ func CheckRatchet(verdicts []Verdict, text string) ([]string, error) {
 	return added, nil
 }
 
-// KernelExecutor is the current unsupported kernel baseline, not an evaluator.
-// Placeholder kernel types cannot yet carry JSON inputs. Dispatch uses the four
-// Kernel methods where natural; other finite API operations refuse directly.
-// Inventories are an unchanged copy of the initial snapshot on every refusal.
-type KernelExecutor struct{}
+// KernelExecutor drives write transactions from input snapshots. Expected results
+// and comparison metadata never enter the state or its handle generator.
+type KernelExecutor struct{ Schemas *kernel.Schemas }
+
+func freshHandle() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
 
 func refusalTree(r *kernel.Refusal) map[string]any {
 	return map[string]any{"type": r.Type, "code": string(r.Code), "retryable": r.Retryable}
@@ -95,28 +105,42 @@ func queryRefusal(q map[string]any) map[string]any {
 	}
 	return refusalTree(r)
 }
-func (KernelExecutor) Execute(input Input) (Report, error) {
+func (e KernelExecutor) Execute(input Input) (Report, error) {
+	state, r := kernel.NewState(input.InitialState, e.Schemas, freshHandle)
+	if r != nil {
+		return nil, fmt.Errorf("initial snapshot: %s", r.Code)
+	}
 	results := make([]any, 0, len(input.Operations))
 	for _, raw := range input.Operations {
 		op := raw.(map[string]any)
 		var result map[string]any
 		switch op["op"] {
-		case "admit", "admit_raw":
-			_, r := (kernel.Unsupported{}).Admit(kernel.Context{}, nil)
-			result = refusalTree(r)
+		case "admit", "admit_raw", "revise":
+			var r *kernel.Refusal
+			result, r = state.Write(op)
+			if r != nil {
+				result = refusalTree(r)
+			}
+		case "load":
+			var r *kernel.Refusal
+			result, r = state.SeedLoad(op["actor"].(string), op["hidden_work"].(int64))
+			if r != nil {
+				result = refusalTree(r)
+			}
 		case "capture":
 			result = queryRefusal(op["query"].(map[string]any))
-		case "revise", "erase", "restore", "reconcile_restore", "deliver", "revoke", "declassify", "revoke_declassification", "load", "set_availability":
+		case "erase", "restore", "reconcile_restore", "deliver", "revoke", "declassify", "revoke_declassification", "set_availability":
 			result = unsupported()
 		default:
 			return nil, fmt.Errorf("unsupported harness operation %q", op["op"])
 		}
 		results = append(results, result)
 	}
-	runtime := input.InitialState["runtime"].(map[string]any)
+	snapshot := state.Snapshot()
+	runtime := snapshot["runtime"].(map[string]any)
 	refs := []any{}
 	custody := []any{}
-	for _, raw := range input.InitialState["records"].([]any) {
+	for _, raw := range snapshot["records"].([]any) {
 		env := raw.(map[string]any)["envelope"].(map[string]any)
 		refs = append(refs, map[string]any{"id": env["id"], "version": env["version"]})
 	}

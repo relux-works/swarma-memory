@@ -20,6 +20,7 @@ type freshMarker struct{}
 // Verdict names the first violated rule or differing JSON Pointer. An empty
 // Reason means pass. Pointer is an RFC 6901 pointer (the root is the empty string).
 type Verdict struct {
+	Parts                 []PartVerdict
 	ID                    string
 	Pass                  bool
 	Rule, Pointer, Reason string

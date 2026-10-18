@@ -81,7 +81,7 @@ func TestConformanceCLI(t *testing.T) {
 			}
 			if tc.code == 1 {
 				lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
-				if len(lines) != 68 || lines[66] != "0/66 semantic vectors pass" || lines[67] != "8 deployment vectors are out of scope." || stderr.Len() != 0 {
+				if len(lines) < 76 || lines[66] != "0/66 semantic vectors pass" || lines[67] != "admission ops matched: 70/73 (admit 42/45, admit_raw 2/2, revise 26/26)" || lines[len(lines)-1] != "8 deployment vectors are out of scope." || stderr.Len() != 0 {
 					t.Fatal(stdout.String(), stderr.String())
 				}
 				ids := map[string]bool{}
