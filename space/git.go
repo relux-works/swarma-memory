@@ -28,23 +28,38 @@ func (g Git) run(ctx context.Context, input []byte, args ...string) ([]byte, err
 	cmd.Dir = g.Directory
 	cmd.Env = g.Environment
 	cmd.Stdin = bytes.NewReader(input)
-	var stdout, stderr bytes.Buffer
+	var stdout bytes.Buffer
+	var stderr gitStderrBuffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return nil, &Error{Code: "git_failed", Command: args[0]}
+		status := -1 // No normal exit status when start fails or a signal terminates Git.
+		if cmd.ProcessState != nil {
+			status = cmd.ProcessState.ExitCode()
+		}
+		failure := &Error{Code: "git_failed", Command: gitSubcommand(args), ExitStatus: &status, Stderr: stderr.excerpt()}
+		var exited *exec.ExitError
+		if !errors.As(err, &exited) {
+			// Do not wrap the original error: exec errors can contain a private path.
+			failure.Detail = safeGitStderr(err.Error())
+		}
+		return nil, failure
 	}
 	return stdout.Bytes(), nil
 }
 
-// Error contains only fixed diagnostic codes, never git stderr or record content.
+// Error retains the typed code. Git failures add an allowlisted subcommand,
+// optional exit status (-1 for no normal exit), and bounded allowlisted text.
+// Raw arguments, environment, paths, stderr and underlying errors are not retained.
 type Error struct {
-	Code    string
-	Command string
+	Code       string
+	Command    string
+	ExitStatus *int
+	Stderr     string
+	Detail     string
 }
 
-func (e *Error) Error() string { return e.Code }
-func fail(code string) error   { return &Error{Code: code} }
+func fail(code string) error { return &Error{Code: code} }
 func errorCode(err error) string {
 	var e *Error
 	if errors.As(err, &e) {
