@@ -17,3 +17,7 @@ jobs:
       - run: go vet ./...
       - run: go test ./...
       - run: python3 spec/checks/validate.py
+      # Stage 1 is incomplete: the passing.txt ratchet in go test is the hard gate.
+      - name: Semantic conformance progress
+        continue-on-error: true
+        run: go run ./cmd/memory conformance
