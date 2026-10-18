@@ -8,12 +8,12 @@ Memory reports evidence, not truth, and grants no authority: a record about yest
 
 ## Status
 
-The Go kernel implements the complete stage 1 semantic model: atomic writes, bounded evidence reads, disclosure, publication checks and erasure/restore accounting. The in-memory signing and space-policy trust layer is implemented; persistent space adapters remain to be implemented. This repository holds:
+The Go kernel implements the complete stage 1 semantic model: atomic writes, bounded evidence reads, disclosure, publication checks and erasure/restore accounting. The signing/policy trust layer, write scanner and git-space library adapter are implemented. This repository holds:
 
 - [`spec/`](spec/README.md) — the normative specification package (draft 0.2.7): the kernel semantics, 14 closed JSON Schemas, the decisions and synthetic profiles domain packages, the Swarma adapter contract and 74 conformance vectors (66 semantic, 8 protected-deployment). Two independent evaluators agree with the expected results on all 66 semantic vectors; the deployment vectors require a real protected deployment and are not qualified.
-- The Go module: package boundaries, the kernel interface, strict JSON intake, canonical bytes and digests, closed-schema validation, and a semantic conformance runner/CLI. All 66/66 semantic vectors, 73/73 admission results and all six inventories match. See [write admission](docs/write-admission.md), [read evaluation](docs/read-evaluation.md) and [disclosure and erasure](docs/disclosure-erasure.md) for APIs, scope and validation. These are semantic model results; the eight protected-deployment vectors remain unqualified. Persistent memory adapters and the agent skill are not implemented yet. The first working version's design is in [docs/architecture.md](docs/architecture.md).
+- The Go module: package boundaries, the kernel interface, strict JSON intake, canonical bytes and digests, closed-schema validation, and a semantic conformance runner/CLI. All 66/66 semantic vectors, 73/73 admission results and all six inventories match. See [write admission](docs/write-admission.md), [read evaluation](docs/read-evaluation.md) and [disclosure and erasure](docs/disclosure-erasure.md) for APIs, scope and validation. These are semantic model results; the eight protected-deployment vectors remain unqualified. The agent skill and application CLI integration remain future work. The first working version's design is in [docs/architecture.md](docs/architecture.md).
 
-The stage-2 [signing and policy API](docs/signing-policy.md) provides immutable canonical records, purpose-separated Ed25519 signatures, temporary per-identity keys, closed signed policies and owner-endorsed registries, authenticated policy chains and a verified kernel snapshot adapter. Git storage, sync, secret scanning and the CLI write path remain future work. [Unresolved integration questions](UNRESOLVED_QUESTIONS.md) identify the remaining owner decisions.
+The stage-2 [signing and policy API](docs/signing-policy.md) provides immutable canonical records, purpose-separated Ed25519 signatures, temporary per-identity keys, closed signed policies and owner-endorsed registries, authenticated policy chains and a verified kernel snapshot adapter. The [git-space adapter](docs/git-spaces.md) adds authenticated first-parent admission replay, immutable storage, bounded write retries, scans before signing, external anti-rollback cursors and multi-space reads. The application CLI write path remains future work. [Unresolved integration questions](UNRESOLVED_QUESTIONS.md) identify the remaining owner decisions.
 
 ## Design in brief
 
@@ -48,7 +48,7 @@ The conformance command runs from the repository root and loads schemas from `sp
 
 ## Write scan
 
-`scan.Scan(value, scan.Limits{MaxCanonicalBytes: ..., MaxStringBytes: ..., MaxArrayLength: ...})` checks the canonical JSON tree from `kernel.DecodeJSON` (or a root `kernel.Record`). It returns `nil` or typed findings sorted by JSON Pointer, then detector. All three space-policy limits are inclusive; string length counts UTF-8 bytes, including object keys. Zero is a real cap; negative limits refuse. The scanner is ready for write-path integration before signing; that wiring is not implemented yet.
+`scan.Scan(value, scan.Limits{MaxCanonicalBytes: ..., MaxStringBytes: ..., MaxArrayLength: ...})` checks the canonical JSON tree from `kernel.DecodeJSON` (or a root `kernel.Record`). It returns `nil` or typed findings sorted by JSON Pointer, then detector. All three scanner limits are inclusive; string length counts UTF-8 bytes, including object keys. Zero is a real cap; negative limits refuse. The git-space write path invokes it before signing admitted records and persisted intake context/idempotency metadata.
 
 The offline detectors cover AWS access-key IDs, GitHub classic/fine-grained and OAuth tokens, Slack tokens, Stripe keys, Google API keys, OpenAI/Anthropic-style keys, compact JWTs, Bearer values, URL passwords and PEM private-key headers (including OpenSSH and incomplete blocks). Hex candidates of at least 32 bytes require Shannon entropy ≥3.0 bits/byte; base64/base64url candidates require at least 32 unpadded bytes and ≥4.5 bits/byte. These heuristics catch obvious cases and never prove absence of secrets. They make no network calls.
 
@@ -63,6 +63,8 @@ Every excerpt is fully `[REDACTED]`. Findings for unsafe object keys and their d
 | Go 1.25+ | `go build -o bin/memory ./cmd/memory`, `go vet ./...`, `go test ./...` | Binary in ignored `bin/`; diagnostics in terminal |
 | Write scan tests | `go test -v ./scan` | Detector controls and corpus finding counts in terminal |
 | Memory CLI | `go run ./cmd/memory conformance [vectors-dir]` | Vector, operation and inventory agreement in terminal |
+| Git | `space.Clone`, `Repository.Sync` and `Repository.Write` use `git clone`, `fetch`, `rev-list`, `ls-tree`, `cat-file`, signed `commit` and `push`; exercise with `go test -race ./space` | Caller-selected space clone and external index; isolated repositories in tests |
+| Git-space gates | `go test -race ./space` | Isolated temporary bare repositories/clones and external test indexes under the Go test temp directory; verdicts in terminal |
 | Trust-layer tests | `go test ./space ./sign/...` (ephemeral keys only) | Diagnostics in terminal; temporary key files under the Go test temp directory |
 | Python 3.10+ | `python3 spec/checks/validate.py` | Structural specification checks in terminal |
 

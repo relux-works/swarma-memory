@@ -24,6 +24,7 @@ type Key struct {
 }
 
 var _ sign.Signer = (*Key)(nil)
+var _ sign.WriteSigner = (*Key)(nil)
 var _ space.PolicySigner = (*Key)(nil)
 
 func Generate(identity string) (*Key, error) {
@@ -175,4 +176,12 @@ func Load(source fs.FS, name string) (*Key, error) {
 		return nil, sign.Fail(sign.InvalidKey, "key")
 	}
 	return &Key{identity, ed25519.NewKeyFromSeed(raw)}, nil
+}
+
+// SignWrite signs the complete validated transaction only for its authenticated actor.
+func (k *Key) SignWrite(write sign.CanonicalWrite) (sign.Signature, error) {
+	if k == nil || write.Actor() != k.identity || len(write.Bytes()) == 0 {
+		return sign.Signature{}, sign.Fail(sign.SubmitterMismatch, "write.operation.context.actor")
+	}
+	return k.sign(sign.WritePurpose, write.Bytes())
 }

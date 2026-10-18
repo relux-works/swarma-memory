@@ -128,7 +128,11 @@ func (p *VerifiedPolicy) VerifyRecord(signed sign.SignedRecord, schemas *kernel.
 	if err := (sign.Ed25519Verifier{}).Verify(sign.RecordPurpose, signed.Record.Bytes(), signed.Signature, k.public); err != nil {
 		return sign.CanonicalRecord{}, err
 	}
-	value := signed.Record.Value()
+	return p.checkRecord(signed.Record, schemas, domains)
+}
+
+func (p *VerifiedPolicy) checkRecord(input sign.CanonicalRecord, schemas *kernel.Schemas, domains []any) (sign.CanonicalRecord, error) {
+	value := input.Value()
 	e, _ := value["envelope"].(map[string]any)
 	if e["space"] != p.policy.SpaceID {
 		return sign.CanonicalRecord{}, sign.Fail(sign.SpaceMismatch, "record.envelope.space")
@@ -230,7 +234,7 @@ func fieldLimits(value any, limit int64) bool {
 }
 
 // RecordAtPolicy binds a signed record to the policy in force at its admitted
-// history position. The future history reader, not the record, supplies Policy.
+// history position. The history reader, not the record, supplies Policy.
 type RecordAtPolicy struct {
 	Record sign.SignedRecord
 	Policy *VerifiedPolicy

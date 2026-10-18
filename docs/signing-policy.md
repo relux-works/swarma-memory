@@ -1,7 +1,9 @@
 # Signing and space policy
 
-The stage-2 trust layer operates on full in-memory records and adapter-supplied
-`io/fs` filesystems. It has no git, network, host-agent, CLI or key-holder lookup.
+The signing and policy-verification primitives operate on full in-memory records
+and adapter-supplied `io/fs` filesystems. The separate [git adapter](git-spaces.md)
+provides transport and history integration; these primitives discover no host
+agent, CLI configuration or key holder.
 `sign/localkey` generates temporary Ed25519 identity keys and provides explicit
 private-file persistence. Tests generate their own ephemeral keys only.
 
@@ -30,15 +32,16 @@ length/canonical spelling and cryptographic checks are enforced by verification.
 `sign.ParseRecord` uses strict kernel JSON parsing: duplicate/unknown fields,
 non-integral numbers, invalid Unicode and malformed shapes are rejected.
 
-All three signature purposes use the same explicit framing:
+All four signature purposes use the same explicit framing:
 
 ```text
 UTF-8(purpose) || 0x00 || kernel.CanonicalJSON(payload)
 ```
 
 The tags are `swarma-memory-record/1`, `swarma-memory-policy/1` and
-`swarma-memory-key-registration/1`. `signature` itself is outside its signed
-payload. Changing or retagging a signature cannot cross these domains. Values
+`swarma-memory-key-registration/1`, plus `swarma-memory-write/1` for the
+[git adapter's authenticated transaction metadata](git-spaces.md#authenticated-admission-metadata).
+`signature` itself is outside its signed payload. Changing or retagging a signature cannot cross these domains. Values
 are Ed25519 signatures encoded in canonical padded standard base64. Key IDs are
 `ed25519:sha256:` followed by lowercase hex SHA-256 of the raw 32-byte public key
 (no JSON, purpose prefix or base64 in that digest). Public keys are also encoded
@@ -127,8 +130,9 @@ historical keys after rotation, rather than the latest registry.
 `VerifiedPolicy` stores detached policy/key data and exposes copies. A record's
 in-force policy is an explicit trusted input from its admission/history position.
 It is never selected by the untrusted record's timestamp or latest-policy guess.
-The exact record/signature envelope has no policy-version extension. Authentic
-history positioning, anti-rollback cursors and git transport belong to later work.
+The exact record/signature envelope has no policy-version extension. The
+[git adapter](git-spaces.md) now derives authentic history positioning from
+first-parent replay and maintains external anti-rollback cursors.
 
 ## Verification and kernel integration
 
@@ -144,8 +148,8 @@ It also checks configured byte limits and rejects explicit or populated
 domain-declared sensitive fields. Record size counts canonical record bytes;
 field size counts canonical body string leaves and complete `content[].value`
 values, including arrays. These checks do not scan for undeclared secrets.
-Readers, resolvers and retention actions are authenticated metadata; operational
-application belongs to later space/read/write adapters.
+The git adapter enforces readers in addition to kernel grants. Resolvers and owner
+retirement/revocation actions remain authenticated metadata for later stages.
 
 `space.NewSnapshot(template, []space.RecordAtPolicy, schemas, mint)` verifies every
 record under its explicitly bound verified policy, then calls `kernel.NewState`.
@@ -158,9 +162,9 @@ supply authentic domain definitions, not only matching schema IDs.
 This is a stored-snapshot trust adapter, not an admission replay or a git write
 path. Rules 4 and 5 (revision authority and expected version), retention and all
 other semantic admission checks remain with `State.Write`. Signatures cannot
-make unadmitted records admitted. A future history reader must reconstruct
-accepted transactions and the protected template. Individual verification errors
-can be collected by that reader; the snapshot adapter fails the whole batch
+make unadmitted records admitted. The git history adapter reconstructs accepted
+transactions using an independently trusted template. Individual verification
+errors can be collected by that reader; the snapshot adapter fails the whole batch
 rather than publishing a partial state with broken references.
 
 ## Diagnostics and key files

@@ -226,3 +226,26 @@ func (s *State) nextHandle() (string, *Refusal) {
 	s.issued[h] = true
 	return h, nil
 }
+
+// Fork creates an isolated admission candidate while preserving protected capture
+// bindings and issued-handle reservations. A rejected candidate cannot mutate its
+// source. The new mint is explicit, as at NewState.
+func (s *State) Fork(mint func() (string, error)) (*State, *Refusal) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	next, r := NewState(s.snapshot, s.schemas, mint)
+	if r != nil {
+		return nil, r
+	}
+	next.captures = make(map[int64]capturedView, len(s.captures))
+	for index, c := range s.captures {
+		next.captures[index] = capturedView{copyJSON(c.query).(map[string]any), copyJSON(c.view).(map[string]any), copyJSON(c.refs).([]any)}
+	}
+	next.issued = make(map[string]bool, len(s.issued))
+	for handle, used := range s.issued {
+		next.issued[handle] = used
+	}
+	next.backupCut = s.backupCut
+	next.backupCustody = copyJSON(s.backupCustody).([]any)
+	return next, nil
+}

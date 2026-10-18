@@ -1,3 +1,4 @@
-// Package space verifies signed policy histories, owner-endorsed key registries
-// and stored records. Git storage, sync, cursors and directory remain future work.
+// Package space verifies owner-signed policy histories and replays authenticated
+// git transactions in first-parent order. It provides immutable record storage,
+// bounded signed writes, external anti-rollback cursors and kernel-backed reads.
 package space
