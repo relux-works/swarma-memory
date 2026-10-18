@@ -157,6 +157,10 @@ func TestGitRejectedTransactionDoesNotPoison(t *testing.T) {
 			if kind != "valid_only" {
 				var invalid map[string]any
 				for i := 0; i < 1000; i++ {
+					// Resample both signatures: a fixed valid signature near the
+					// minimum would give a flaky bounded ordering search.
+					valid["write"].(map[string]any)["receipt_handle"], _ = randomHandle()
+					resignTransaction(t, h, valid)
 					bad := transactionCopy(t, valid)
 					write := bad["write"].(map[string]any)
 					op := write["operation"].(map[string]any)
