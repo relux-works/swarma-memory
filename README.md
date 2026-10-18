@@ -46,11 +46,22 @@ The conformance command runs from the repository root and loads schemas from `sp
 
 `conformance.Load` accepts an `io/fs.FS` and loaded kernel schemas. Executors receive independent copies of the initial snapshot, operations and query, without the expected report. `Compare` preserves typed JSON, ordered results and exact timestamps, checks forbidden predicates against actual values, and normalizes only declared handles. Oracle acceptance and mutation controls exercise all applicable semantic vectors; they establish comparator behavior, not kernel evaluation or statistical randomness. `conformance/passing.txt` lists required passing vector IDs (66 required vectors); `conformance/passing-ops.txt` lists all 73 matching admission results. Both ratchets reject regressions, duplicates or unknown entries and report newly passing IDs. The CLI also prints operation and inventory agreement; [write admission](docs/write-admission.md) explains partial-result handle checks; there are no admission exclusions.
 
+## Write scan
+
+`scan.Scan(value, scan.Limits{MaxCanonicalBytes: ..., MaxStringBytes: ..., MaxArrayLength: ...})` checks the canonical JSON tree from `kernel.DecodeJSON` (or a root `kernel.Record`). It returns `nil` or typed findings sorted by JSON Pointer, then detector. All three space-policy limits are inclusive; string length counts UTF-8 bytes, including object keys. Zero is a real cap; negative limits refuse. The scanner is ready for write-path integration before signing; that wiring is not implemented yet.
+
+The offline detectors cover AWS access-key IDs, GitHub classic/fine-grained and OAuth tokens, Slack tokens, Stripe keys, Google API keys, OpenAI/Anthropic-style keys, compact JWTs, Bearer values, URL passwords and PEM private-key headers (including OpenSSH and incomplete blocks). Hex candidates of at least 32 bytes require Shannon entropy ≥3.0 bits/byte; base64/base64url candidates require at least 32 unpadded bytes and ≥4.5 bits/byte. These heuristics catch obvious cases and never prove absence of secrets. They make no network calls.
+
+Entropy exemptions are narrow: complete UUIDs; lowercase 64-hex output digests at `/output_digest`, `/declassification/output_digest` and `/body/declassification/output_digest`; source digest values at `/digest/value` and `/body/digest/value` only with `algorithm: sha256-cjson-v1`; exact `sha256:<64 lowercase hex>` locators at `/locator`, `/object`, `/body/locator` and `/body/object`; and exact kernel 32-lowercase-hex handles at `/receipt_handle`, `/authorized_snapshot_handle` and their `/body` equivalents. The root body paths support scanning bodies alone. The same hash in ordinary content is still checked. Exemptions never suppress size or known-format detectors.
+
+Every excerpt is fully `[REDACTED]`. Findings for unsafe object keys and their descendants use the nearest safe ancestor JSON Pointer with `PointerRedacted: true`; `InKey` identifies findings in keys. Matched spans from every string also protect pointers containing a credential as a substring or recreated by pointer escaping/joining. Run `go test -v ./scan` for synthetic detector/near-miss controls, raw-output redaction, exact size boundaries and the corpus false-positive check (every initial record and body in the semantic vectors and domain fixtures).
+
 ## Tools
 
 | Tool | Purpose and entry point | Output |
 | --- | --- | --- |
 | Go 1.25+ | `go build -o bin/memory ./cmd/memory`, `go vet ./...`, `go test ./...` | Binary in ignored `bin/`; diagnostics in terminal |
+| Write scan tests | `go test -v ./scan` | Detector controls and corpus finding counts in terminal |
 | Memory CLI | `go run ./cmd/memory conformance [vectors-dir]` | Vector, operation and inventory agreement in terminal |
 | Trust-layer tests | `go test ./space ./sign/...` (ephemeral keys only) | Diagnostics in terminal; temporary key files under the Go test temp directory |
 | Python 3.10+ | `python3 spec/checks/validate.py` | Structural specification checks in terminal |
