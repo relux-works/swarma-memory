@@ -4,6 +4,24 @@ package kernel
 // rather than letting record or configuration array order choose an authority.
 func (s *State) validateReadConfiguration() *Refusal {
 	index := recordIndex(arr(s.snapshot["records"]))
+	owners := map[string]bool{}
+	for _, raw := range arr(s.policy()["constraint_owners"]) {
+		m := obj(raw)
+		k := refKey(m["input"])
+		if owners[k] || len(arr(m["owners"])) == 0 || !ordered(m["owners"]) {
+			return refusal(InvalidReference)
+		}
+		owners[k] = true
+	}
+	decisions := map[string]bool{}
+	for _, raw := range arr(s.policy()["declassification_decisions"]) {
+		d := obj(raw)
+		k := refKey(d["ref"])
+		if decisions[k] || !ordered(obj(d["pins"])["inputs"]) {
+			return refusal(InvalidReference)
+		}
+		decisions[k] = true
+	}
 	rules := map[string]bool{}
 	for _, raw := range arr(s.snapshot["projection_rules"]) {
 		p := obj(raw)

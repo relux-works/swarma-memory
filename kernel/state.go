@@ -12,12 +12,14 @@ const packageSchema = "urn:bounded-evidence:0.2.6:"
 // computation under one lock; callers never receive mutable state aliases.
 // The adapter supplies opaque fresh handles; the kernel has no clock or entropy IO.
 type State struct {
-	mu       sync.Mutex
-	snapshot map[string]any
-	schemas  *Schemas
-	mint     func() (string, error)
-	captures map[int64]capturedView
-	issued   map[string]bool
+	mu            sync.Mutex
+	snapshot      map[string]any
+	schemas       *Schemas
+	mint          func() (string, error)
+	captures      map[int64]capturedView
+	issued        map[string]bool
+	backupCut     int64
+	backupCustody []any
 }
 
 var _ Kernel = (*State)(nil)
@@ -41,6 +43,8 @@ func NewState(snapshot map[string]any, schemas *Schemas, mint func() (string, er
 	if r := s.validateSnapshot(); r != nil {
 		return nil, r
 	}
+	s.backupCut = s.runtime()["memory_cut"].(int64)
+	s.backupCustody = copyJSON(s.runtime()["custody"]).([]any)
 	return s, nil
 }
 

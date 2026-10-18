@@ -100,7 +100,7 @@ func (e KernelExecutor) Execute(input Input) (Report, error) {
 		op := raw.(map[string]any)
 		var result map[string]any
 		switch op["op"] {
-		case "admit", "admit_raw", "revise":
+		case "admit", "admit_raw", "revise", "erase", "restore", "reconcile_restore", "deliver", "revoke", "declassify", "revoke_declassification", "control", "request_check":
 			var r *kernel.Refusal
 			result, r = state.Write(op)
 			if r != nil {
@@ -124,8 +124,6 @@ func (e KernelExecutor) Execute(input Input) (Report, error) {
 			if r != nil {
 				result = refusalTree(r)
 			}
-		case "erase", "restore", "reconcile_restore", "deliver", "revoke", "declassify", "revoke_declassification":
-			result = unsupported()
 		default:
 			return nil, fmt.Errorf("unsupported harness operation %q", op["op"])
 		}

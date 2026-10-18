@@ -76,7 +76,7 @@ func (s *State) recordContract(r any, index map[string]any, at any) *Refusal {
 			report("/envelope/perspective", InvalidDomainValue)
 		}
 	}
-	if e["admission_class"] == "self_declaration" || b["statement_kind"] == "self_declaration" {
+	if e["kind"] == "assertion" && (e["admission_class"] == "self_declaration" || b["statement_kind"] == "self_declaration") {
 		bound := false
 		for _, binding := range arr(s.policy()["subject_principals"]) {
 			if obj(binding)["subject"] == e["subject"] && obj(binding)["principal"] == e["issuer"] {

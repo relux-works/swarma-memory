@@ -1,7 +1,6 @@
 package kernel
 
-// Write executes admit, admit_raw or revise from exact decoded JSON. Unsupported
-// operations are refused without attempting reads or evaluation. Each validation
+// Write executes the finite semantic operations from exact decoded JSON. Each validation
 // pass covers the entire batch before the next K-API-2 class is considered.
 func (s *State) Write(input map[string]any) (map[string]any, *Refusal) {
 	s.mu.Lock()
@@ -11,12 +10,15 @@ func (s *State) Write(input map[string]any) (map[string]any, *Refusal) {
 	}
 	op := copyJSON(input).(map[string]any)
 	kind, _ := op["op"].(string)
-	if kind != "admit" && kind != "admit_raw" && kind != "revise" {
+	if !contains([]any{"admit", "admit_raw", "revise", "declassify", "erase", "restore", "reconcile_restore", "revoke", "revoke_declassification", "deliver", "control", "request_check"}, kind) {
 		return nil, refusal(UnsupportedOperation)
 	}
 	node := s.schemas.roots[packageSchema+"vector"].properties["operations"].items
 	if !node.matches(op, nil) {
 		return nil, refusal(InvalidShape)
+	}
+	if kind != "admit" && kind != "admit_raw" && kind != "revise" && kind != "declassify" {
+		return s.boundary(op)
 	}
 	if kind == "admit_raw" {
 		raw, r := DecodeJSON([]byte(op["raw_json"].(string)))
@@ -47,6 +49,16 @@ func (s *State) Write(input map[string]any) (map[string]any, *Refusal) {
 		if env(op["revision"])["kind"] != "revision" {
 			return nil, refusal(InvalidShape)
 		}
+	} else if kind == "declassify" {
+		batch = batchProposals(op)
+		if len(arr(op["assessments"])) == 0 || env(op["output"])["kind"] != "assertion" {
+			return nil, refusal(InvalidShape)
+		}
+		for _, r := range arr(op["assessments"]) {
+			if env(r)["kind"] != "assessment" {
+				return nil, refusal(InvalidShape)
+			}
+		}
 	} else {
 		batch = arr(op["proposals"])
 		for _, r := range batch {
@@ -67,6 +79,9 @@ func (s *State) Write(input map[string]any) (map[string]any, *Refusal) {
 	}
 	// Rights and all currently resolved retention inputs precede replay and content.
 	if !s.operationRight(ctx["actor"], space, op["op"].(string)) {
+		return nil, refusal(NotAuthorized)
+	}
+	if kind == "declassify" && !s.hasOperationRight(ctx["actor"], space, "declassify") {
 		return nil, refusal(NotAuthorized)
 	}
 	for _, r := range batch {
@@ -197,6 +212,9 @@ func (s *State) Write(input map[string]any) (map[string]any, *Refusal) {
 	if graphCycle(s.supportGraph(all)) {
 		return nil, refusal(Cycle)
 	}
+	if kind == "declassify" && !s.releaseValid(op["output"], arr(op["assessments"]), hypothetical, ctx["at"]) {
+		return nil, refusal(DeclassificationInvalid)
+	}
 	limits := obj(s.policy()["limits"])
 	if sequenceOverflow || int64(len(all)) > limits["max_records"].(int64) || int64(len(payload)) > limits["max_payload_bytes"].(int64) {
 		return nil, refusal(LimitExceeded)
@@ -207,7 +225,17 @@ func (s *State) Write(input map[string]any) (map[string]any, *Refusal) {
 		}
 	}
 	// Derive conservative lineage disclosure over the whole candidate graph.
+	var released map[string]any
+	if kind == "declassify" {
+		released = copyJSON(obj(env(op["output"])["disclosure"])).(map[string]any)
+	}
 	s.taint(batch, hypothetical)
+	if released != nil {
+		// A release widens only its exact pinned audience/purpose at disclosure
+		// time; the inherited retention deadline can never be widened.
+		released["retain_until"] = obj(env(op["output"])["disclosure"])["retain_until"]
+		env(op["output"])["disclosure"] = released
+	}
 	handle, mintRefusal := s.nextHandle()
 	if mintRefusal != nil {
 		return nil, mintRefusal
@@ -224,6 +252,9 @@ func (s *State) Write(input map[string]any) (map[string]any, *Refusal) {
 			outcome = "challenged"
 		}
 	}
+	if kind == "declassify" {
+		outcome = "declassified"
+	}
 	receipt := map[string]any{"type": "receipt", "operation": op["op"], "outcome": outcome, "receipt_handle": handle, "refs": refs, "custody": []any{}, "erasure_status": nil}
 	// Commit once. Everything above operates only on detached candidate records.
 	next := copyJSON(s.snapshot).(map[string]any)
@@ -239,6 +270,9 @@ func (s *State) Write(input map[string]any) (map[string]any, *Refusal) {
 	return copyJSON(receipt).(map[string]any), nil
 }
 func batchProposals(op map[string]any) []any {
+	if op["op"] == "declassify" {
+		return append(append([]any{}, arr(op["assessments"])...), op["output"])
+	}
 	if op["op"] == "revise" {
 		a := []any{}
 		if op["replacement"] != nil {

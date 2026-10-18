@@ -6,6 +6,9 @@ import (
 )
 
 func (g *readGraph) current(r any) bool {
+	if g.importCurrentness(r) == "historical" {
+		return false
+	}
 	if body(r)["statement_kind"] != "decision_record" {
 		return g.active[refKey(ref(r))]
 	}
@@ -87,6 +90,7 @@ func (g *readGraph) selection() ([]any, []any, map[string]string) {
 	return selected, set(historical), labels
 }
 func (g *readGraph) importCurrentness(r any) string {
+	currentness := "current"
 	for _, src := range g.associatedSources(r) {
 		if body(g.index[refKey(src)])["source_kind"] != "publication" {
 			continue
@@ -94,15 +98,20 @@ func (g *readGraph) importCurrentness(r any) string {
 		found := false
 		for _, raw := range arr(g.s.policy()["imports"]) {
 			m := obj(raw)
-			if equalJSON(m["source"], src) && m["status"] == "current" && m["checked_at"] != nil {
-				found = true
+			if equalJSON(m["source"], src) {
+				if m["status"] == "replaced" {
+					return "historical"
+				}
+				if m["status"] == "current" && m["checked_at"] != nil && m["checked_at"].(string) <= g.q["now"].(string) {
+					found = true
+				}
 			}
 		}
-		if !found {
-			return "last_received"
+		if _, freshness := g.freshness(r); !found || freshness == "stale" {
+			currentness = "last_received"
 		}
 	}
-	return "current"
+	return currentness
 }
 func (g *readGraph) incompatible(r any) []any {
 	out := []any{}

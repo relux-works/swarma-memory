@@ -1,6 +1,6 @@
 # swarma-memory: architecture of the first working version
 
-Status: design for the first working version, 2026-10-18. The semantics are fixed by the normative package in [`spec/`](../spec/README.md); where this document and the package disagree, the package wins. The strict JSON/schema boundary, semantic runner, [write-side kernel](write-admission.md) and [read evaluator](read-evaluation.md) are implemented. The persistent spaces, signatures on stored records and agent integration described below remain design work.
+Status: design for the first working version, 2026-10-18. The semantics are fixed by the normative package in [`spec/`](../spec/README.md); where this document and the package disagree, the package wins. The strict JSON/schema boundary, semantic runner, [write-side kernel](write-admission.md), [read evaluator](read-evaluation.md) and [disclosure/erasure semantic model](disclosure-erasure.md) are implemented. The persistent spaces, signatures on stored records and agent integration described below remain design work.
 
 ## 1. What the first version is
 

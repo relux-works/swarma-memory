@@ -112,7 +112,8 @@ The read task needs these limited neighboring semantics:
 - K-ERASE/K-SNAP: initial per-record fences, erasure obligations and restore
   fences are honored; retained/independent assessments remain distinguishable
   from fresh resolution.
-  Erasure, restore and delivery operations themselves remain unsupported.
+  The [disclosure/erasure boundary](disclosure-erasure.md) applies live mutations,
+  prepared-view delivery checks and restore reconciliation.
 
 `SetAvailability` is only an owner harness stimulus under a predeclared
 `coarse_unavailable` policy. It changes the admitted coarse availability state,
@@ -123,12 +124,10 @@ adapter/deployment obligations.
 
 ## Measurement and validation
 
-All 56 read-task target vectors pass whole; all are required in
-`conformance/passing.txt`. The other ten need operations outside this task:
-B07, P05, P06, P08, P11, P12, S20, S24, S25 and S26. They remain failures rather
-than fabricated effects of unsupported disclosure/erasure operations. Admission
-agreement remains 70/73 raw (70/70 in scope), required by `passing-ops.txt`.
-The CLI reports 56/66 and exits 1 until all semantic vectors pass.
+All 66 semantic vectors pass whole and are required in `conformance/passing.txt`.
+Admission agreement is 73/73, required by `passing-ops.txt`. The CLI exits 0;
+semantic conformance is mandatory in CI. Disclosure, delivery and erasure tests
+are described in [disclosure and erasure](disclosure-erasure.md).
 
 Tests cover input permutations, zero/clamped budgets, hidden dependencies and
 metadata gates, three distinct conflict outcomes, exact freshness boundaries,

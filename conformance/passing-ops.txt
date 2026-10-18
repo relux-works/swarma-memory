@@ -1,4 +1,4 @@
-# Exact admission results. Zero-based operation indexes; see docs/write-admission.md for exclusions.
+# Every admission operation in the semantic corpus must match exactly.
 B01:0
 B01:1
 B01:2
@@ -30,6 +30,8 @@ P11:6
 P11:8
 P11:9
 P11:10
+P11:13
+P11:14
 P11:16
 P11:17
 P11:18
@@ -57,6 +59,7 @@ S18:0
 S19:0
 S24:1
 S24:2
+S26:1
 S33:0
 S39:0
 S39:1

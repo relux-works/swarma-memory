@@ -6,7 +6,7 @@ identity bindings, sequence/cut invariants, ordinary single heads, authority DAG
 integrity and dirty causes. Future proposal facts are protected intake evidence;
 they do not make their named outputs present.
 
-`State.Write` accepts decoded `admit`, `admit_raw` and `revise` operations.
+`State.Write` accepts decoded `admit`, `admit_raw`, `revise` and `declassify` transactions, plus the finite [disclosure/erasure boundary operations](disclosure-erasure.md).
 `State.Admit` supplies the typed `Kernel` interface. `State.Snapshot` is a storage
 adapter API returning a detached complete snapshot; it is not an authorized read
 view. The kernel uses only standard-library computation and a mutex. The adapter
@@ -49,34 +49,27 @@ records: admission does not manufacture opposition or evidence. The [read evalua
 
 `SeedLoad` is the owner-only harness stimulus for `hidden_work`. It advances no
 record sequence. Capture, reads and the availability stimulus are implemented
-by the [read evaluator](read-evaluation.md). Erase/revoke/declassify/restore/delivery
-operations remain unsupported.
+by the [read evaluator](read-evaluation.md). Declassification, revocation, delivery,
+erase and restore are implemented in the same pure state model.
 
 ## Conformance measurement
 
 Run `go run ./cmd/memory conformance` from the repository root. The command
 reports every whole-vector verdict, exact operation agreement by type and all
 six postcondition inventories. Whole-vector comparison remains unchanged and
-reports 56/66 after the read evaluator task.
+reports 66/66 with stage 1 complete.
 
 | Admission result | Matched | Corpus total |
 | --- | ---: | ---: |
-| `admit` | 42 | 45 |
+| `admit` | 45 | 45 |
 | `admit_raw` | 2 | 2 |
 | `revise` | 26 | 26 |
-| All admission operations | 70 | 73 |
+| All admission operations | 73 | 73 |
 | `load` stimulus | 1 | 1 |
 
-The admission target is 70/70 after these explicit exclusions:
-
-| Operation | Out-of-scope dependency |
-| --- | --- |
-| `P11:13` | Exact replay after retain revocation at `/operations/12`; revoke is unsupported. |
-| `P11:14` | New retention after that same unsupported revocation. |
-| `S26:1` | Stale generation after erase at `/operations/0`; erase is unsupported. |
-
-The raw denominator includes these operations and does not claim they pass.
-They must be revisited when their prerequisite operations are implemented.
+There are no prerequisite exclusions: P11:13/P11:14 exercise retain revocation,
+and S26:1 exercises generation rejection after erase. All 73 are required by the
+operation ratchet. Declassification is measured separately (2/2).
 
 `conformance.CompareParts` compares exact typed operation results and inventories.
 Only valid declared fresh-handle slots within the part are normalized. Handle
@@ -95,16 +88,15 @@ Current inventory matches, measured over all 66 complete vector executions:
 
 | Inventory | Matched |
 | --- | ---: |
-| `record_refs` | 64/66 |
-| `erased_refs` | 60/66 |
-| `custody_present` | 64/66 |
+| `record_refs` | 66/66 |
+| `erased_refs` | 66/66 |
+| `custody_present` | 66/66 |
 | `dirty` | 66/66 |
 | `control_observations` | 66/66 |
 | `external_effects` | 66/66 |
 
-Unimplemented mutations can change expected inventories. These counts are raw
-agreement, not completion claims for erasure or custody. Read evaluation is
-measured separately by the whole-vector ratchet.
+These are complete semantic execution results. Custody dispositions model the
+closed fixtures; physical deletion and restore isolation need a protected adapter.
 
 ## Specification interpretation
 

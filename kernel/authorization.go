@@ -26,6 +26,9 @@ func (s *State) operationRight(actor, space any, operation string) bool {
 	if operation == "revise" {
 		right = "revise"
 	}
+	return s.hasOperationRight(actor, space, right)
+}
+func (s *State) hasOperationRight(actor, space, right any) bool {
 	for _, g := range arr(s.policy()["grants"]) {
 		m := obj(g)
 		if m["principal"] == actor && m["space"] == space && contains(m["rights"], right) && !s.revoked(actor, m["audience"], m["purpose"], right) {

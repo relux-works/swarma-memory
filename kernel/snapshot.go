@@ -227,16 +227,17 @@ func (s *State) validateSnapshot() *Refusal {
 }
 
 // The replay ledger pins a complete authenticated intent, not arbitrary JSON.
-// Other finite operations can have entries in an imported complete snapshot;
-// their operation-specific binding checks belong to their owning implementation.
 func (s *State) replayBinding(entry, intent map[string]any) *Refusal {
 	kind := intent["op"]
 	receipt := obj(entry["receipt"])
 	if kind != receipt["operation"] {
 		return refusal(InvalidReference)
 	}
-	if kind != "admit" && kind != "revise" {
-		return nil
+	if kind == "erase" {
+		return s.eraseReplayBinding(entry, intent)
+	}
+	if kind != "admit" && kind != "revise" && kind != "declassify" {
+		return refusal(InvalidReference)
 	}
 	context := obj(intent["context"])
 	if context == nil || context["actor"] != entry["actor"] {
@@ -269,9 +270,55 @@ func (s *State) replayBinding(entry, intent map[string]any) *Refusal {
 		if body(operation["revision"])["relation"] == "challenge" {
 			outcome = "challenged"
 		}
+	} else if kind == "declassify" {
+		outcome = "declassified"
 	}
 	if !equalJSON(receipt["refs"], refs) || receipt["outcome"] != outcome {
 		return refusal(InvalidReference)
+	}
+	return nil
+}
+
+func (s *State) eraseReplayBinding(entry, intent map[string]any) *Refusal {
+	if intent["actor"] != entry["actor"] || intent["at"] != nil || intent["idempotency_key"] != nil {
+		return refusal(InvalidReference)
+	}
+	op := copyJSON(intent).(map[string]any)
+	op["at"], op["idempotency_key"] = "0001-01-01T00:00:00Z", entry["key"]
+	if !s.schemas.roots[packageSchema+"vector"].properties["operations"].items.matches(op, nil) || badVersion(op) || len(arr(op["targets"])) == 0 {
+		return refusal(InvalidReference)
+	}
+	index := recordIndex(arr(s.snapshot["records"]))
+	for _, v := range arr(op["targets"]) {
+		if index[refKey(v)] == nil {
+			return refusal(InvalidReference)
+		}
+	}
+	if env(index[refKey(arr(op["targets"])[0])])["space"] != entry["space"] {
+		return refusal(InvalidReference)
+	}
+	r := obj(entry["receipt"])
+	if r["outcome"] != "purged" && r["outcome"] != "incomplete" || r["outcome"] == "purged" && r["erasure_status"] != "purged_within_boundary" || r["outcome"] == "incomplete" && r["erasure_status"] != "purge_pending" || !ordered(r["custody"]) {
+		return refusal(InvalidReference)
+	}
+	closure := s.erasureClosure(arr(op["targets"]))
+	refs := arr(r["refs"])
+	for i, v := range refs {
+		if !contains(closure, v) || i > 0 && !lessRef(refs[i-1], v) {
+			return refusal(InvalidReference)
+		}
+	}
+	for _, id := range arr(r["custody"]) {
+		found := false
+		for _, raw := range arr(s.runtime()["custody"]) {
+			c := obj(raw)
+			if c["id"] == id && c["controlled"] == true && intersects(c["inputs"], closure) && contains(op["boundary"], id) {
+				found = true
+			}
+		}
+		if !found {
+			return refusal(InvalidReference)
+		}
 	}
 	return nil
 }

@@ -335,7 +335,6 @@ func TestKernelWrites(t *testing.T) {
 	if len(added) != 0 {
 		t.Fatal("persist newly matching admission operations in passing-ops.txt")
 	}
-	excluded := map[string]string{"P11:13": "prior unsupported revoke", "P11:14": "prior unsupported revoke", "S26:1": "prior unsupported erase"}
 	for i, v := range vs {
 		input := v.Input()
 		before := clone(input.InitialState)
@@ -351,20 +350,12 @@ func TestKernelWrites(t *testing.T) {
 		}
 		for _, p := range verdicts[i].Parts {
 			if admission(p.Kind) && !p.Pass {
-				if excluded[p.ID] == "" {
-					t.Errorf("%s: %s at %s", p.ID, p.Reason, p.Pointer)
-				} else {
-					t.Log(p.ID, excluded[p.ID])
-					delete(excluded, p.ID)
-				}
+				t.Errorf("%s: %s at %s", p.ID, p.Reason, p.Pointer)
 			}
 		}
 	}
-	if len(excluded) != 0 {
-		t.Fatal("exclusions must be revisited when behavior changes", excluded)
-	}
 	counts := CountParts(verdicts)
-	for kind, want := range map[string]Agreement{"admit": {42, 45}, "admit_raw": {2, 2}, "revise": {26, 26}, "load": {1, 1}} {
+	for kind, want := range map[string]Agreement{"admit": {45, 45}, "admit_raw": {2, 2}, "revise": {26, 26}, "load": {1, 1}} {
 		if counts[kind] != want {
 			t.Errorf("%s: %+v", kind, counts[kind])
 		}

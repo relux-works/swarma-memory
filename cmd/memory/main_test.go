@@ -45,8 +45,8 @@ func TestCLI(t *testing.T) {
 	}
 }
 
-// TestConformanceCLI proves the built command reports all semantic failures and
-// exits 1 (default and explicit directory), while harness/usage errors exit 2
+// TestConformanceCLI proves the built command reports 66/66 semantic agreement and
+// exits 0 (default and explicit directory), while harness/usage errors exit 2
 // without success output. Deployment vectors are explicitly excluded.
 func TestConformanceCLI(t *testing.T) {
 	binary := filepath.Join(t.TempDir(), "memory")
@@ -59,8 +59,8 @@ func TestConformanceCLI(t *testing.T) {
 		code      int
 		errorPart string
 	}{
-		{"default", []string{"conformance"}, 1, ""},
-		{"explicit", []string{"conformance", "spec/kernel/vectors/semantic"}, 1, ""},
+		{"default", []string{"conformance"}, 0, ""},
+		{"explicit", []string{"conformance", "spec/kernel/vectors/semantic"}, 0, ""},
 		{"missing directory", []string{"conformance", filepath.Join(t.TempDir(), "missing")}, 2, "harness:"},
 		{"empty directory", []string{"conformance", t.TempDir()}, 2, "no semantic vectors"},
 		{"deployment", []string{"conformance", "spec/kernel/vectors/deployment"}, 2, "deployment vectors are out of scope"},
@@ -79,9 +79,9 @@ func TestConformanceCLI(t *testing.T) {
 			if cmd.ProcessState.ExitCode() != tc.code {
 				t.Fatal(cmd.ProcessState.ExitCode(), stderr.String())
 			}
-			if tc.code == 1 {
+			if tc.code == 0 {
 				lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
-				if len(lines) < 76 || lines[66] != "56/66 semantic vectors pass" || lines[67] != "admission ops matched: 70/73 (admit 42/45, admit_raw 2/2, revise 26/26)" || lines[len(lines)-1] != "8 deployment vectors are out of scope." || stderr.Len() != 0 {
+				if len(lines) < 76 || lines[66] != "66/66 semantic vectors pass" || lines[67] != "admission ops matched: 73/73 (admit 45/45, admit_raw 2/2, revise 26/26)" || lines[len(lines)-1] != "8 deployment vectors are out of scope." || stderr.Len() != 0 {
 					t.Fatal(stdout.String(), stderr.String())
 				}
 				ids := map[string]bool{}
@@ -98,7 +98,7 @@ func TestConformanceCLI(t *testing.T) {
 						t.Fatal(line)
 					}
 				}
-				if passed != 56 {
+				if passed != 66 {
 					t.Fatal("passing whole-vector count", passed)
 				}
 

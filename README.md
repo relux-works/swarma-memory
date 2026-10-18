@@ -8,10 +8,10 @@ Memory reports evidence, not truth, and grants no authority: a record about yest
 
 ## Status
 
-The Go kernel implements strict input validation and atomic admission/revision writes. Authorized bounded evidence evaluation is implemented; persistent space adapters remain to be implemented. This repository holds:
+The Go kernel implements the complete stage 1 semantic model: atomic writes, bounded evidence reads, disclosure, publication checks and erasure/restore accounting. Persistent space adapters remain to be implemented. This repository holds:
 
 - [`spec/`](spec/README.md) — the normative specification package (draft 0.2.7): the kernel semantics, 14 closed JSON Schemas, the decisions and synthetic profiles domain packages, the Swarma adapter contract and 74 conformance vectors (66 semantic, 8 protected-deployment). Two independent evaluators agree with the expected results on all 66 semantic vectors; the deployment vectors require a real protected deployment and are not qualified.
-- The Go module: package boundaries, the kernel interface, strict JSON intake, canonical bytes and digests, closed-schema validation, and a semantic conformance runner/CLI. The write kernel matches 70/73 admission results (70/70 in scope) and the load stimulus. The read evaluator, capture/changes bindings and availability stimulus bring whole-vector agreement to 56/66. Disclosure, erasure, restore and delivery operations remain `unsupported_operation`. See [write admission](docs/write-admission.md) and [read evaluation](docs/read-evaluation.md) for APIs, scope and validation. Persistent memory adapters and the agent skill are not implemented yet. The first working version's design is in [docs/architecture.md](docs/architecture.md).
+- The Go module: package boundaries, the kernel interface, strict JSON intake, canonical bytes and digests, closed-schema validation, and a semantic conformance runner/CLI. All 66/66 semantic vectors, 73/73 admission results and all six inventories match. See [write admission](docs/write-admission.md), [read evaluation](docs/read-evaluation.md) and [disclosure and erasure](docs/disclosure-erasure.md) for APIs, scope and validation. These are semantic model results; the eight protected-deployment vectors remain unqualified. Persistent memory adapters and the agent skill are not implemented yet. The first working version's design is in [docs/architecture.md](docs/architecture.md).
 
 ## Design in brief
 
@@ -30,19 +30,19 @@ Tools: Go 1.25 or later for the CLI, vet and tests; Python 3.10 or later for the
 ```sh
 go build -o bin/memory ./cmd/memory
 ./bin/memory version
-./bin/memory conformance # currently exits 1: 56/66 semantic vectors pass
+./bin/memory conformance # exits 0: 66/66 semantic vectors pass
 go vet ./...
 go test ./...
 python3 spec/checks/validate.py
 ```
 
-The binary goes to the ignored `bin/` directory. Vet, tests and the checker report to the terminal; Go's build and test caches use its configured cache directory. Optional saved logs belong in the ignored `.temp/` directory. CI runs the same vet, test and specification checks on pushes and pull requests. It also reports conformance progress without failing while stage 1 is incomplete; both ratchet tests remain mandatory.
+The binary goes to the ignored `bin/` directory. Vet, tests and the checker report to the terminal; Go's build and test caches use its configured cache directory. Optional saved logs belong in the ignored `.temp/` directory. CI runs the same vet, test and specification checks on pushes and pull requests. Semantic conformance and both full ratchets are mandatory CI checks.
 
 The `kernel` input boundary exposes `DecodeJSON`, `CanonicalJSON`, `DigestJSON` and `LoadSchemas`. Decoded trees use `int64` integers, never `float64`. Schema loading takes an `io/fs.FS`; tests supply `os.DirFS` for the package schemas. `Schemas.Validate` checks structure against an exact loaded package URI; `Schemas.ValidateRecord` also checks assertion domain references against caller-supplied exact `SchemaRef` versions. `NewState` and `State.Write` add domain-content validation, authenticated intake, retention checks, atomic batches, replay and issuer-local revision authority. `State.Read` and the typed `Kernel` reads evaluate authorized views; `Capture` binds immutable history for `changes`.
 
 The conformance command runs from the repository root and loads schemas from `spec/kernel/schemas`. An optional vectors directory selects a different semantic suite: `memory conformance <vectors-dir>`. It prints one verdict per vector and a summary, exits 0 only if all vectors pass, 1 on conformance failures, and 2 on harness/input errors. The 8 deployment vectors remain out of scope. Malformed, empty or mixed-profile suites are harness errors.
 
-`conformance.Load` accepts an `io/fs.FS` and loaded kernel schemas. Executors receive independent copies of the initial snapshot, operations and query, without the expected report. `Compare` preserves typed JSON, ordered results and exact timestamps, checks forbidden predicates against actual values, and normalizes only declared handles. Oracle acceptance and mutation controls exercise all applicable semantic vectors; they establish comparator behavior, not kernel evaluation or statistical randomness. `conformance/passing.txt` lists required passing vector IDs (56 required vectors); `conformance/passing-ops.txt` lists all 70 matching admission results. Both ratchets reject regressions, duplicates or unknown entries and report newly passing IDs. The CLI also prints operation and inventory agreement; [write admission](docs/write-admission.md) explains partial-result handle checks and the three prerequisite exclusions.
+`conformance.Load` accepts an `io/fs.FS` and loaded kernel schemas. Executors receive independent copies of the initial snapshot, operations and query, without the expected report. `Compare` preserves typed JSON, ordered results and exact timestamps, checks forbidden predicates against actual values, and normalizes only declared handles. Oracle acceptance and mutation controls exercise all applicable semantic vectors; they establish comparator behavior, not kernel evaluation or statistical randomness. `conformance/passing.txt` lists required passing vector IDs (66 required vectors); `conformance/passing-ops.txt` lists all 73 matching admission results. Both ratchets reject regressions, duplicates or unknown entries and report newly passing IDs. The CLI also prints operation and inventory agreement; [write admission](docs/write-admission.md) explains partial-result handle checks; there are no admission exclusions.
 
 ## Tools
 

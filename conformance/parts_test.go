@@ -104,12 +104,19 @@ func TestExecutedSnapshotsReload(t *testing.T) {
 			if r != nil {
 				t.Fatal(r)
 			}
-			for _, raw := range input.Operations {
+			for i, raw := range input.Operations {
 				op := raw.(map[string]any)
-				if !admission(op["op"].(string)) {
-					continue
+				switch op["op"] {
+				case "capture":
+					_, r = state.Capture(int64(i), op["query"].(map[string]any))
+				case "set_availability":
+					_, r = state.SetAvailability(op)
+				case "load":
+					_, r = state.SeedLoad(op["actor"].(string), op["hidden_work"].(int64))
+				default:
+					_, r = state.Write(op)
 				}
-				if _, r = state.Write(op); r == nil {
+				if r == nil {
 					if _, r = kernel.NewState(state.Snapshot(), schemas, freshHandle); r != nil {
 						t.Fatal("post-write snapshot", r)
 					}

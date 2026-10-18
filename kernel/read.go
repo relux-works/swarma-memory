@@ -3,13 +3,17 @@ package kernel
 import "sort"
 
 // capturedView retains a detached immutable result and its protected query binding.
-type capturedView struct{ query, view map[string]any }
+type capturedView struct {
+	query, view map[string]any
+	refs        []any
+}
 
 type readGraph struct {
 	s             *State
 	q, projection map[string]any
 	records       []any
 	index         map[string]any
+	contentIndex  map[string]any
 	eligible      map[string]bool
 	fenced        map[string]bool
 	active        map[string]bool
@@ -35,14 +39,15 @@ func (s *State) Capture(index int64, q map[string]any) (map[string]any, *Refusal
 	if _, exists := s.captures[index]; exists {
 		return nil, refusal(InvalidReference)
 	}
-	v, r := s.read(q)
+	refs := []any{}
+	v, r := s.readSelected(q, &refs)
 	if r != nil {
 		return nil, r
 	}
 	if s.captures == nil {
 		s.captures = map[int64]capturedView{}
 	}
-	s.captures[index] = capturedView{copyJSON(q).(map[string]any), copyJSON(v).(map[string]any)}
+	s.captures[index] = capturedView{copyJSON(q).(map[string]any), copyJSON(v).(map[string]any), refs}
 	return v, nil
 }
 
@@ -58,6 +63,9 @@ func (s *State) Captured(index int64) map[string]any {
 }
 
 func (s *State) read(q map[string]any) (map[string]any, *Refusal) {
+	return s.readSelected(q, nil)
+}
+func (s *State) readSelected(q map[string]any, prepared *[]any) (map[string]any, *Refusal) {
 	if _, r := CanonicalJSON(q); r != nil {
 		return nil, r
 	}
@@ -122,31 +130,13 @@ func (s *State) read(q map[string]any) (map[string]any, *Refusal) {
 			return nil, refusal(NotAuthorized)
 		}
 	}
-	g := &readGraph{s: s, q: q, projection: projection, index: map[string]any{}, eligible: map[string]bool{}, fenced: map[string]bool{}, active: map[string]bool{}, bounds: bounds, records: []any{}}
-	// Current disposition follows protected content lineage over the full snapshot,
-	// even when the query knowledge cut excludes an intermediate input. Logical
-	// evidence/source associations alone do not imply content lineage.
-	fullIndex := recordIndex(arr(s.snapshot["records"]))
-	for _, r := range arr(s.snapshot["records"]) {
-		if obj(env(r)["recorded"])["sequence"].(int64) <= cut["memory"].(int64) {
-			g.records = append(g.records, r)
-			g.index[refKey(ref(r))] = r
-		}
-	}
-	sort.Slice(g.records, func(i, j int) bool { return lessRef(ref(g.records[i]), ref(g.records[j])) })
-	for _, r := range g.records {
-		k := refKey(ref(r))
-		g.fenced[k] = s.fenced(r, fullIndex, map[string]bool{})
-		g.eligible[k] = g.visible(r)
-		g.active[k] = true
-	}
-	// An unauthorized revision cannot change the authorized projection.
-	for _, r := range g.records {
-		if env(r)["kind"] == "revision" && g.eligible[refKey(ref(r))] && body(r)["relation"] != "challenge" && body(r)["relation"] != "availability" {
-			g.active[refKey(body(r)["target"])] = false
-		}
-	}
+	g := s.newReadGraph(q, projection, bounds)
 	selected, historical, labels := g.selection()
+	if prepared != nil {
+		for _, r := range selected {
+			*prepared = append(*prepared, ref(r))
+		}
+	}
 	if projection["family"] == "audience_projection" {
 		for _, r := range selected {
 			for _, principal := range []any{env(r)["subject"], env(r)["issuer"], env(r)["submitter"], obj(env(r)["perspective"])["principal"]} {
@@ -326,11 +316,7 @@ func (g *readGraph) visible(r any) bool {
 	if g.projection["family"] == "audience_projection" && !g.boundedLineage(r, map[string]bool{}) {
 		return false
 	}
-	d := obj(e["disclosure"])
-	if d["retain_until"] != nil && g.q["now"].(string) >= d["retain_until"].(string) {
-		return false
-	}
-	if !contains(d["audiences"], g.q["audience"]) || !contains(d["purposes"], g.q["purpose"]) {
+	if !g.s.disclosureAllows(r, g.q["audience"], g.q["purpose"], g.q["now"], g.contentIndex, map[string]bool{}) {
 		return false
 	}
 	for _, right := range []string{"read", "use"} {
@@ -483,4 +469,34 @@ func (g *readGraph) boundedLineage(r any, seen map[string]bool) bool {
 		}
 	}
 	return true
+}
+
+func (s *State) newReadGraph(q, projection map[string]any, bounds map[string]int64) *readGraph {
+	g := &readGraph{s: s, q: q, projection: projection, index: map[string]any{}, eligible: map[string]bool{}, fenced: map[string]bool{}, active: map[string]bool{}, bounds: bounds, records: []any{}}
+	cut := obj(q["cut"])
+	// Current disposition follows protected content lineage over the full snapshot,
+	// even when the query knowledge cut excludes an intermediate input. Logical
+	// evidence/source associations alone do not imply content lineage.
+	fullIndex := recordIndex(arr(s.snapshot["records"]))
+	g.contentIndex = fullIndex
+	for _, r := range arr(s.snapshot["records"]) {
+		if obj(env(r)["recorded"])["sequence"].(int64) <= cut["memory"].(int64) {
+			g.records = append(g.records, r)
+			g.index[refKey(ref(r))] = r
+		}
+	}
+	sort.Slice(g.records, func(i, j int) bool { return lessRef(ref(g.records[i]), ref(g.records[j])) })
+	for _, r := range g.records {
+		k := refKey(ref(r))
+		g.fenced[k] = s.fenced(r, fullIndex, map[string]bool{})
+		g.eligible[k] = g.visible(r)
+		g.active[k] = true
+	}
+	// An unauthorized revision cannot change the authorized projection.
+	for _, r := range g.records {
+		if env(r)["kind"] == "revision" && g.eligible[refKey(ref(r))] && body(r)["relation"] != "challenge" && body(r)["relation"] != "availability" {
+			g.active[refKey(body(r)["target"])] = false
+		}
+	}
+	return g
 }
