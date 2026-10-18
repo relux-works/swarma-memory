@@ -8,10 +8,10 @@ Memory reports evidence, not truth, and grants no authority: a record about yest
 
 ## Status
 
-The design is decided and not implemented. This repository holds:
+The design is decided; the Go module skeleton is in place, with kernel semantics still to be implemented. This repository holds:
 
 - [`spec/`](spec/README.md) — the normative specification package (draft 0.2.7): the kernel semantics, 14 closed JSON Schemas, the decisions and synthetic profiles domain packages, the Swarma adapter contract and 74 conformance vectors (66 semantic, 8 protected-deployment). Two independent evaluators agree with the expected results on all 66 semantic vectors; the deployment vectors require a real protected deployment and are not qualified.
-- The first working version will live here as well: a Go kernel module, the `memory` CLI and an agent skill installed through Swarm Curator. Its design is in [docs/architecture.md](docs/architecture.md).
+- The Go module skeleton: package boundaries, the kernel interface, and a `memory version` CLI. Memory operations, the conformance runner and the agent skill are not implemented yet. The first working version's design is in [docs/architecture.md](docs/architecture.md).
 
 ## Design in brief
 
@@ -22,6 +22,20 @@ The design is decided and not implemented. This repository holds:
 - **Order of decisions** comes from the deciding issuer's own ordered events, never from arrival time.
 - **Provenance and erasure.** Derived records inherit the disclosure constraints of all their inputs; erasure follows content lineage, not the reasoning graph.
 - **Portability.** The kernel's semantic contract does not depend on Swarma; the same normalized inputs give the same answer anywhere.
+
+## Build and test
+
+Tools: Go 1.25 or later for the CLI, vet and tests; Python 3.10 or later for the specification checker. Both use only their standard libraries.
+
+```sh
+go build -o bin/memory ./cmd/memory
+./bin/memory version
+go vet ./...
+go test ./...
+python3 spec/checks/validate.py
+```
+
+The binary goes to the ignored `bin/` directory. Vet, tests and the checker report to the terminal; Go's build and test caches use its configured cache directory. Optional saved logs belong in the ignored `.temp/` directory. CI runs the same vet, test and specification checks on pushes and pull requests.
 
 ## Checking the specification
 
