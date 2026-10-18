@@ -11,7 +11,7 @@ Memory reports evidence, not truth, and grants no authority: a record about yest
 The design is decided and not implemented. This repository holds:
 
 - [`spec/`](spec/README.md) — the normative specification package (draft 0.2.7): the kernel semantics, 14 closed JSON Schemas, the decisions and synthetic profiles domain packages, the Swarma adapter contract and 74 conformance vectors (66 semantic, 8 protected-deployment). Two independent evaluators agree with the expected results on all 66 semantic vectors; the deployment vectors require a real protected deployment and are not qualified.
-- The first working version will live here as well: a Go kernel module, the `memory` CLI and an agent skill installed through Swarm Curator. Its architecture is being written.
+- The first working version will live here as well: a Go kernel module, the `memory` CLI and an agent skill installed through Swarm Curator. Its design is in [docs/architecture.md](docs/architecture.md).
 
 ## Design in brief
 
