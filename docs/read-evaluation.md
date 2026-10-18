@@ -33,6 +33,17 @@ public gaps. Unauthorized revisions cannot change visible currentness. Owner
 exclusions affect selection and historical/review metadata, while authorized
 premise use remains possible.
 
+Current per-record fences and erasure obligations apply before selection,
+currentness, counts and logical accounting, including reads at historical cuts.
+Known transitive content lineage (including incomplete lower bounds) propagates
+this closure over the complete admitted snapshot. Affected assertion payloads,
+assessments and rules are filtered without an existence-dependent refusal.
+Separately authorized source headers may survive, but their affected bytes are
+unavailable regardless of stored availability or source-access facts. A
+current-required root then reports `source_unavailable`; separately retained or
+independent assessments without affected content lineage preserve their qualified
+source state. A source association alone is not content lineage.
+
 Ordinary heads follow eligible revision links. Decision heads use canonical
 receipt maxima in the deciding issuer's restricted graph, including intermediate
 events with no assertion. Incomparable maxima remain sorted `ambiguous_current`
@@ -98,8 +109,9 @@ The read task needs these limited neighboring semantics:
 - K-PUB-2, B03/S23/P07: associated publication sources distinguish a checked
   current import from `last_received`; a mirror report alone stays an issuer
   statement. No delivery or current authorization capability is created.
-- K-ERASE/K-SNAP: initial erased source state and restore fences are honored;
-  retained/independent assessments remain distinguishable from fresh resolution.
+- K-ERASE/K-SNAP: initial per-record fences, erasure obligations and restore
+  fences are honored; retained/independent assessments remain distinguishable
+  from fresh resolution.
   Erasure, restore and delivery operations themselves remain unsupported.
 
 `SetAvailability` is only an owner harness stimulus under a predeclared
@@ -122,8 +134,11 @@ Tests cover input permutations, zero/clamped budgets, hidden dependencies and
 metadata gates, three distinct conflict outcomes, exact freshness boundaries,
 frozen bytes, current capture bindings, dirty causes/private controls, source
 AND/OR aggregation, assessment pins/expiry/context, output ownership,
-configuration ambiguity and malformed/reused handles. Corpus comparator oracle
-and mutation controls remain unchanged. Run from the repository root:
+configuration ambiguity and malformed/reused handles. Disposition regressions
+cover fenced assertions, current-required sources, surviving retained/independent
+checks, hidden headers and transitive content inputs at historical cuts. Corpus
+comparator oracle and mutation controls remain unchanged. Run from the repository
+root:
 
 ```sh
 go vet ./...

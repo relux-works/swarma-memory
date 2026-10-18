@@ -11,6 +11,7 @@ type readGraph struct {
 	records       []any
 	index         map[string]any
 	eligible      map[string]bool
+	fenced        map[string]bool
 	active        map[string]bool
 	bounds        map[string]int64
 }
@@ -121,7 +122,11 @@ func (s *State) read(q map[string]any) (map[string]any, *Refusal) {
 			return nil, refusal(NotAuthorized)
 		}
 	}
-	g := &readGraph{s: s, q: q, projection: projection, index: map[string]any{}, eligible: map[string]bool{}, active: map[string]bool{}, bounds: bounds, records: []any{}}
+	g := &readGraph{s: s, q: q, projection: projection, index: map[string]any{}, eligible: map[string]bool{}, fenced: map[string]bool{}, active: map[string]bool{}, bounds: bounds, records: []any{}}
+	// Current disposition follows protected content lineage over the full snapshot,
+	// even when the query knowledge cut excludes an intermediate input. Logical
+	// evidence/source associations alone do not imply content lineage.
+	fullIndex := recordIndex(arr(s.snapshot["records"]))
 	for _, r := range arr(s.snapshot["records"]) {
 		if obj(env(r)["recorded"])["sequence"].(int64) <= cut["memory"].(int64) {
 			g.records = append(g.records, r)
@@ -131,6 +136,7 @@ func (s *State) read(q map[string]any) (map[string]any, *Refusal) {
 	sort.Slice(g.records, func(i, j int) bool { return lessRef(ref(g.records[i]), ref(g.records[j])) })
 	for _, r := range g.records {
 		k := refKey(ref(r))
+		g.fenced[k] = s.fenced(r, fullIndex, map[string]bool{})
 		g.eligible[k] = g.visible(r)
 		g.active[k] = true
 	}
@@ -302,6 +308,11 @@ func (g *readGraph) visible(r any) bool {
 		return false
 	}
 	e := env(r)
+	// A separately authorized source header may survive disposition, but no
+	// affected payload or assessment may contribute to selection or evaluation.
+	if e["kind"] != "source" && g.fenced[refKey(ref(r))] {
+		return false
+	}
 	scope := obj(g.q["scope"])
 	if e["space"] != scope["space"] || e["subject"] != scope["subject"] || e["context"] != g.q["mode"] || e["kind"] != "source" && !equalJSON(e["perspective"], g.projection["perspective"]) {
 		return false
@@ -340,7 +351,7 @@ func (g *readGraph) withdrawn(r any) bool {
 	return false
 }
 func (g *readGraph) sourceAvailable(source any) bool {
-	if source == nil || contains(g.s.runtime()["erased"], ref(source)) {
+	if source == nil || g.fenced[refKey(ref(source))] {
 		return false
 	}
 	available := body(source)["availability"] == "resolvable"

@@ -295,12 +295,14 @@ func TestFrozenFreshnessAndChanges(t *testing.T) {
 }
 
 // TestReadValidationOrder proves public shape/configuration and policy checks
-// precede availability and restore gates. Paired valid queries return views;
+// precede availability, restore gates and per-record disposition filtering.
+// Paired valid queries return views;
 // failed reads never mint success payloads or mutate the full snapshot.
 func TestReadValidationOrder(t *testing.T) {
 	snapshot, q, _ := readFixture(t, "S01")
 	s := stateForTest(t, snapshot)
 	readSuccess(t, s, q)
+	s.runtime()["fences"] = []any{ref(arr(snapshot["records"])[0])}
 	s.policy()["availability_disclosure"] = "coarse_unavailable"
 	s.policy()["public_availability"] = "degraded"
 	obj(s.runtime()["restore"])["status"] = "fenced"
@@ -331,7 +333,9 @@ func TestReadValidationOrder(t *testing.T) {
 		mutate(bad)
 		readRefused(t, s, bad, InvalidTime)
 	}
-	readSuccess(t, s, q)
+	if len(arr(readSuccess(t, s, q)["items"])) != 0 {
+		t.Fatal("per-record fence did not filter after public validation")
+	}
 }
 
 // TestReadConfigurationAmbiguity rejects order-sensitive policy/configuration
