@@ -143,7 +143,7 @@ The platform space holds a directory: one entry per known space with its id, kin
 
 ### 5.5 Where an agent space lives
 
-An agent's home is deleted when its account retires and is never archived, so an agent space cannot live only in the home. The first version keeps the space as a git repository with a remote under the owner and only a working clone in the home. When a persistent agent returns under the same identity, it clones the same space again. One-off workers have no agent space and write into the project space.
+An agent's home is deleted when its account retires and is never archived, so an agent space cannot live only in the home. The first version keeps the space as a git repository with a remote under the owner and only a working clone in the home; this placement awaits the owner's confirmation. When a persistent agent returns under the same identity, it clones the same space again. One-off workers have no agent space and write into the project space.
 
 ## 6. Signing and keys
 
@@ -318,9 +318,9 @@ Usefulness is measured on real work: correct current decision with its source, r
 
 ## 15. Open questions
 
-- Where agent spaces are hosted, and what happens to them when an agent is revoked.
+- Confirmation of where agent spaces are hosted (section 5.5), and what happens to an agent space when its agent is revoked.
 - The residual risk of secrets in memory that outlives the home.
-- Who registers a temporary key and how a lost key is replaced without breaking the agent's history.
+- How a lost temporary key is replaced without breaking the agent's history.
 - Who resolves which conflicts in shared spaces, and the exact escalation path.
 - The format and owner of the space directory.
 - How long sources must stay presentable.
