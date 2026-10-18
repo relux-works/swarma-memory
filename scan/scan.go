@@ -43,10 +43,13 @@ const (
 	EntropyBase64 Detector = "entropy_base64"
 )
 
-// Finding never includes detected secrets in excerpts or pointers.
+// Finding redacts detected secrets and meaningful fragments from its location.
 // Pointer is an RFC 6901 JSON Pointer. For a flagged object key, or descendants
 // of one (including keys containing a secret detected elsewhere), it names the
-// nearest safe ancestor instead and PointerRedacted is true.
+// nearest safe ancestor instead and PointerRedacted is true. Four-byte fragments
+// of detected strings and credential components are protected, including fragments
+// reconstructed by joining or escaping segments. OriginalDepth records only the
+// original segment count when redacted; it is not a unique location identifier.
 // InKey distinguishes a key finding from a value/container finding. Excerpt is
 // always fully redacted: surrounding text can itself contain another secret.
 type Finding struct {
@@ -55,6 +58,7 @@ type Finding struct {
 	Excerpt         string   `json:"excerpt"`
 	InKey           bool     `json:"in_key,omitempty"`
 	PointerRedacted bool     `json:"pointer_redacted,omitempty"`
+	OriginalDepth   int      `json:"original_depth,omitempty"`
 }
 
 // Scan returns nil on success, otherwise sorted, typed findings. The input must
@@ -82,20 +86,30 @@ func Scan(value any, limits Limits) []Finding {
 	if len(canonical) > limits.MaxCanonicalBytes {
 		pending = append(pending, pendingFinding{detector: CanonicalSize})
 	}
-	// Keep matched spans only within this call. A separate pointer pass also
-	// protects secrets embedded in otherwise nonmatching ancestor/sibling keys.
-	secrets := make(map[string]bool)
+	// Keep fragment sets only within this call. A separate pointer pass also
+	// protects components split across otherwise nonmatching ancestor keys.
+	fragments := make(map[string]bool)
+	sensitive := make(map[string]bool)
 	unsafeKeys := make(map[string]bool)
 	scanString := func(text string, path []string, inKey, exempt bool) {
 		result := stringDetectors(text, len(text) > limits.MaxStringBytes, exempt)
 		if inKey && len(result.detectors) > 0 {
 			unsafeKeys[text] = true
 		}
+		secretBearing := false
 		for _, detector := range result.detectors {
 			pending = append(pending, pendingFinding{detector: detector, path: path, inKey: inKey})
+			secretBearing = secretBearing || detector != StringSize
+		}
+		if secretBearing {
+			// A PEM header is enough to refuse: its unvalidated payload must
+			// still never escape through a finding's object-key fragments.
+			addFragments(fragments, text)
+			sensitive[text] = true
 		}
 		for _, secret := range result.secrets {
-			secrets[secret] = true
+			addFragments(fragments, secret)
+			sensitive[secret] = true
 		}
 	}
 	root := value
@@ -128,8 +142,12 @@ func Scan(value any, limits Limits) []Finding {
 	walk(value, "", nil)
 	var findings []Finding
 	for _, p := range pending {
-		pointer, redacted := safePointer(p.path, secrets, unsafeKeys)
-		findings = append(findings, finding(p.detector, pointer, p.inKey, redacted))
+		pointer, redacted := safePointer(p.path, fragments, unsafeKeys, sensitive)
+		f := finding(p.detector, pointer, p.inKey, redacted)
+		if redacted {
+			f.OriginalDepth = len(p.path)
+		}
+		findings = append(findings, f)
 	}
 	sort.SliceStable(findings, func(i, j int) bool {
 		if findings[i].Pointer != findings[j].Pointer {
@@ -158,19 +176,53 @@ func childPath(parent []string, segment string) []string {
 	return child
 }
 
-func safePointer(path []string, secrets, unsafeKeys map[string]bool) (string, bool) {
-	pointer := ""
-	for _, segment := range path {
+// Four-byte windows cover all longer overlapping fragments as well. The full
+// detected string is included, not just the regex match (notably for PEM data).
+func addFragments(fragments map[string]bool, text string) {
+	for i := 0; i+4 <= len(text); i++ {
+		fragments[text[i:i+4]] = true
+	}
+}
+
+func safePointer(path []string, fragments, unsafeKeys, sensitive map[string]bool) (string, bool) {
+	depth := len(path)
+	encoded := make([]string, len(path))
+	for i, segment := range path {
 		if unsafeKeys[segment] {
-			return pointer, true
+			depth = min(depth, i)
 		}
-		next := pointer + "/" + escapePointer(segment)
-		for secret := range secrets {
-			if strings.Contains(segment, secret) || strings.Contains(next, secret) {
-				return pointer, true
+		// Even a short complete segment can be one piece of a credential,
+		// independently of path order. Empty keys carry no secret bytes.
+		for text := range sensitive {
+			if segment != "" && strings.Contains(text, segment) {
+				depth = min(depth, i)
 			}
 		}
-		pointer = next
+		encoded[i] = "/" + escapePointer(segment)
 	}
-	return pointer, false
+	// Raw segments can reconstruct a credential when their separators are
+	// removed; rendered segments can introduce credential text through RFC
+	// 6901 escaping or slash separators. Redact before the first contributor,
+	// not merely before the segment completing a four-byte window.
+	depth = min(depth, safeDepth(path, fragments), safeDepth(encoded, fragments))
+	return strings.Join(encoded[:depth], ""), depth != len(path)
+}
+
+func safeDepth(parts []string, fragments map[string]bool) int {
+	var combined strings.Builder
+	var owners []int
+	for i, part := range parts {
+		combined.WriteString(part)
+		for range len(part) {
+			owners = append(owners, i)
+		}
+	}
+	text := combined.String()
+	depth := len(parts)
+	for i := 0; i+4 <= len(text); i++ {
+		if fragments[text[i:i+4]] {
+			depth = min(depth, owners[i])
+		}
+	}
+	return depth
 }

@@ -113,7 +113,7 @@ func TestNoSecretInFindings(t *testing.T) {
 				if f.Excerpt != "[REDACTED]" {
 					t.Fatal("excerpt contains input content")
 				}
-				if f.Detector == p.detector && f.Pointer == "/safe/0" && f.PointerRedacted {
+				if f.Detector == p.detector && (f.Pointer == "/safe/0" || f.Pointer == "/safe") && f.PointerRedacted {
 					key = key || f.InKey
 					descendant = descendant || !f.InKey
 				}
@@ -414,7 +414,7 @@ func TestPointerEncodingRedaction(t *testing.T) {
 		want  string
 	}{
 		{map[string]any{"abc/def": "Bear" + "er abc~1def"}, ""},
-		{map[string]any{"abc": map[string]any{"def": "Bear" + "er abc/def"}}, "/abc"},
+		{map[string]any{"abc": map[string]any{"def": "Bear" + "er abc/def"}}, ""},
 	} {
 		got := scan.Scan(test.value, roomy)
 		if len(got) != 1 || got[0].Pointer != test.want || !got[0].PointerRedacted {
@@ -433,5 +433,116 @@ func TestAllMatchesRedacted(t *testing.T) {
 	raw, _ := json.Marshal(got)
 	if len(got) == 0 || bytes.Contains(raw, []byte(second)) {
 		t.Fatal("a later match leaked through a pointer")
+	}
+}
+
+// TestSplitSecretLocations proves that finding pointers expose no four-byte
+// fragment of detected values or their credential components, either directly
+// or after RFC 6901 decoding and joining. Runtime plants cover all secret
+// detector kinds, provider variants, and split lengths below/at/above four.
+func TestSplitSecretLocations(t *testing.T) {
+	for _, p := range plants() {
+		components := []string{p.hit}
+		switch p.detector {
+		case scan.Bearer:
+			components = append(components, strings.TrimSpace(p.hit[len("Bearer"):]))
+		case scan.URLPassword:
+			userinfo := p.hit[strings.Index(p.hit, "://")+3 : strings.Index(p.hit, "@")]
+			components = append(components, userinfo[strings.Index(userinfo, ":")+1:])
+		case scan.PrivateKey:
+			// This low-entropy payload does not independently trigger entropy:
+			// header detection must still protect the entire private-key string.
+			components = append(components, strings.Repeat("synthetic-material", 3))
+		}
+		for componentIndex, component := range components {
+			for _, width := range []int{1, 2, 3, 4, 5, 8, 13} {
+				t.Run(fmt.Sprintf("%s/component-%d/split-%d", p.name, componentIndex, width), func(t *testing.T) {
+					leaf := p.hit
+					if p.detector == scan.PrivateKey {
+						leaf += "\n" + strings.Repeat("synthetic-material", 3)
+					}
+					var nested any = leaf
+					var segments []string
+					for start := 0; start < len(component); start += width {
+						segments = append(segments, component[start:min(start+width, len(component))])
+					}
+					for i := len(segments) - 1; i >= 0; i-- {
+						nested = map[string]any{segments[i]: nested}
+					}
+					got := scan.Scan(map[string]any{"safe": nested}, roomy)
+					if !has(got, p.detector) {
+						t.Fatal("positive detector control failed")
+					}
+					raw, _ := json.Marshal(got)
+					for _, f := range got {
+						var decodedSegments []string
+						if f.Pointer != "" {
+							for _, segment := range strings.Split(f.Pointer[1:], "/") {
+								decodedSegments = append(decodedSegments, strings.ReplaceAll(strings.ReplaceAll(segment, "~1", "/"), "~0", "~"))
+							}
+						}
+						decoded := strings.Join(decodedSegments, "/")
+						joined := strings.Join(decodedSegments, "")
+						for offset := 0; offset+4 <= len(component); offset++ {
+							fragment := component[offset : offset+4]
+							// JSON field names and fixed detector labels are public
+							// metadata. Check data-bearing excerpts/pointers in raw
+							// JSON, then decoded and separator-free path material.
+							location, _ := json.Marshal(struct{ Pointer, Excerpt string }{f.Pointer, f.Excerpt})
+							if bytes.Contains(location, []byte(fragment)) || strings.Contains(decoded, fragment) || strings.Contains(joined, fragment) {
+								t.Fatal("recoverable credential fragment in finding location")
+							}
+						}
+						if !f.PointerRedacted {
+							t.Fatal("unsafe path lacks redaction marker")
+						}
+					}
+					if bytes.Contains(raw, []byte(component)) {
+						t.Fatal("complete credential component in raw findings")
+					}
+				})
+			}
+		}
+	}
+}
+
+// TestSafeAncestorDepth proves benign paths remain exact and a partially unsafe
+// path retains only its safe ancestor plus a deterministic, content-free depth.
+func TestSafeAncestorDepth(t *testing.T) {
+	p := plants()[0]
+	safe := scan.Scan(map[string]any{"outer": map[string]any{"value": p.hit}}, roomy)
+	if len(safe) != 1 || safe[0].Pointer != "/outer/value" || safe[0].PointerRedacted || safe[0].OriginalDepth != 0 {
+		t.Fatal("safe path lost its location", safe)
+	}
+	value := map[string]any{"outer": map[string]any{p.hit[:8]: map[string]any{"value": p.hit}}}
+	got := scan.Scan(value, roomy)
+	if len(got) != 1 || got[0].Pointer != "/outer" || !got[0].PointerRedacted || got[0].OriginalDepth != 3 {
+		t.Fatal("unsafe contributor or original depth leaked", got)
+	}
+	for range 10 {
+		if !reflect.DeepEqual(scan.Scan(value, roomy), got) {
+			t.Fatal("redacted locations are nondeterministic")
+		}
+	}
+}
+
+// TestShortFragmentPermutation proves short credential pieces are not exposed
+// merely because their path order changes. Only the benign ancestor survives.
+func TestShortFragmentPermutation(t *testing.T) {
+	p := plants()[0]
+	for _, width := range []int{1, 2, 3} {
+		var nested any = p.hit
+		for start := 0; start < len(p.hit); start += width {
+			nested = map[string]any{p.hit[start:min(start+width, len(p.hit))]: nested}
+		}
+		got := scan.Scan(map[string]any{"outer": nested}, roomy)
+		if !has(got, p.detector) {
+			t.Fatal("detector positive control failed")
+		}
+		for _, f := range got {
+			if f.Pointer != "/outer" || !f.PointerRedacted {
+				t.Fatal("permuted short credential pieces exposed")
+			}
+		}
 	}
 }
