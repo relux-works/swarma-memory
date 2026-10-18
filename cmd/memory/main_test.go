@@ -18,9 +18,9 @@ func TestCLI(t *testing.T) {
 		stderr string
 	}{
 		{name: "version", args: []string{"version"}, code: 0, stdout: "memory dev\n"},
-		{name: "no arguments", code: 2, stderr: "Usage: memory [--home DIR] [--json] <keys|spaces|policy|sync|check|recall|explain|changes|version|conformance> [arguments]\n"},
-		{name: "unknown command", args: []string{"unknown"}, code: 2, stderr: "memory: unknown command \"unknown\"\nUsage: memory [--home DIR] [--json] <keys|spaces|policy|sync|check|recall|explain|changes|version|conformance> [arguments]\n"},
-		{name: "extra argument", args: []string{"version", "extra"}, code: 2, stderr: "memory: version takes no arguments\nUsage: memory [--home DIR] [--json] <keys|spaces|policy|sync|check|recall|explain|changes|version|conformance> [arguments]\n"},
+		{name: "no arguments", code: 2, stderr: "Usage: memory [--home DIR] [--json] <keys|spaces|policy|sync|check|recall|explain|changes|add|revise|assess|promote|version|conformance> [arguments]\n"},
+		{name: "unknown command", args: []string{"unknown"}, code: 2, stderr: "memory: unknown command \"unknown\"\nUsage: memory [--home DIR] [--json] <keys|spaces|policy|sync|check|recall|explain|changes|add|revise|assess|promote|version|conformance> [arguments]\n"},
+		{name: "extra argument", args: []string{"version", "extra"}, code: 2, stderr: "memory: version takes no arguments\nUsage: memory [--home DIR] [--json] <keys|spaces|policy|sync|check|recall|explain|changes|add|revise|assess|promote|version|conformance> [arguments]\n"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer

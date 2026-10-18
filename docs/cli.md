@@ -1,4 +1,4 @@
-# Memory CLI: foundation, administration and reads
+# Memory CLI: administration, reads and writes
 
 Build `go build -o bin/memory ./cmd/memory`. The application embeds the public
 package schemas and domain documents and runs outside the source checkout.
@@ -58,6 +58,10 @@ flag parsing for literal queries/IDs beginning with dashes. IDs are opaque;
 | `recall QUERY [--rule issuer_current] [--require-current]` | Case-insensitive substring search over authorized structured assertion content; `*` selects every authorized assertion |
 | `explain ID [--version N]` | Kernel explanation for authorized assertion versions, including historical versions when explicitly selected |
 | `changes [--since CURSOR]` | Kernel view changes from a protected replay baseline; omitted baseline means initial view |
+| `add KIND --idempotency-key KEY ...` | Atomically admit an assertion, source, justification or assessment |
+| `revise ID --relation replace\|withdraw\|correct\|challenge --idempotency-key KEY ...` | Kernel revision with a pinned compare-and-set token |
+| `assess ID --kind CHECK --idempotency-key KEY ...` | Admit a pinned assessment |
+| `promote ID --space SOURCE --to TARGET --idempotency-key KEY` | Read an authorized assertion and admit a separately attributed derivative with a citation in a configured target |
 | `version` | Build version |
 | `conformance [VECTORS-DIR]` | Existing semantic harness and inventories |
 
@@ -94,8 +98,197 @@ kernel views, not arbitrary Git file edits. Current reader authorization is
 required even when reconstructing an older baseline. Baseline evaluation uses its
 own policy, then current evaluation uses the latest verified policy.
 
-Writes `add`, `revise`, `assess`, and `promote` remain the next task. They can use
-the same home loader, signer, `agentprofile` and `space.Repository.Write` seam.
+## Write commands
+
+Writes use the same home, local signer, trusted profile and verified policy as
+reads. They call `space.Repository.Write`: sync, build once, kernel admission,
+scan, record/transaction signatures, `git commit -S`, signature verification and
+ordinary push. The fixed bound is **two additional push attempts** (three total).
+Each rejected push fetches and rechecks the unchanged operation. A changed CAS
+head yields `version_conflict`; an unrelated admissible race can retry. No force
+push or merge is used. An unpublished signed racing attempt remains in the local
+reflog; the remote receives only accepted writes and the clone remains clean.
+
+All four commands require `--idempotency-key KEY`. `--space ID` selects a configured
+space; it can be omitted only when exactly one is configured. Promotion requires
+an explicit source selection when more than one space is configured. `--id ID`
+names the new primary record, default `record:KEY`. Do not use secrets as keys or
+IDs: these metadata are scanned too. The same actor/space/key and complete intent
+returns the original kernel receipt, including its handle, under current grants
+and retention. Changing the body under the key gives `idempotency_conflict`.
+A retry never bypasses the kernel by returning a locally cached receipt.
+
+Common write flags:
+
+| Flags | Meaning |
+| --- | --- |
+| `--body FILE` or `--body -` | Complete closed JSON body, read from a file or stdin; never an envelope/operation override |
+| `--content TEXT` | Assertion shorthand: one `value` field, `slot: "[]"`, no authority receipt; mutually exclusive with `--body` |
+| `--at UTC` | Intake timestamp in UTC seconds; default process clock |
+| `--expected-generation N` | Explicit erasure generation; default verified current generation, or original generation on exact retry |
+| `--id`, `--idempotency-key`, `--space` | Record identity, retry identity and target space as above |
+
+Inputs are UTF-8, at most 1,000,000 bytes per file/stdin input, with strict JSON
+parsing for body/source files. Exactly one input can consume stdin. Invalid body
+shape, unknown fields, domain content, grants, representation and bounds still
+pass through the existing closed-schema/kernel checks. Plain output retains the
+same quoted `memory data:` envelope as JSON mode.
+
+### Add
+
+```sh
+memory add assertion --space project:example --id record:observation \
+  --idempotency-key observation:one --content 'An attributed observation'
+memory add assertion --space project:example --idempotency-key observation:two \
+  --schema schema:assumption --schema-version 1 --body body.json
+```
+
+`KIND` is `assertion`, `source`, `justification` or `assessment`; revisions use
+`revise`. Non-assertion kinds require `--body`. Assertions default to
+`schema:assumption` version 1 and statement kind `fact`. `--statement-kind` changes
+the shorthand's kind; it cannot accompany a full body. Other domains, sorted
+content fields and slots are supplied by full body JSON.
+
+Envelope flags are `--subject`, `--issuer`, `--perspective own|observer|team`,
+`--perspective-principal`, `--schema`, `--schema-version`, `--version`,
+`--valid-from`, `--valid-to`, and `--confirmed-at`. Defaults are local identity for
+subject/issuer, own perspective naming the issuer, version 1, validity beginning
+at the initial intake time with no end, and no claimed confirmation time.
+Schema flags apply only to assertions. The omitted initial validity start is
+recovered from the verified original operation on retry. `--admission-class`
+defaults to `machine_observation`; choose `semantic_inference` with a matching
+proposal/assessment-summary schema for model-created statements. Explicit issuer
+or team flags grant no authority. Kernel intake supplies submitter, recorded
+stamp and class; the provisional profile keeps lineage unknown.
+
+`--sources FILE|-` accepts an array of exact source refs, such as
+`[{"id":"source:notes","version":1}]`. An assertion and a documentary-basis
+justification are admitted atomically. An assessment appends these refs to its
+`sources`. This establishes documentary attribution, without a world-evidence
+root, independent origin, sufficient-support proof or fresh source resolution.
+The kernel rejects missing or non-source refs with `invalid_reference`.
+
+### Revise and assess
+
+```sh
+memory revise record:observation --space project:example --relation replace \
+  --content 'Updated observation' --expected-version 1 --idempotency-key update:one
+memory assess record:observation --space project:example --kind semantic_review \
+  --executor model --result pass --idempotency-key review:one
+```
+
+`revise` supports all four architecture relations. `replace`/`correct` require
+`--content` or the complete replacement `--body`; the replacement preserves its
+sequence envelope, receives the same ID and next version, and is atomic with the
+revision. `withdraw`/`challenge` accept neither content nor body. The revision
+itself uses `--id` (or `record:KEY`), version 1, and the target's subject. Its issuer
+defaults to the local identity (`--issuer` and `--admission-class` are explicit
+inputs, subject to kernel authority).
+
+`--version N` selects an exact target version. Otherwise the CLI selects the
+latest verified version of that opaque ID. `--expected-version N` pins CAS to that
+ID; `--expected-id ID` with it selects a different token ID, such as a withdrawal's
+revision reference. Without an explicit token the CLI takes it from verified
+revision history. The kernel alone decides whether this is a unique current
+head and whether the actor may revise it. Build runs once, so a concurrent head
+change never silently retargets the operation. On a key retry, omitted target,
+expected token and intake defaults come from the original verified operation,
+so an already completed revision returns its original receipt. Non-issuer
+replace/correct/withdraw refuses `representation_invalid`; a separately admitted
+writer may challenge.
+
+`assess` accepts `--version` for the target and requires `--kind` from the closed
+assessment check kinds. Defaults are `--executor model`, `--result pass`,
+`--polarity support`, `--source-requirement current`, and `--origin origin:ID`.
+Policy/environment pins come from the trusted profile; the check rule is the exact
+`check:KIND` version 1. Model checks remain restricted to `semantic_review` by the
+kernel. `--body` supplies the complete assessment body instead of these shortcuts;
+its check kind and subject pin must match the command and selected record. An
+assessment retry retains its originally selected target. Envelope issuer and
+perspective flags are accepted, while the target fixes subject and output version
+is 1. Assessments also accept source/session flags.
+
+### Session excerpts
+
+```sh
+memory add assertion --space project:example --idempotency-key session:one \
+  --content 'Observed session outcome' \
+  --source-session runtime:session:message --source-text excerpt.txt
+```
+
+For `add assertion` and `assess`, `--source-session runtime:session:message` requires
+`--source-text FILE|-`. The first two colons delimit runtime and session; the rest
+is the exact message ID or index. The text is retained byte-for-byte as UTF-8 in
+an atomic source record's `body.excerpt`, and SHA256 hashes the raw text bytes,
+including trailing newlines. The structured runtime/session/message locator is a
+canonical JSON string in `body.origin`; `body.object` is its
+`sha256:<raw-text-digest>` locator, `body.revision` is the message ID, and
+`body.digest` is null. This preserves the distinction from the spec's separately
+framed `sha256-cjson-v1` digest. The source includes a retention-admission reference
+to this signed intake; that reference grants nothing and the kernel independently
+requires retain rights. Availability is `unavailable`: no external session
+resolver or survival of the original session is claimed. A documentary link or
+assessment source ref cites it in the same atomic transaction.
+
+### Promote
+
+`promote ID --space SOURCE --to TARGET` accepts `--version N` to pin the original
+assertion. It requires a configured distinct target, a registered source reader
+(or public grant), per-record disclosure eligibility in a kernel explain query,
+and target admission/retain rights. It never uses a raw cached record as a read
+capability. A hidden source is not promotable even with a reader role.
+
+The derivative has a new ID, version 1, local issuer/own perspective, the original
+subject/schema/content/validity, and the original disclosure labels. The batch
+also includes a local source citation naming the original space and exact
+id/version, with its `sha256-cjson-v1` digest and original issuer, plus a documentary
+justification. No cross-space exact reference, directory lookup, complete lineage,
+receipt authority or fresh resolver is invented. The documentary profile still
+reports unknown lineage; independently authenticated cross-space lineage remains
+an integration question. Target schema/authority checks can still refuse (for
+example a foreign self declaration cannot become the new issuer's declaration).
+The latest source version is the default; use `--version` for a stable citation
+when retrying after the source has advanced.
+
+### Write results and refusals
+
+Success data has exactly `id`, `version`, `commit`, `cursor`, `receipt`. `receipt`
+is the unchanged closed kernel receipt, including all atomic output refs and its
+original handle. For replace/correct, id/version name the replacement; for
+withdraw/challenge they name the new revision. `commit` is the first-parent commit
+that introduced that primary record, even on an idempotent retry. `cursor` is the
+current verified target head and can advance independently of the original
+receipt. This distinguishes publication identity from current sync position.
+
+| Code | Exit | Result |
+| --- | ---: | --- |
+| `version_conflict` | 3 | Stale/ambiguous CAS or duplicate output; no accepted write |
+| `idempotency_conflict` | 3 | Same key, different complete intent |
+| `scan_refused` | 3 | `data: {findings: [...]}` with the scanner's fully redacted typed findings |
+| `not_authorized` | 3 | Missing operation/retain grant, or no source reader for promotion |
+| `representation_invalid` | 3 | Non-issuer revision or unavailable representation |
+| `history_rewritten` | 4 | Preserve last verified cursor; write publishes nothing |
+| `retry_exhausted` | 3 | Additional NFF retries exhausted |
+| `usage`, `space_required`, `unknown_space` | 2 | Flag/input selection |
+| `input_io` | 6 | Input could not be read, without printing its path or content |
+
+Other kernel/sign/adapter refusals retain their typed exit 3 codes. A scanner
+quarantine in the provisional intake profile is rendered as `scan_refused` only
+when scanning the exact rejected proposals confirms redacted findings; unrelated
+quarantine remains `quarantined`. No rejected body or raw Git stderr is emitted.
+Pre-publication refusals create no record file or commit and perform no push.
+
+### Architecture decisions
+
+| Section | Ambiguity | Decision |
+| --- | --- | --- |
+| §7.1 / §11 | Common flags, stable implicit identity/time, original receipt vs current cursor | Required caller key; documented stable IDs/defaults, recover original omitted defaults from verified intent, preserve original receipt/commit and report current cursor separately. |
+| §7.1 | Retry bound and a losing push's local commit | Two additional attempts; unchanged library path; preserve signed unpublished attempt in reflog and report CAS conflict after fetch. |
+| §7.1 | Provisional scan quarantine precedes the adapter's post-admission scan | Translate only confirmed scanner quarantine to typed redacted findings; no admission rule or profile change. |
+| §7.2 / closed source schema | Structured session locator and raw digest have no new fields | Origin holds canonical locator JSON, object holds raw SHA256 locator, excerpt is retained body data; no mislabelled canonical digest. |
+| §7.1 / K-REV-1 | Default CAS token and exact retry after its head changed | Select from verified history once; original intent supplies omitted retry defaults; kernel validates CAS/authority. |
+| §11 | Assessment defaults and check execution | Pin documentary evidence; never execute the check or turn a model check into deterministic evidence. |
+| §11 / stage 5 boundary | Promotion before a directory or cross-space lineage integration exists | Only configured spaces; kernel source read plus target write; preserve disclosure and create a local documentary citation with unknown lineage. |
 
 ## Provisional trusted profile
 
@@ -163,6 +356,7 @@ The closed `data` variants are:
 | `keys register`, `policy grant/revoke` | `commit`, `space` (the preceding summary shape) |
 | `sync/check` | `spaces` (summary array) |
 | `recall/explain/changes` | `cursor`, `spaces`; each space has `id`, `cursor`, `views`, `diagnostics` |
+| `add/revise/assess/promote` | `id`, `version`, `commit`, `cursor`, `receipt`; scan error data has only `findings` |
 | `conformance --json` | `report` (ordered existing report lines) |
 
 `policy` is the closed `space.Policy` payload. A diagnostic has exactly `commit`,
@@ -208,7 +402,7 @@ usage errors; JSON mode wraps either as `conformance_failed`. Legacy plain
 Git receives `os.Environ()` explicitly and unchanged: no hidden credential,
 author, signing, config, protocol or agent overrides. Callers must arrange their
 own Git environment, including clearing unrelated `GIT_DIR`/`GIT_WORK_TREE`
-bindings. Every owner policy commit uses `git commit -S`, is verified before a
+bindings. Every write and owner policy commit uses `git commit -S`, is verified before a
 normal feature/space branch push, and has no unsigned production switch. A failed
 signature restores only the command's own policy path; a racing push returns
 `version_conflict`, retaining the signed local attempt for inspection.
@@ -217,7 +411,10 @@ CLI tests build the binary once per package and execute subprocesses with isolat
 homes and local bare remotes. SSH signing keys are ephemeral test-owned files;
 explicit child environments disable host/system Git configuration, key agents
 and network transports. `ssh-keygen` generates those fixture keys and verifies
-real signed commits. Run `go test ./cmd/memory`,
+real signed commits. Write tests include two registered homes reaching a real
+pre-push barrier from the same parent, every typed refusal with publication-state
+checks, raw scanner-output redaction, session excerpts, receipt retries, promotion
+read/write gates and quoted instruction-like data. Run `go test ./cmd/memory`,
 `go test -race ./space ./cmd/...`, `go vet ./...`,
 `python3 spec/checks/validate.py`, and `go run ./cmd/memory conformance`.
 Go temp artifacts use `TMPDIR`; saved project logs belong under `.temp/`.

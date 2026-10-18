@@ -44,6 +44,10 @@ func classify(e error) wireError {
 	if errors.As(e, &c) {
 		return wireError{c.code, c.exit}
 	}
+	var hit *space.ScanError
+	if errors.As(e, &hit) {
+		return wireError{"scan_refused", 3}
+	}
 	var k *kernel.Refusal
 	if errors.As(e, &k) {
 		return wireError{string(k.Code), 3}
@@ -242,7 +246,7 @@ func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
 		}
 		return keyData(k), nil
 	}
-	if cmd != "keys" && cmd != "spaces" && cmd != "policy" && cmd != "sync" && cmd != "check" && cmd != "recall" && cmd != "explain" && cmd != "changes" {
+	if cmd != "keys" && cmd != "spaces" && cmd != "policy" && cmd != "sync" && cmd != "check" && cmd != "recall" && cmd != "explain" && cmd != "changes" && cmd != "add" && cmd != "revise" && cmd != "assess" && cmd != "promote" {
 		return nil, cliError{"usage", 2}
 	}
 	c, e := h.load()
@@ -325,6 +329,8 @@ func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
 			return map[string]any{"spaces": items}, cliError{"verification_failed", 5}
 		}
 		return map[string]any{"spaces": items}, nil
+	case "add", "revise", "assess", "promote":
+		return writeCLI(ctx, h, c, a)
 	case "recall", "explain", "changes":
 		return readCLI(ctx, h, c, a)
 	}

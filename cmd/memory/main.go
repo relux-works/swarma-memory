@@ -31,7 +31,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	if args[0] != "version" {
 		switch args[0] {
-		case "keys", "spaces", "policy", "sync", "check", "recall", "explain", "changes":
+		case "keys", "spaces", "policy", "sync", "check", "recall", "explain", "changes", "add", "revise", "assess", "promote":
 			return runCLI(args, stdout, stderr)
 		}
 		fmt.Fprintf(stderr, "memory: unknown command %q\n", args[0])
@@ -48,7 +48,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: memory [--home DIR] [--json] <keys|spaces|policy|sync|check|recall|explain|changes|version|conformance> [arguments]")
+	fmt.Fprintln(w, "Usage: memory [--home DIR] [--json] <keys|spaces|policy|sync|check|recall|explain|changes|add|revise|assess|promote|version|conformance> [arguments]")
 }
 
 // Run from the repository root, where the normative schema package is available.
