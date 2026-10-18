@@ -303,3 +303,126 @@ func TestGitMetadataCarrierCannotIntroduceOutputs(t *testing.T) {
 	expectDiagnostic(t, r, "transaction_origin_mismatch")
 	assertGoodOnly(t, h, r)
 }
+
+// A single four-parent merge admits identical authenticated carriers once and
+// preserves the original receipt across readers. Changed source trees, signed
+// policy digests and output bytes still receive their exact refusal; an unrelated
+// valid neighbour admits in every case, with no additional diagnostics.
+func TestGitOctopusTransactionCarriers(t *testing.T) {
+	for _, variant := range []string{"identical", "source_tree", "policy_digest", "output_bytes"} {
+		t.Run(variant, func(t *testing.T) {
+			h := newGitHarness(t)
+			before, _, _ := h.clone(t, "before")
+			check(t, before.Sync(context.Background()))
+			op := h.op(t, "rec:bad", h.f.writer.Identity())
+			files, tx := h.transactionFiles(t, before.Snapshot(), op, h.f.writer)
+			bindTransactions(t, h, h.seed, files, h.f.policy, tx)
+			original := rawCommit(t, h, h.seed, files, []map[string]any{tx})
+			originalTree := gitCommand(t, h.seed, h.env, "rev-parse", "HEAD^{tree}")
+			gitCommand(t, h.seed, h.env, "switch", "--detach", h.genesis)
+
+			carrier := transactionCopy(t, tx)
+			carrierTree := originalTree
+			expected := ""
+			switch variant {
+			case "source_tree":
+				// Keep the signed intent byte-identical but change its actual
+				// source tree using an otherwise valid independent output.
+				extra, _ := h.transactionFiles(t, before.Snapshot(), h.op(t, "rec:c", h.f.writer.Identity()), h.f.writer)
+				for path, data := range files {
+					extra[path] = data
+				}
+				bindTransactions(t, h, h.seed, extra, h.f.policy)
+				carrierTree = gitCommand(t, h.seed, h.env, "write-tree")
+				expected = "transaction_origin_mismatch"
+			case "policy_digest":
+				carrier["write"].(map[string]any)["origin"].(map[string]any)["policy"] = "sha256:" + strings.Repeat("0", 64)
+				resignTransaction(t, h, carrier)
+				expected = "transaction_policy_mismatch"
+			case "output_bytes":
+				changed := mapCopy(t, op)
+				changed["proposals"].([]any)[0].(map[string]any)["body"].(map[string]any)["content"].([]any)[0].(map[string]any)["value"] = "different signed output"
+				otherFiles, otherTx := h.transactionFiles(t, before.Snapshot(), changed, h.f.writer)
+				bindTransactions(t, h, h.seed, otherFiles, h.f.policy, otherTx)
+				carrier, carrierTree = otherTx, gitCommand(t, h.seed, h.env, "write-tree")
+				expected = "transaction_file_mismatch"
+			}
+			// Different message whitespace guarantees a distinct sibling commit
+			// even when parent, tree and signed transaction are identical.
+			sibling := gitCommand(t, h.seed, h.env, "commit-tree", carrierTree, "-p", h.genesis, "-m", writeMessagePrefix+string(jsonBytes(t, []any{carrier}))+"\n \n")
+			if sibling == original {
+				t.Fatal("fixture did not create distinct carriers")
+			}
+			// Build the neighbour from the genesis index, excluding every
+			// source-only output regardless of working-tree leftovers.
+			gitCommand(t, h.seed, h.env, "read-tree", h.genesis)
+			goodOp := h.op(t, "rec:good", h.f.writer.Identity())
+			goodFiles, good := h.transactionFiles(t, before.Snapshot(), goodOp, h.f.writer)
+			bindTransactions(t, h, h.seed, goodFiles, h.f.policy, good)
+			neighbour := rawCommit(t, h, h.seed, goodFiles, []map[string]any{good})
+			for path, data := range files {
+				putFile(t, h.seed, path, data)
+				gitCommand(t, h.seed, h.env, "add", "--", path)
+			}
+			mergedTree := gitCommand(t, h.seed, h.env, "write-tree")
+			merge := gitCommand(t, h.seed, h.env, "commit-tree", mergedTree, "-p", h.genesis, "-p", original, "-p", sibling, "-p", neighbour, "-m", "Synthetic octopus merge")
+			if len(strings.Fields(gitCommand(t, h.seed, h.env, "show", "-s", "--format=%P", merge))) != 4 {
+				t.Fatal("fixture is not a four-parent merge")
+			}
+			gitCommand(t, h.seed, h.env, "push", "origin", merge+":refs/heads/main")
+			after, _, _ := h.clone(t, "after")
+			handle := tx["write"].(map[string]any)["receipt_handle"].(string)
+			state, refusal := kernel.NewState(h.template, h.f.schemas, func() (string, error) { return handle, nil })
+			if refusal != nil {
+				t.Fatal(refusal)
+			}
+			originalReceipt, refusal := state.Write(op)
+			if refusal != nil {
+				t.Fatal(refusal)
+			}
+			var snapshot []byte
+			for _, reader := range []*space.Repository{before, after} {
+				check(t, reader.Sync(context.Background()))
+				check(t, reader.Sync(context.Background()))
+				diagnostics := reader.Diagnostics()
+				if expected == "" {
+					if len(diagnostics) != 0 {
+						t.Fatalf("redundant carrier diagnosed: %+v", diagnostics)
+					}
+				} else if len(diagnostics) != 1 || diagnostics[0].Code != expected || diagnostics[0].Commit != merge {
+					t.Fatalf("diagnostics = %+v, want only %s at merge", diagnostics, expected)
+				}
+				records := reader.Snapshot()["records"].([]any)
+				if len(records) != 2 {
+					t.Fatalf("duplicate admission or lost neighbour: %+v", records)
+				}
+				for i, id := range []string{"rec:bad", "rec:good"} {
+					if records[i].(map[string]any)["envelope"].(map[string]any)["id"] != id {
+						t.Fatalf("wrong admitted records: %+v", records)
+					}
+				}
+				again := mustWrite(t, reader, op, h.f.writer)
+				if !bytes.Equal(jsonBytes(t, again.Receipt), jsonBytes(t, originalReceipt)) || again.PushAttempts != 0 || again.Commit != merge {
+					t.Fatalf("original receipt/head changed: %+v, want %+v", again, originalReceipt)
+				}
+				goodAgain := mustWrite(t, reader, goodOp, h.f.writer)
+				if goodAgain.PushAttempts != 0 || goodAgain.Receipt["receipt_handle"] != good["write"].(map[string]any)["receipt_handle"] {
+					t.Fatal("neighbour receipt lost")
+				}
+				view, e := reader.Read(h.readQuery(t, reader, h.f.writer.Identity()))
+				check(t, e)
+				if len(view["items"].([]any)) != 2 {
+					t.Fatal("admitted neighbour or original missing from read")
+				}
+				current, refusal := kernel.CanonicalJSON(reader.Snapshot())
+				if refusal != nil {
+					t.Fatal(refusal)
+				}
+				if snapshot != nil && !bytes.Equal(snapshot, current) {
+					t.Fatal("reader states differ")
+				}
+				snapshot = current
+			}
+		})
+	}
+}

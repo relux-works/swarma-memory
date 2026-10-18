@@ -264,12 +264,28 @@ func (r *Repository) replayCapture(ctx context.Context, head, since string, quer
 			b, _ := encode(transactions[j].transaction)
 			return bytes.Compare(a, b) < 0
 		})
+		type admittedIntent struct{ parent, tree, payload string }
+		admitted := map[admittedIntent]bool{}
 		for _, tx := range transactions {
+			payload, e := encode(tx.transaction)
+			if e != nil {
+				diag(transactionOrder(tx.transaction), e)
+				continue
+			}
+			intent := admittedIntent{tx.parent, tx.tree, string(payload)}
+			// Distinct commits can carry the same authenticated intent. Only
+			// successful admission at this position permits reuse; the actual
+			// source parent/tree and the complete signed payload must match.
+			// Each carrier's source outputs were independently checked above.
+			if admitted[intent] {
+				continue
+			}
 			next, e := r.applyTransaction(state, policy, tx.transaction, tx.parent, tx.tree, valid, bound)
 			if e != nil {
 				diag(transactionOrder(tx.transaction), e)
 			} else {
 				state = next
+				admitted[intent] = true
 			}
 		}
 
