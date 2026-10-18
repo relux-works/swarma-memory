@@ -88,6 +88,11 @@ type gitHarness struct {
 
 func newGitHarness(t *testing.T) *gitHarness {
 	t.Helper()
+	return newGitHarnessFormat(t, "sha1")
+}
+
+func newGitHarnessFormat(t *testing.T, format string) *gitHarness {
+	t.Helper()
 	f := newFixture(t)
 	root := t.TempDir()
 	env := isolatedGitEnvironment(os.Environ())
@@ -139,8 +144,8 @@ func newGitHarness(t *testing.T) *gitHarness {
 	f.template = template
 	bare := filepath.Join(root, "remote.git")
 	seed := filepath.Join(root, "seed")
-	gitCommand(t, root, env, "init", "--bare", "--template=", "--initial-branch=main", bare)
-	gitCommand(t, root, env, "init", "--template=", "--initial-branch=main", seed)
+	gitCommand(t, root, env, "init", "--bare", "--template=", "--object-format="+format, "--initial-branch=main", bare)
+	gitCommand(t, root, env, "init", "--template=", "--object-format="+format, "--initial-branch=main", seed)
 	putFile(t, seed, "space.json", jsonBytes(t, f.policy))
 	gitCommand(t, seed, env, "add", "space.json")
 	gitCommand(t, seed, env, "commit", "-m", "Initialize synthetic space")
@@ -400,6 +405,9 @@ func TestGitConcurrentWriters(t *testing.T) {
 			if len(a.Snapshot()["records"].([]any)) != expected {
 				t.Fatal("wrong admitted count")
 			}
+			if len(a.Diagnostics()) != 0 || len(b.Diagnostics()) != 0 {
+				t.Fatal("successful retry left rejected transaction diagnostics")
+			}
 		})
 	}
 }
@@ -466,12 +474,43 @@ func (h *gitHarness) transactionFiles(t *testing.T, snapshot map[string]any, op 
 		}
 		records = append(records, tree)
 	}
-	write := map[string]any{"operation": op, "records": records, "receipt_handle": receipt["receipt_handle"]}
+	write := map[string]any{"operation": op, "records": records, "receipt_handle": receipt["receipt_handle"], "origin": h.initialOrigin(t)}
 	canonical, e := sign.NewCanonicalWrite(write, h.f.schemas, h.template["domain_schemas"].([]any))
 	check(t, e)
 	signature, e := signer.SignWrite(canonical)
 	check(t, e)
 	return files, map[string]any{"write": write, "signature": signature}
+}
+
+func (h *gitHarness) initialOrigin(t *testing.T) map[string]any {
+	return map[string]any{"space": h.f.policy.Policy.SpaceID, "parent": h.genesis, "tree": gitCommand(t, h.seed, h.env, "rev-parse", h.genesis+"^{tree}"), "policy": h.f.anchor}
+}
+
+// Bind fixtures using Git's independently computed staged tree before applying
+// signature or metadata faults. Existing signed transplants must not be rebound.
+func bindTransactions(t *testing.T, h *gitHarness, dir string, files map[string][]byte, policy space.SignedPolicy, txs ...map[string]any) {
+	t.Helper()
+	for path, data := range files {
+		putFile(t, dir, path, data)
+		gitCommand(t, dir, h.env, "add", "--", path)
+	}
+	parent := gitCommand(t, dir, h.env, "rev-parse", "HEAD")
+	tree := gitCommand(t, dir, h.env, "write-tree")
+	canonicalPolicy, e := space.NewCanonicalPolicy(policy.Policy)
+	check(t, e)
+	for _, tx := range txs {
+		write := tx["write"].(map[string]any)
+		write["origin"] = map[string]any{"space": policy.Policy.SpaceID, "parent": parent, "tree": tree, "policy": sign.PolicyDigest(canonicalPolicy.Bytes())}
+		canonical, e := sign.NewCanonicalWrite(write, h.f.schemas, h.template["domain_schemas"].([]any))
+		check(t, e)
+		key := h.f.writer
+		if canonical.Actor() == h.second.Identity() {
+			key = h.second
+		}
+		sig, e := key.SignWrite(canonical)
+		check(t, e)
+		tx["signature"] = sig
+	}
 }
 func rawCommit(t *testing.T, h *gitHarness, dir string, files map[string][]byte, txs []map[string]any) string {
 	t.Helper()
@@ -559,6 +598,7 @@ func TestGitForgedRecords(t *testing.T) {
 				files[space.RecordPath(record)] = jsonBytes(t, sign.SignedRecord{Record: record, Signature: signature})
 			}
 			h.seedAtRemote(t)
+			bindTransactions(t, h, h.seed, files, h.f.policy, tx)
 			rawCommit(t, h, h.seed, files, []map[string]any{tx})
 			h.push(t, h.seed)
 			check(t, repo.Sync(context.Background()))
@@ -586,6 +626,7 @@ func TestGitCompetingMergedVersions(t *testing.T) {
 	b, bDir, _ := h.clone(t, "b")
 	check(t, b.Sync(context.Background()))
 	files, tx := h.transactionFiles(t, b.Snapshot(), h.op(t, "rec:b", h.f.writer.Identity()), h.f.writer)
+	bindTransactions(t, h, bDir, files, h.f.policy, tx)
 	bHead := rawCommit(t, h, bDir, files, []map[string]any{tx})
 	first := mustWrite(t, a, h.op(t, "rec:a", h.f.writer.Identity()), h.f.writer)
 	gitCommand(t, aDir, h.env, "fetch", bDir, bHead)
@@ -637,6 +678,7 @@ func TestGitPolicyForks(t *testing.T) {
 			expectDiagnostic(t, a, "policy_sequence")
 			// This manually prepared write is valid under the allow fork only.
 			files, tx := h.transactionFiles(t, a.Snapshot(), h.op(t, "rec:second", h.second.Identity()), h.second)
+			bindTransactions(t, h, h.seed, files, first, tx)
 			rawCommit(t, h, h.seed, files, []map[string]any{tx})
 			h.push(t, h.seed)
 			check(t, a.Sync(context.Background()))
@@ -946,6 +988,7 @@ func TestGitMergedIndependentWrites(t *testing.T) {
 	b, bDir, _ := h.clone(t, "b")
 	check(t, b.Sync(context.Background()))
 	files, tx := h.transactionFiles(t, b.Snapshot(), h.op(t, "rec:b", h.f.writer.Identity()), h.f.writer)
+	bindTransactions(t, h, bDir, files, h.f.policy, tx)
 	bHead := rawCommit(t, h, bDir, files, []map[string]any{tx})
 	mustWrite(t, a, h.op(t, "rec:a", h.f.writer.Identity()), h.f.writer)
 	gitCommand(t, aDir, h.env, "fetch", bDir, bHead)
@@ -1014,6 +1057,10 @@ func TestGitTransactionBinding(t *testing.T) {
 			check(t, repo.Sync(context.Background()))
 			files, good := h.transactionFiles(t, repo.Snapshot(), h.op(t, "rec:good", h.f.writer.Identity()), h.f.writer)
 			badFiles, bad := h.transactionFiles(t, repo.Snapshot(), h.op(t, "rec:bad", h.f.writer.Identity()), h.f.writer)
+			for path, b := range badFiles {
+				files[path] = b
+			}
+			bindTransactions(t, h, h.seed, files, h.f.policy, bad, good)
 			expected := "invalid_signature"
 			switch kind {
 			case "metadata":
@@ -1052,6 +1099,9 @@ func TestGitTransactionBinding(t *testing.T) {
 			}
 			for path, b := range badFiles {
 				files[path] = b
+			}
+			if kind == "output" {
+				bindTransactions(t, h, h.seed, files, h.f.policy, bad, good)
 			}
 			rawCommit(t, h, h.seed, files, []map[string]any{bad, good})
 			h.push(t, h.seed)
@@ -1182,7 +1232,7 @@ func TestGitReadAdmissionAuthority(t *testing.T) {
 			}
 			handle, e := randomHandle()
 			check(t, e)
-			write := map[string]any{"operation": op, "records": []any{value}, "receipt_handle": handle}
+			write := map[string]any{"operation": op, "records": []any{value}, "receipt_handle": handle, "origin": h.initialOrigin(t)}
 			request, e := sign.NewCanonicalWrite(write, h.f.schemas, h.template["domain_schemas"].([]any))
 			check(t, e)
 			signature, e = signer.SignWrite(request)
@@ -1190,7 +1240,9 @@ func TestGitReadAdmissionAuthority(t *testing.T) {
 			files, good := h.transactionFiles(t, repo.Snapshot(), h.op(t, "rec:good", h.f.writer.Identity()), h.f.writer)
 			files[space.RecordPath(canonical)] = wire
 			h.seedAtRemote(t)
-			rawCommit(t, h, h.seed, files, []map[string]any{{"write": write, "signature": signature}, good})
+			bad := map[string]any{"write": write, "signature": signature}
+			bindTransactions(t, h, h.seed, files, h.f.policy, bad, good)
+			rawCommit(t, h, h.seed, files, []map[string]any{bad, good})
 			h.push(t, h.seed)
 			check(t, repo.Sync(context.Background()))
 			expectDiagnostic(t, repo, expected)

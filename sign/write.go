@@ -1,11 +1,16 @@
 package sign
 
-import "github.com/relux-works/swarma-memory/kernel"
+import (
+	"strings"
+
+	"github.com/relux-works/swarma-memory/kernel"
+)
 
 const WritePurpose = "swarma-memory-write/1"
 
 // CanonicalWrite binds the full kernel request, its exact signed output files and
-// its receipt handle. Commit messages carry this envelope; record wire stays fixed.
+// its receipt handle and originating space, parent, tree and policy digest.
+// Commit messages carry this envelope; record wire stays fixed.
 // A signer sees the whole validated request and refuses another actor's identity.
 type CanonicalWrite struct {
 	canonical string
@@ -18,8 +23,19 @@ func (w CanonicalWrite) Actor() string { return w.actor }
 // NewCanonicalWrite accepts a closed transaction object. Record signatures are
 // verified by the space adapter against the historical policy, not by this parser.
 func NewCanonicalWrite(value map[string]any, schemas *kernel.Schemas, domains []any) (CanonicalWrite, error) {
-	if len(value) != 3 {
+	if len(value) != 4 {
 		return CanonicalWrite{}, Fail(InvalidShape, "write")
+	}
+	origin, ok := value["origin"].(map[string]any)
+	if !ok || len(origin) != 4 {
+		return CanonicalWrite{}, Fail(InvalidShape, "write.origin")
+	}
+	space, _ := origin["space"].(string)
+	parent, _ := origin["parent"].(string)
+	tree, _ := origin["tree"].(string)
+	policy, _ := origin["policy"].(string)
+	if space == "" || !writeHex(parent, 40) && !writeHex(parent, 64) || !writeHex(tree, len(parent)) || !strings.HasPrefix(policy, "sha256:") || !writeHex(strings.TrimPrefix(policy, "sha256:"), 64) {
+		return CanonicalWrite{}, Fail(InvalidShape, "write.origin")
 	}
 	operation, ok := value["operation"].(map[string]any)
 	if !ok {
@@ -60,6 +76,18 @@ func NewCanonicalWrite(value map[string]any, schemas *kernel.Schemas, domains []
 		return CanonicalWrite{}, Fail(InvalidJSON, "write")
 	}
 	return CanonicalWrite{string(b), actor}, nil
+}
+
+func writeHex(s string, length int) bool {
+	if len(s) != length {
+		return false
+	}
+	for _, c := range s {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 // WriteSigner authenticates transaction metadata in addition to each record.

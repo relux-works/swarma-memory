@@ -20,6 +20,11 @@ type transaction struct {
 	Signature sign.Signature `json:"signature"`
 }
 
+type introducedTransaction struct {
+	transaction
+	parent, tree string
+}
+
 func encode(value any) ([]byte, error) {
 	b, e := json.Marshal(value)
 	if e != nil {
@@ -56,7 +61,15 @@ func RecordPath(record sign.CanonicalRecord) string {
 type treeEntry struct{ mode, blob string }
 
 func (r *Repository) tree(ctx context.Context, commit string) (map[string]treeEntry, error) {
-	b, e := r.git(ctx, nil, "ls-tree", "-rz", "--full-tree", commit)
+	return r.listTree(ctx, commit, false)
+}
+
+func (r *Repository) listTree(ctx context.Context, commit string, directories bool) (map[string]treeEntry, error) {
+	flags := "-rz"
+	if directories {
+		flags = "-rzt"
+	}
+	b, e := r.git(ctx, nil, "ls-tree", flags, "--full-tree", commit)
 	if e != nil {
 		return nil, e
 	}
@@ -196,7 +209,7 @@ func (r *Repository) replayCapture(ctx context.Context, head, since string, quer
 		if e != nil {
 			return nil, nil, nil, e
 		}
-		transactions := []transaction{}
+		transactions := []introducedTransaction{}
 		for _, sourceCommit := range strings.Fields(string(introduced)) {
 			message, e := r.git(ctx, nil, "show", "-s", "--format=%B", sourceCommit)
 			if e != nil {
@@ -205,6 +218,16 @@ func (r *Repository) replayCapture(ctx context.Context, head, since string, quer
 			if !strings.HasPrefix(string(message), transactionPrefix) {
 				continue
 			}
+			provenance, e := r.git(ctx, nil, "show", "-s", "--format=%P%n%T", sourceCommit)
+			if e != nil {
+				return nil, nil, nil, e
+			}
+			lines := strings.Split(strings.TrimSpace(string(provenance)), "\n")
+			if len(lines) != 2 || len(strings.Fields(lines[0])) == 0 {
+				diag("", fail("transaction_origin_mismatch"))
+				continue
+			}
+			parent, sourceTree := strings.Fields(lines[0])[0], lines[1]
 			txs, e := parseTransactions(bytes.TrimSpace(message[len(transactionPrefix):]))
 			if e != nil {
 				diag("", e)
@@ -224,23 +247,27 @@ func (r *Repository) replayCapture(ctx context.Context, head, since string, quer
 					}
 				}
 				if relevant {
-					transactions = append(transactions, tx)
+					if e := r.verifySourceOutputs(ctx, tx, sourceCommit, parent, domains); e != nil {
+						diag(transactionOrder(tx), e)
+						continue
+					}
+					transactions = append(transactions, introducedTransaction{tx, parent, sourceTree})
 				}
 			}
 		}
 		sort.SliceStable(transactions, func(i, j int) bool {
-			left, right := transactionOrder(transactions[i]), transactionOrder(transactions[j])
+			left, right := transactionOrder(transactions[i].transaction), transactionOrder(transactions[j].transaction)
 			if left != right {
 				return left < right
 			}
-			a, _ := encode(transactions[i])
-			b, _ := encode(transactions[j])
+			a, _ := encode(transactions[i].transaction)
+			b, _ := encode(transactions[j].transaction)
 			return bytes.Compare(a, b) < 0
 		})
 		for _, tx := range transactions {
-			next, e := r.applyTransaction(state, policy, tx, valid, bound)
+			next, e := r.applyTransaction(state, policy, tx.transaction, tx.parent, tx.tree, valid, bound)
 			if e != nil {
-				diag(transactionOrder(tx), e)
+				diag(transactionOrder(tx.transaction), e)
 			} else {
 				state = next
 			}
@@ -268,6 +295,46 @@ func (r *Repository) replayCapture(ctx context.Context, head, since string, quer
 	}
 	return &index{head, state.Snapshot(), diagnostics}, policy, state, nil
 }
+
+// An authenticated tree is meaningful only if it actually introduced the signed
+// outputs. A metadata-only side commit cannot authorize files added elsewhere.
+func (r *Repository) verifySourceOutputs(ctx context.Context, tx transaction, commit, parent string, domains []any) error {
+	source, e := r.tree(ctx, commit)
+	if e != nil {
+		return e
+	}
+	previous, e := r.tree(ctx, parent)
+	if e != nil {
+		return e
+	}
+	records, _ := tx.Write["records"].([]any)
+	for _, value := range records {
+		wire, _ := kernel.CanonicalJSON(value)
+		signed, e := sign.ParseRecord(wire, r.config.Schemas, domains)
+		if e != nil {
+			return e
+		}
+		path := RecordPath(signed.Record)
+		entry, exists := source[path]
+		if !exists || entry == previous[path] {
+			return fail("transaction_origin_mismatch")
+		}
+		data, e := r.blob(ctx, entry)
+		if e != nil {
+			return e
+		}
+		stored, e := sign.ParseRecord(data, r.config.Schemas, domains)
+		if e != nil {
+			return e
+		}
+		canonical, _ := encode(stored)
+		if !bytes.Equal(wire, canonical) {
+			return fail("transaction_file_mismatch")
+		}
+	}
+	return nil
+}
+
 func transactionOrder(tx transaction) string {
 	rs, _ := tx.Write["records"].([]any)
 	if len(rs) == 0 {
@@ -325,7 +392,7 @@ func parseTransaction(value any) (transaction, error) {
 	return transaction{w, sign.Signature{Purpose: sig["purpose"].(string), Key: sig["key"].(string), Alg: sig["alg"].(string), Value: sig["value"].(string)}}, nil
 }
 
-func (r *Repository) applyTransaction(state *kernel.State, policy *VerifiedPolicy, tx transaction, valid map[string]sign.SignedRecord, bound map[string]bool) (*kernel.State, error) {
+func (r *Repository) applyTransaction(state *kernel.State, policy *VerifiedPolicy, tx transaction, parent, tree string, valid map[string]sign.SignedRecord, bound map[string]bool) (*kernel.State, error) {
 	domains, _ := r.config.Template["domain_schemas"].([]any)
 	canonical, e := sign.NewCanonicalWrite(tx.Write, r.config.Schemas, domains)
 	if e != nil {
@@ -347,6 +414,13 @@ func (r *Repository) applyTransaction(state *kernel.State, policy *VerifiedPolic
 	if e = (sign.Ed25519Verifier{}).Verify(sign.WritePurpose, canonical.Bytes(), tx.Signature, k.public); e != nil {
 		return nil, e
 	}
+	origin := tx.Write["origin"].(map[string]any)
+	if origin["space"] != policy.policy.SpaceID || origin["parent"] != parent || origin["tree"] != tree {
+		return nil, fail("transaction_origin_mismatch")
+	}
+	if origin["policy"] != policy.Digest() {
+		return nil, fail("transaction_policy_mismatch")
+	}
 	records := tx.Write["records"].([]any)
 	paths := []string{}
 	exact := []any{}
@@ -364,9 +438,6 @@ func (r *Repository) applyTransaction(state *kernel.State, policy *VerifiedPolic
 		}
 		paths = append(paths, path)
 		exact = append(exact, signed.Record.Value())
-	}
-	for _, path := range paths {
-		bound[path] = true
 	}
 	handle := tx.Write["receipt_handle"].(string)
 	next, refusal := state.Fork(func() (string, error) { return handle, nil })
@@ -399,6 +470,11 @@ func (r *Repository) applyTransaction(state *kernel.State, policy *VerifiedPolic
 	restored, refusal := next.Fork(r.config.Mint)
 	if refusal != nil {
 		return nil, refusal
+	}
+	// Refusal must leave both state and output eligibility untouched. Publish
+	// bindings only after admission, exact output comparison and restoration pass.
+	for _, path := range paths {
+		bound[path] = true
 	}
 	return restored, nil
 }

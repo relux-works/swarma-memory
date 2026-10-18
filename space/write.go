@@ -108,7 +108,12 @@ func (r *Repository) Write(ctx context.Context, request WriteRequest) (WriteResu
 			signed = append(signed, v)
 			files[RecordPath(record)] = b
 		}
-		value := map[string]any{"operation": operation, "records": signed, "receipt_handle": receipt["receipt_handle"]}
+		tree, e := r.writeTree(ctx, oldHead, files)
+		if e != nil {
+			return result, e
+		}
+		origin := map[string]any{"space": r.policy.policy.SpaceID, "parent": oldHead, "tree": tree, "policy": r.policy.Digest()}
+		value := map[string]any{"operation": operation, "records": signed, "receipt_handle": receipt["receipt_handle"], "origin": origin}
 		canonical, e := sign.NewCanonicalWrite(value, r.config.Schemas, domains)
 		if e != nil {
 			return result, e
@@ -127,7 +132,7 @@ func (r *Repository) Write(ctx context.Context, request WriteRequest) (WriteResu
 			}
 			valid[path] = s
 		}
-		if _, e = r.applyTransaction(r.state, r.policy, tx, valid, map[string]bool{}); e != nil {
+		if _, e = r.applyTransaction(r.state, r.policy, tx, oldHead, tree, valid, map[string]bool{}); e != nil {
 			return result, e
 		}
 		commit, e := r.commit(ctx, oldHead, files, []transaction{tx})
@@ -226,6 +231,16 @@ func (r *Repository) commit(ctx context.Context, head string, files map[string][
 	args := append([]string{"add", "--"}, paths...)
 	if _, e = r.git(ctx, nil, args...); e != nil {
 		return "", e
+	}
+	stagedTree, e := r.git(ctx, nil, "write-tree")
+	if e != nil {
+		return "", e
+	}
+	for _, tx := range txs {
+		origin, _ := tx.Write["origin"].(map[string]any)
+		if origin["parent"] != head || origin["tree"] != strings.TrimSpace(string(stagedTree)) {
+			return "", fail("transaction_origin_mismatch")
+		}
 	}
 	message, e := encode(txs)
 	if e != nil {

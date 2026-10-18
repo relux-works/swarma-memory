@@ -67,21 +67,28 @@ signed transaction in the commit message:
 ```text
 swarma-memory transactions/1
 
-[{"write":{"operation":<kernel operation>,"records":[<signed record>,...],"receipt_handle":"<handle>"},"signature":<signature>}]
+[{"write":{"origin":{"space":"<space ID>","parent":"<first-parent object ID>","tree":"<complete tree object ID>","policy":"sha256:<policy digest>"},"operation":<kernel operation>,"records":[<signed record>,...],"receipt_handle":"<handle>"},"signature":<signature>}]
 ```
 
 The transaction payload is closed, canonical and signed under the fourth purpose
 `swarma-memory-write/1`, with the same purpose/NUL/canonical-JSON framing. The
 immutable `sign.CanonicalWrite` exposes the complete validated request to
 `SignWrite`; localkey refuses a different actor or the zero value. It binds the
-original operation, the exact signed output records and the original fresh receipt
-handle. It cannot replay as a record, policy or registration, including retagging.
+original operation, the exact signed output records, the original fresh receipt
+handle and a closed originating context. That context pins the space, the parent
+being extended, the complete proposed Git tree and the in-force policy digest
+(which includes its version). Parent/tree use the repository's SHA-1 or SHA-256
+object format. The tree is computed without changing the index or working files,
+then checked against Git's actual staged tree before committing. It cannot replay
+as a record, policy or registration, including retagging.
 Commit signatures provide transport history; this separate actor signature binds
 admission metadata even when git hosting permits arbitrary commits.
 
 A commit may carry several independent signed transactions. Each kernel transaction
-is atomic: failure admits none of its records. A bad independent transaction or
-extra forged file does not suppress a valid neighbour. Unbound files receive
+is atomic: failure admits none of its records and reserves none of its output
+paths. Bindings become visible only after successful admission and exact output
+validation. A bad independent transaction or extra forged file does not suppress
+a valid neighbour. Unbound files receive
 `missing_transaction`; valid signatures alone do not establish admission. No
 unsigned commit-message field grants identity, representation or an intake fact.
 
@@ -111,7 +118,22 @@ intermediate versions on a side branch do not establish in-force transitions.
 
 A merge introduces side-branch files at the merge's first-parent position.
 Transaction metadata is recovered from the messages of **newly reachable** commits,
-then applied only to files newly introduced at that position. Fetch order and
+then applied only to files newly introduced at that position. The signed parent
+and tree must match the actual source commit, whose tree must itself introduce
+the exact signed outputs. A metadata-only carrier cannot authorize files added
+elsewhere. The policy digest must match the accepted policy at replay, including
+policy-first updates in the same commit. A context mismatch is diagnosed as
+`transaction_origin_mismatch` or `transaction_policy_mismatch`.
+
+A legitimate secondary-parent merge retains each source commit's authenticated
+parent/tree; it does not rebind signatures to the merge tree. Copying a transaction
+into a different parent or tree, or under another policy, requires a new signature.
+In particular, adding an independent neighbour at the same parent changes the
+tree and cannot reuse a source signature. Commits with the same parent, complete
+tree and policy represent the same authenticated write intent; author, timestamp
+and unrelated message text are not actor-authenticated context. No self-referential
+commit ID is required. An explicit write retry re-admits and signs the new context.
+Fetch order and
 secondary-parent timestamps have no authority. Independent transactions at one
 position are ordered by the first record path, then canonical transaction bytes.
 Competing sequences yield `version_conflict`; independent sequences can both admit.
@@ -197,6 +219,7 @@ with the rewrite error. Other errors return no partial collection.
 | §5.2 | Opaque IDs may contain path separators or case aliases | Lowercase hexadecimal path component; exact `RecordPath` match required. |
 | §5.3 / §6.3 | Two genesis-valid owner forks and same-commit policy/record changes | First-parent accepted chain; policy first in a commit; rejected forks never grant authority. |
 | §6.3 / §7.1 | Record wire omits the original admission operation and receipt | Additional purpose-separated signed transaction in commit metadata; unsigned/unbound records are diagnosed. |
+| §6.3 / §7.3 | Signed metadata could be transplanted to another commit or policy | Bind space, parent, complete source tree and in-force policy digest; verify source outputs and preserve source context through merges. Identical parent/tree/policy means identical authenticated intent. |
 | §6.3 / §7.3 | A side commit's signed local sequence can collide with the first parent's | Preserve signed file; project only sequence into the evaluation index using kernel replay position. |
 | §6.3 | Source of kernel intake/registry facts | Explicit independently trusted empty template, as at `NewSnapshot`; never derive authority from a proposed record. |
 | §7.1 | Rebase after admission changes recorded position | Re-admit, scan, sign and commit on the fetched parent; no force push. |
@@ -238,3 +261,9 @@ A control test plants forbidden overrides and fails if they leak. Remote rewrite
 use an atomic `update-ref` inside the temporary bare fixture to model the exact
 force-push reference transition without issuing a force-push command. Optional
 logs belong in ignored `.temp/`.
+
+`space/git_rework_test.go` additionally preserves source-commit and policy
+transplant witnesses, isolates all authenticated context fields, checks SHA-1 and
+SHA-256 trees against Git, and pairs overlapping stale-generation/output-mismatch
+refusals with valid transactions and a valid-only control. CI retains the space
+race gate alongside the normal tests.

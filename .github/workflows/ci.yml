@@ -16,6 +16,7 @@ jobs:
           cache: false
       - run: go vet ./...
       - run: go test ./...
+      - run: go test -race ./space
       - run: python3 spec/checks/validate.py
       - name: Semantic conformance
         run: go run ./cmd/memory conformance
