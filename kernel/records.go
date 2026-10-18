@@ -32,6 +32,29 @@ func (s *State) recordContract(r any, index map[string]any, at any) *Refusal {
 			problems[path] = code
 		}
 	}
+	// Reference version failures participate at that field's position, rather
+	// than overriding earlier body errors in the same validation class.
+	var versions func(any, string)
+	versions = func(value any, path string) {
+		switch v := value.(type) {
+		case map[string]any:
+			if version, ok := v["version"].(int64); ok && version < 1 {
+				p := path
+				if path == "/envelope" {
+					p += "/version"
+				}
+				report(p, InvalidDomainValue)
+			}
+			for field, child := range v {
+				versions(child, path+"/"+field)
+			}
+		case []any:
+			for _, child := range v {
+				versions(child, path)
+			}
+		}
+	}
+	versions(r, "")
 	if e["version"].(int64) < 1 {
 		report("/envelope/version", InvalidDomainValue)
 	}

@@ -120,9 +120,6 @@ func (s *State) Write(input map[string]any) (map[string]any, *Refusal) {
 			return nil, refusal(ErasureFenced)
 		}
 	}
-	if badVersion(op) {
-		return nil, refusal(InvalidDomainValue)
-	}
 	// Stamp private candidates, retaining proposal order (replacement, then revision).
 	cut := s.runtime()["memory_cut"].(int64)
 	sequenceOverflow := int64(len(batch)) > maxJSONInteger-cut
@@ -146,6 +143,9 @@ func (s *State) Write(input map[string]any) (map[string]any, *Refusal) {
 		if refusal := s.recordContract(r, hypothetical, ctx["at"]); refusal != nil {
 			return nil, refusal
 		}
+	}
+	if badVersion(op["expected_version"]) {
+		return nil, refusal(InvalidDomainValue)
 	}
 	if !validStamp(ctx["at"]) {
 		return nil, refusal(InvalidTime)

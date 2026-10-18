@@ -500,3 +500,27 @@ func TestLoadStimulus(t *testing.T) {
 		}
 	}
 }
+
+// TestFirstFieldViolation proves body field order selects a check-kind failure
+// before an invalid rule-pin version; fixing both yields a valid admission.
+func TestFirstFieldViolation(t *testing.T) {
+	snapshot, op := goodRuleWrite(t)
+	s := stateForTest(t, snapshot)
+	success(t, s, op)
+	assessment := copyJSON(arr(op["proposals"])[1])
+	env(assessment)["id"] = "cert:new"
+	authorizeProposal(s.snapshot, assessment)
+	next := copyJSON(op).(map[string]any)
+	next["proposals"] = []any{assessment}
+	next["idempotency_key"] = "key:new-cert"
+	control := stateForTest(t, s.Snapshot())
+	control.mint = func() (string, error) { return strings.Repeat("b", 32), nil }
+	success(t, control, next)
+	body(assessment)["executor"] = "model"
+	obj(obj(body(assessment)["pins"])["rule"])["version"] = int64(0)
+	refusalUnchanged(t, s, next, AssessmentKindInvalid)
+	body(assessment)["executor"] = "deterministic"
+	refusalUnchanged(t, s, next, InvalidDomainValue)
+	obj(obj(body(assessment)["pins"])["rule"])["version"] = int64(1)
+	success(t, s, next)
+}
