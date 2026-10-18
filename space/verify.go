@@ -47,66 +47,75 @@ func VerifyChain(chain []SignedPolicy, genesisDigest string) ([]*VerifiedPolicy,
 	out := []*VerifiedPolicy{}
 	var previous *VerifiedPolicy
 	for _, signed := range chain {
-		if signed.Signature.Purpose != sign.PolicyPurpose {
-			return nil, sign.Fail(sign.PurposeMismatch, "signature.purpose")
-		}
-		canonical, err := NewCanonicalPolicy(signed.Policy)
+		var err error
+		previous, err = verifyNextPolicy(previous, signed, genesisDigest)
 		if err != nil {
 			return nil, err
 		}
-		// Detach before retaining any caller-owned policy slices or pointers.
-		var p Policy
-		_ = json.Unmarshal(canonical.Bytes(), &p)
-		digest := sign.PolicyDigest(canonical.Bytes())
-		if previous == nil {
-			if p.Version != 1 || p.Previous != nil {
-				return nil, sign.Fail(sign.PolicySequence, "policy.version")
-			}
-			if digest != genesisDigest {
-				return nil, sign.Fail(sign.PolicyAnchor, "genesis")
-			}
-		} else if p.Version != previous.policy.Version+1 || p.Previous == nil || *p.Previous != previous.digest || p.SpaceID != previous.policy.SpaceID || p.Kind != previous.policy.Kind {
-			return nil, sign.Fail(sign.PolicySequence, "policy.previous")
-		}
-		keys := map[string]registeredKey{}
-		for _, entry := range p.Keys {
-			r := entry.Registration
-			public, _ := base64.StdEncoding.Strict().DecodeString(r.PublicKey)
-			keys[r.Key] = registeredKey{r.Identity, public}
-		}
-		authority := &VerifiedPolicy{policy: p, digest: digest, keys: keys}
-		if previous != nil {
-			authority = previous
-		}
-		verifyOwner := func(author string, purpose string, body []byte, sig sign.Signature) error {
-			if !has(authority.policy.Owners, author) {
-				return sign.Fail(sign.UnauthorizedOwner, "author")
-			}
-			k, ok := authority.keys[sig.Key]
-			if !ok {
-				return sign.Fail(sign.UnregisteredKey, "signature.key")
-			}
-			if k.identity != author {
-				return sign.Fail(sign.WrongKey, "signature.key")
-			}
-			return (sign.Ed25519Verifier{}).Verify(purpose, body, sig, k.public)
-		}
-		if err := verifyOwner(p.Author, sign.PolicyPurpose, canonical.Bytes(), signed.Signature); err != nil {
-			return nil, err
-		}
-		for _, entry := range p.Keys {
-			request, err := NewCanonicalRegistration(entry.Registration)
-			if err != nil {
-				return nil, err
-			}
-			if err := verifyOwner(entry.Registration.Author, sign.RegistrationPurpose, request.Bytes(), entry.Signature); err != nil {
-				return nil, err
-			}
-		}
-		previous = &VerifiedPolicy{policy: p, digest: digest, keys: keys}
 		out = append(out, previous)
 	}
 	return out, nil
+}
+
+// verifyNextPolicy verifies a single transition using the exact preceding authority.
+func verifyNextPolicy(previous *VerifiedPolicy, signed SignedPolicy, genesisDigest string) (*VerifiedPolicy, error) {
+	if signed.Signature.Purpose != sign.PolicyPurpose {
+		return nil, sign.Fail(sign.PurposeMismatch, "signature.purpose")
+	}
+	canonical, err := NewCanonicalPolicy(signed.Policy)
+	if err != nil {
+		return nil, err
+	}
+	// Detach before retaining any caller-owned policy slices or pointers.
+	var p Policy
+	_ = json.Unmarshal(canonical.Bytes(), &p)
+	digest := sign.PolicyDigest(canonical.Bytes())
+	if previous == nil {
+		if p.Version != 1 || p.Previous != nil {
+			return nil, sign.Fail(sign.PolicySequence, "policy.version")
+		}
+		if digest != genesisDigest {
+			return nil, sign.Fail(sign.PolicyAnchor, "genesis")
+		}
+	} else if p.Version != previous.policy.Version+1 || p.Previous == nil || *p.Previous != previous.digest || p.SpaceID != previous.policy.SpaceID || p.Kind != previous.policy.Kind {
+		return nil, sign.Fail(sign.PolicySequence, "policy.previous")
+	}
+	keys := map[string]registeredKey{}
+	for _, entry := range p.Keys {
+		r := entry.Registration
+		public, _ := base64.StdEncoding.Strict().DecodeString(r.PublicKey)
+		keys[r.Key] = registeredKey{r.Identity, public}
+	}
+	authority := &VerifiedPolicy{policy: p, digest: digest, keys: keys}
+	if previous != nil {
+		authority = previous
+	}
+	verifyOwner := func(author string, purpose string, body []byte, sig sign.Signature) error {
+		if !has(authority.policy.Owners, author) {
+			return sign.Fail(sign.UnauthorizedOwner, "author")
+		}
+		k, ok := authority.keys[sig.Key]
+		if !ok {
+			return sign.Fail(sign.UnregisteredKey, "signature.key")
+		}
+		if k.identity != author {
+			return sign.Fail(sign.WrongKey, "signature.key")
+		}
+		return (sign.Ed25519Verifier{}).Verify(purpose, body, sig, k.public)
+	}
+	if err := verifyOwner(p.Author, sign.PolicyPurpose, canonical.Bytes(), signed.Signature); err != nil {
+		return nil, err
+	}
+	for _, entry := range p.Keys {
+		request, err := NewCanonicalRegistration(entry.Registration)
+		if err != nil {
+			return nil, err
+		}
+		if err := verifyOwner(entry.Registration.Author, sign.RegistrationPurpose, request.Bytes(), entry.Signature); err != nil {
+			return nil, err
+		}
+	}
+	return &VerifiedPolicy{policy: p, digest: digest, keys: keys}, nil
 }
 
 // VerifyRecord implements architecture 6.3 rules 1–3 under this exact historical

@@ -1,6 +1,6 @@
 # swarma-memory: architecture of the first working version
 
-Status: design for the first working version, 2026-10-18. The semantics are fixed by the normative package in [`spec/`](../spec/README.md); where this document and the package disagree, the package wins. The strict JSON/schema boundary, semantic runner, [write-side kernel](write-admission.md), [read evaluator](read-evaluation.md) and [disclosure/erasure semantic model](disclosure-erasure.md) are implemented. The in-memory [signing and policy trust layer](signing-policy.md) is implemented. The [git-space library](git-spaces.md) implements persistent storage, verified first-parent sync, write retries and read integration. Application CLI commands and agent integration described below remain design work.
+Status: design for the first working version, 2026-10-18. The semantics are fixed by the normative package in [`spec/`](../spec/README.md); where this document and the package disagree, the package wins. The strict JSON/schema boundary, semantic runner, [write-side kernel](write-admission.md), [read evaluator](read-evaluation.md) and [disclosure/erasure semantic model](disclosure-erasure.md) are implemented. The in-memory [signing and policy trust layer](signing-policy.md) is implemented. The [git-space library](git-spaces.md) implements persistent storage, verified first-parent sync, write retries and read integration. The [foundation CLI](cli.md) implements read and owner administration commands; write commands and agent installation below remain design work.
 
 ## 1. What the first version is
 
@@ -273,7 +273,10 @@ Conflicts that the current work does not depend on stay visible and block nothin
 | `memory assess <record> --kind ...` | Write an assessment |
 | `memory promote <record> --to <space>` | Write a derived record in another space, citing the original |
 | `memory check [--space S]` | Validate records and report the ones that fail verification |
-| `memory spaces [list\|add\|show]` | Readable spaces and the directory |
+| `memory spaces [list\|add\|show]` | Configured spaces and verified policy summaries |
+| `memory spaces init` | **Addition:** owner-signed genesis in an empty remote |
+| `memory keys register` | **Addition:** owner-endorsed identity key registration |
+| `memory policy grant\|revoke` | **Addition:** owner-signed reader/writer policy transitions |
 | `memory keys init\|show` | Generate the temporary local key and print its public key for registration |
 | `memory conformance` | Run the package vectors against the built kernel |
 

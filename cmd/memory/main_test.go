@@ -10,10 +10,6 @@ import (
 
 // TestCLI proves the built CLI exits 0 for version and 2 with stderr-only usage for missing, unknown or extra arguments.
 func TestCLI(t *testing.T) {
-	binary := filepath.Join(t.TempDir(), "memory")
-	if output, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
-		t.Fatalf("build CLI: %v\n%s", err, output)
-	}
 	for _, test := range []struct {
 		name   string
 		args   []string
@@ -22,9 +18,9 @@ func TestCLI(t *testing.T) {
 		stderr string
 	}{
 		{name: "version", args: []string{"version"}, code: 0, stdout: "memory dev\n"},
-		{name: "no arguments", code: 2, stderr: "Usage: memory version | conformance [<vectors-dir>]\n"},
-		{name: "unknown command", args: []string{"unknown"}, code: 2, stderr: "memory: unknown command \"unknown\"\nUsage: memory version | conformance [<vectors-dir>]\n"},
-		{name: "extra argument", args: []string{"version", "extra"}, code: 2, stderr: "memory: version takes no arguments\nUsage: memory version | conformance [<vectors-dir>]\n"},
+		{name: "no arguments", code: 2, stderr: "Usage: memory [--home DIR] [--json] <keys|spaces|policy|sync|check|recall|explain|changes|version|conformance> [arguments]\n"},
+		{name: "unknown command", args: []string{"unknown"}, code: 2, stderr: "memory: unknown command \"unknown\"\nUsage: memory [--home DIR] [--json] <keys|spaces|policy|sync|check|recall|explain|changes|version|conformance> [arguments]\n"},
+		{name: "extra argument", args: []string{"version", "extra"}, code: 2, stderr: "memory: version takes no arguments\nUsage: memory [--home DIR] [--json] <keys|spaces|policy|sync|check|recall|explain|changes|version|conformance> [arguments]\n"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
@@ -49,10 +45,6 @@ func TestCLI(t *testing.T) {
 // exits 0 (default and explicit directory), while harness/usage errors exit 2
 // without success output. Deployment vectors are explicitly excluded.
 func TestConformanceCLI(t *testing.T) {
-	binary := filepath.Join(t.TempDir(), "memory")
-	if output, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
-		t.Fatalf("build: %v\n%s", err, output)
-	}
 	for _, tc := range []struct {
 		name      string
 		args      []string

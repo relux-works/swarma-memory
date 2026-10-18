@@ -1,0 +1,83 @@
+{
+  "records": [],
+  "domain_schemas": [],
+  "projection_rules": [],
+  "policy": {
+    "subject_principals": [],
+    "lineage_facts": [],
+    "constraint_owners": [],
+    "declassification_decisions": [],
+    "grants": [],
+    "representations": [],
+    "reviews": [],
+    "coverage": [],
+    "authority_events": [],
+    "handles": [],
+    "imports": [],
+    "source_access": [],
+    "external_effect_owners": [],
+    "revision": {
+      "id": "policy:agent-memory",
+      "version": 1
+    },
+    "owner": "integration:agent-memory",
+    "profile": "documentary",
+    "evidence": {
+      "ref": {
+        "id": "evidence:agent-memory",
+        "version": 1
+      },
+      "root_kinds": [
+        "formal_entailment",
+        "semantic_review",
+        "test_result"
+      ],
+      "policy_pin": {
+        "id": "evidence:agent-memory",
+        "version": 1
+      },
+      "environment_pin": {
+        "id": "environment:agent-memory",
+        "version": 1
+      }
+    },
+    "public_availability": "available",
+    "availability_disclosure": "none",
+    "limits": {
+      "max_records": 10000,
+      "max_fan_in": 32,
+      "max_payload_bytes": 1000000,
+      "read": {
+        "roots": 64,
+        "rules": 64,
+        "source_resolutions": 64,
+        "explanations": 32
+      }
+    }
+  },
+  "runtime": {
+    "dirty_causes": [],
+    "revoked_declassifications": [],
+    "revocations": [],
+    "source_cuts": [],
+    "dirty": [],
+    "erased": [],
+    "fences": [],
+    "custody": [],
+    "idempotency": [],
+    "control_observations": [],
+    "external_effects": [],
+    "committed_cuts": [
+      0
+    ],
+    "memory_cut": 0,
+    "erasure_generation": 0,
+    "restore": {
+      "status": "open",
+      "external_witness": false,
+      "obligations": []
+    },
+    "hidden_work": 0,
+    "memory_available": true
+  }
+}

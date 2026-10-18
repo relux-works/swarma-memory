@@ -233,10 +233,9 @@ func (s *State) nextHandle() (string, *Refusal) {
 func (s *State) Fork(mint func() (string, error)) (*State, *Refusal) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	next, r := NewState(s.snapshot, s.schemas, mint)
-	if r != nil {
-		return nil, r
-	}
+	// The source is already admitted. Rechecking historical admission against a
+	// newer policy would incorrectly invalidate records after writer revocation.
+	next := &State{snapshot: copyJSON(s.snapshot).(map[string]any), schemas: s.schemas, mint: mint}
 	next.captures = make(map[int64]capturedView, len(s.captures))
 	for index, c := range s.captures {
 		next.captures[index] = capturedView{copyJSON(c.query).(map[string]any), copyJSON(c.view).(map[string]any), copyJSON(c.refs).([]any)}
@@ -248,4 +247,45 @@ func (s *State) Fork(mint func() (string, error)) (*State, *Refusal) {
 	next.backupCut = s.backupCut
 	next.backupCustody = copyJSON(s.backupCustody).([]any)
 	return next, nil
+}
+
+// Configure replaces independently trusted policy/projection configuration.
+// It never admits records or accepts configuration from a record. Historical
+// admission remains bound to the policy at admission; subsequent operations and
+// reads use the new policy. Captures retain their original protected bindings.
+func (s *State) Configure(policy map[string]any, projections []any) *Refusal {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	next := copyJSON(s.snapshot).(map[string]any)
+	next["policy"], next["projection_rules"] = copyJSON(policy), copyJSON(projections)
+	if _, r := CanonicalJSON(next); r != nil {
+		return r
+	}
+	if !s.schemas.roots[packageSchema+"vector"].properties["initial_state"].matches(next, nil) {
+		return refusal(InvalidShape)
+	}
+	if badVersion(next) {
+		return refusal(InvalidDomainValue)
+	}
+	candidate := &State{snapshot: next, schemas: s.schemas}
+	// Historic team/self declarations were admitted under their old grants and
+	// bindings. Retain those facts for structural validation only; they are never
+	// installed as current authority or made available to subsequent writes.
+	validation := copyJSON(next).(map[string]any)
+	vp := obj(validation["policy"])
+	for _, record := range arr(s.snapshot["records"]) {
+		e := env(record)
+		if obj(e["perspective"])["kind"] == "team" {
+			vp["grants"] = append(arr(vp["grants"]), map[string]any{"principal": e["issuer"], "space": e["space"], "audience": "validation:history", "purpose": "validation:history", "rights": []any{"admit"}, "records": []any{"*"}, "metadata": false})
+		}
+		if e["admission_class"] == "self_declaration" || body(record)["statement_kind"] == "self_declaration" {
+			vp["subject_principals"] = append(arr(vp["subject_principals"]), map[string]any{"subject": e["subject"], "principal": e["issuer"]})
+		}
+	}
+	candidate.snapshot = validation
+	if r := candidate.validateSnapshot(); r != nil {
+		return r
+	}
+	s.snapshot = next
+	return nil
 }

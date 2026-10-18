@@ -5,6 +5,7 @@ verification contracts explicit. Later integration owners need to resolve:
 
 | Architecture section | Question | Current boundary |
 | --- | --- | --- |
+| §6.3 / §8 | where trusted kernel configuration comes from outside tests | Provisional built-in `agentprofile`: public schemas/domains, documentary intake with unknown lineage, no external authority facts, policy-derived in-force grants. See [CLI](docs/cli.md#provisional-trusted-profile). Profile distribution/version negotiation and independently authenticated external receipt integration remain unresolved. |
 | §5.3 | Is multi-owner threshold approval required for policy changes? | One authorized owner signature suffices; no threshold is implied. |
 | §5.3 | What actions implement owner retirement/revocation for persistent git spaces? | Signed retention metadata records `retain` or `deny`; this task performs neither action. |
 | §5.3 / §6.3 | How are the genesis digest and trusted kernel/domain intake configuration distributed/authenticated? | Explicit trusted caller inputs; the git adapter now derives in-force policy position and anti-rollback cursors from first-parent history. Registry distribution remains future integration. |

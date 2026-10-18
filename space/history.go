@@ -142,6 +142,9 @@ func (r *Repository) replayCapture(ctx context.Context, head, since string, quer
 		} else if _, ok := tree["space.json"]; !ok && previous["space.json"].blob != "" {
 			diag("space.json", fail("immutable_policy"))
 		}
+		if e := r.configure(state, policy, nil); e != nil {
+			return nil, nil, nil, e
+		}
 		paths := []string{}
 		for path, entry := range tree {
 			if entry != previous[path] {
@@ -296,6 +299,35 @@ func (r *Repository) replayCapture(ctx context.Context, head, since string, quer
 		}
 		if since == commit {
 			q := detached(query)
+			if r.config.Profile != nil {
+				// The current query's non-authority projection may describe a scope
+				// first appearing after this baseline. Its old view is still filtered
+				// under the baseline policy, never the current reader's new grants.
+				snapshot := state.Snapshot()
+				p := snapshot["policy"].(map[string]any)
+				q["policy"] = p["revision"]
+				q["evidence_policy"] = p["evidence"].(map[string]any)["ref"]
+				rules := snapshot["projection_rules"].([]any)
+				if r.state != nil {
+					for _, rule := range r.state.Snapshot()["projection_rules"].([]any) {
+						m := rule.(map[string]any)
+						if m["id"] == q["projection_rule"].(map[string]any)["id"] {
+							found := false
+							for _, old := range rules {
+								if old.(map[string]any)["id"] == m["id"] {
+									found = true
+								}
+							}
+							if !found {
+								rules = append(rules, rule)
+							}
+						}
+					}
+				}
+				if f := state.Configure(p, rules); f != nil {
+					return nil, nil, nil, f
+				}
+			}
 			q["kind"] = "recall"
 			q["since"] = nil
 			q["cut"].(map[string]any)["memory"] = state.Snapshot()["runtime"].(map[string]any)["memory_cut"]
@@ -460,6 +492,9 @@ func (r *Repository) applyTransaction(state *kernel.State, policy *VerifiedPolic
 	if refusal != nil {
 		return nil, refusal
 	}
+	if e := r.configure(next, policy, tx.Write["operation"].(map[string]any)); e != nil {
+		return nil, e
+	}
 	before := len(next.Snapshot()["records"].([]any))
 	receipt, refusal := next.Write(tx.Write["operation"].(map[string]any))
 	if refusal != nil {
@@ -482,6 +517,11 @@ func (r *Repository) applyTransaction(state *kernel.State, policy *VerifiedPolic
 	b, _ := kernel.CanonicalJSON(exact)
 	if !bytes.Equal(a, b) || receipt["receipt_handle"] != handle {
 		return nil, fail("admission_output_mismatch")
+	}
+	// The trusted integration can attach read configuration to newly admitted
+	// source headers without accepting a submitter's availability as a resolver.
+	if e := r.configure(next, policy, nil); e != nil {
+		return nil, e
 	}
 	restored, refusal := next.Fork(r.config.Mint)
 	if refusal != nil {

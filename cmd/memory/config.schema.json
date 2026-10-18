@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:cli:1:config",
+  "type": "object",
+  "properties": {
+    "identity": {
+      "type": "string"
+    },
+    "key_file": {
+      "type": "string"
+    },
+    "spaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "remote": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "clone_path": {
+            "type": "string"
+          },
+          "cache_path": {
+            "type": "string"
+          },
+          "genesis_digest": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "project",
+              "platform"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "remote",
+          "branch",
+          "clone_path",
+          "cache_path",
+          "genesis_digest",
+          "kind"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "identity",
+    "key_file",
+    "spaces"
+  ],
+  "additionalProperties": false
+}

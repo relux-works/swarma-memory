@@ -2,7 +2,7 @@
 
 `space.Repository` is the stage-2 library adapter. It uses explicit `os/exec`
 argument vectors, the existing signing/policy layer, the production kernel and
-`scan.Scan`. There is no shell, daemon, CLI integration or directory discovery.
+`scan.Scan`. There is no shell, daemon or directory discovery. The [foundation CLI](cli.md) supplies local configuration and the provisional trusted profile.
 The remote and branch are explicit caller configuration. Tests use temporary
 local bare repositories, isolated git configuration and ephemeral record keys.
 
@@ -46,6 +46,17 @@ fact refuses rather than becoming automatically trusted. The adapter does not
 implement an owner registry or a new protected-service intake profile. `Build`
 receives a detached verified snapshot, returns a closed kernel `admit` or `revise`
 operation, and runs once per call. The kernel remains the admission authority.
+
+Applications can supply independently trusted `Config.Profile` code to derive
+configuration from each verified in-force policy and candidate operation. It runs
+after policy transitions and on isolated write/replay candidates. The CLI uses
+this seam to re-derive grants and conservative documentary intake; record fields
+never establish complete lineage or external authority. See [the profile contract](cli.md#provisional-trusted-profile).
+
+`VerifiedPolicy` exposes the immutable current policy. `InitializePolicy`,
+`EndorsePolicy` and `UpdatePolicy` support signed owner administration, verify
+the previous owner authority and use ordinary signed commits and pushes. Failed
+signing restores only the command-owned policy path; a push race refuses.
 
 Git receives exactly the explicitly supplied, non-nil `Git.Environment`. Callers must provide the intended author,
 committer, transport and signing configuration. The library discovers no host

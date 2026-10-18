@@ -17,6 +17,11 @@ func main() {
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
+	for _, arg := range args {
+		if arg == "--json" || arg == "--home" {
+			return runCLI(args, stdout, stderr)
+		}
+	}
 	if len(args) == 0 {
 		usage(stderr)
 		return 2
@@ -25,6 +30,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runConformance(args[1:], stdout, stderr)
 	}
 	if args[0] != "version" {
+		switch args[0] {
+		case "keys", "spaces", "policy", "sync", "check", "recall", "explain", "changes":
+			return runCLI(args, stdout, stderr)
+		}
 		fmt.Fprintf(stderr, "memory: unknown command %q\n", args[0])
 		usage(stderr)
 		return 2
@@ -39,7 +48,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: memory version | conformance [<vectors-dir>]")
+	fmt.Fprintln(w, "Usage: memory [--home DIR] [--json] <keys|spaces|policy|sync|check|recall|explain|changes|version|conformance> [arguments]")
 }
 
 // Run from the repository root, where the normative schema package is available.

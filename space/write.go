@@ -55,6 +55,9 @@ func (r *Repository) Write(ctx context.Context, request WriteRequest) (WriteResu
 		if f != nil {
 			return result, f
 		}
+		if e := r.configure(candidate, r.policy, operation); e != nil {
+			return result, e
+		}
 		before := len(candidate.Snapshot()["records"].([]any))
 		receipt, f := candidate.Write(operation)
 		if f != nil {
@@ -157,6 +160,9 @@ func (r *Repository) Write(ctx context.Context, request WriteRequest) (WriteResu
 		check, f := r.state.Fork(r.config.Mint)
 		if f != nil {
 			return result, f
+		}
+		if e := r.configure(check, r.policy, operation); e != nil {
+			return result, e
 		}
 		checkReceipt, f := check.Write(operation)
 		if f != nil {

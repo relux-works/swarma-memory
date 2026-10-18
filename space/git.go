@@ -68,6 +68,9 @@ type Config struct {
 	Template       map[string]any
 	Schemas        *kernel.Schemas
 	Mint           func() (string, error)
+	// Profile is independently trusted application code. It derives kernel
+	// configuration from a verified in-force policy, never from local grants.
+	Profile func(snapshot map[string]any, policy *VerifiedPolicy, operation map[string]any) (map[string]any, []any, error)
 }
 
 type Diagnostic struct {
