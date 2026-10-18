@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"unicode/utf8"
 
 	"github.com/relux-works/swarma-memory/kernel"
 	"github.com/relux-works/swarma-memory/sign/localkey"
@@ -30,6 +31,8 @@ type localSpace struct {
 	Kind          string `json:"kind"`
 }
 type home struct{ config, state string }
+
+const maxConfigBytes = 1 << 20
 
 //go:embed config.schema.json
 var configSchema embed.FS
@@ -128,12 +131,20 @@ func (h home) load() (localConfig, error) {
 	if e != nil {
 		return c, cliError{"config_io", 6}
 	}
-	if !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || info.Size() > 1<<20 {
+	if !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || info.Size() > maxConfigBytes {
 		return c, cliError{"invalid_configuration", 3}
 	}
 	b, e := os.ReadFile(h.filename())
 	if e != nil {
 		return c, cliError{"config_io", 6}
+	}
+	return h.decodeConfig(b)
+}
+
+func (h home) decodeConfig(b []byte) (localConfig, error) {
+	var c localConfig
+	if len(b) > maxConfigBytes {
+		return c, cliError{"invalid_configuration", 3}
 	}
 	value, f := kernel.DecodeJSON(b)
 	if f != nil {
@@ -148,7 +159,7 @@ func (h home) load() (localConfig, error) {
 	}
 	d := json.NewDecoder(bytes.NewReader(b))
 	d.DisallowUnknownFields()
-	if e = d.Decode(&c); e != nil {
+	if e := d.Decode(&c); e != nil {
 		return c, cliError{"invalid_configuration", 3}
 	}
 	if c.Identity == "" || c.KeyFile != h.keyfile() || c.Spaces == nil {
@@ -184,20 +195,19 @@ func privateDir(path string) error {
 	return nil
 }
 func (h home) save(c localConfig) error {
-	if e := privateDir(h.config); e != nil {
+	b, e := h.encodeConfig(c)
+	if e != nil {
 		return e
 	}
-	sort.Slice(c.Spaces, func(i, j int) bool { return c.Spaces[i].ID < c.Spaces[j].ID })
-	b, e := json.Marshal(c)
-	if e != nil {
-		return cliError{"internal", 6}
+	if e := privateDir(h.config); e != nil {
+		return e
 	}
 	f, e := os.CreateTemp(h.config, ".config-*")
 	if e != nil {
 		return cliError{"config_io", 6}
 	}
 	defer os.Remove(f.Name())
-	if _, e = f.Write(append(b, '\n')); e == nil {
+	if _, e = f.Write(b); e == nil {
 		e = f.Sync()
 	}
 	closeError := f.Close()
@@ -211,6 +221,33 @@ func (h home) save(c localConfig) error {
 		return cliError{"config_io", 6}
 	}
 	return nil
+}
+
+// Preflight uses the same bounded decoder as load, before publishing local or
+// remote state. Reject invalid UTF-8 instead of json.Marshal's lossy replacement.
+func (h home) encodeConfig(c localConfig) ([]byte, error) {
+	texts := []string{c.Identity, c.KeyFile}
+	for _, s := range c.Spaces {
+		texts = append(texts, s.ID, s.Remote, s.Branch, s.ClonePath, s.CachePath, s.GenesisDigest, s.Kind)
+	}
+	for _, s := range texts {
+		if !utf8.ValidString(s) {
+			return nil, cliError{"invalid_configuration", 3}
+		}
+	}
+	if c.Spaces != nil {
+		c.Spaces = append([]localSpace{}, c.Spaces...)
+	}
+	sort.Slice(c.Spaces, func(i, j int) bool { return c.Spaces[i].ID < c.Spaces[j].ID })
+	b, e := json.Marshal(c)
+	if e != nil {
+		return nil, cliError{"internal", 6}
+	}
+	b = append(b, '\n')
+	if _, e := h.decodeConfig(b); e != nil {
+		return nil, e
+	}
+	return b, nil
 }
 func (h home) key(c localConfig) (*localkey.Key, error) {
 	k, e := localkey.Load(os.DirFS(h.config), "localkey.json")

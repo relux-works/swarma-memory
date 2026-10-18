@@ -24,7 +24,15 @@ refuse with `invalid_configuration`.
 
 The home/config directories use 0700; config and key files use 0600. Config writes
 use a private temporary file, fsync and rename. Existing config/key files are
-never overwritten by `keys init`. A process owns its home exclusively; concurrent
+never overwritten by `keys init`. Generated/saved keys must fit the loader's
+4096-byte encoded JSON bound, including identity escaping and UTF-8; unsupported
+identities refuse `invalid_key` before publishing key/config state. Config has a
+shared save/load bound of 1 MiB including its trailing newline, and the same
+closed-schema/path checks apply in both directions. Initialization and space
+add/init preflight the complete prospective config before creating a key/clone
+or publishing genesis; refused inputs preserve existing config and permit a
+valid retry. Invalid UTF-8 refuses instead of being silently replaced during
+encoding. A process owns its home exclusively; concurrent
 processes must use separate homes, just as independent library instances must use
 separate clones and caches. Remote publication still uses non-fast-forward gates.
 

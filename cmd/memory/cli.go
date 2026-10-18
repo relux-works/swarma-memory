@@ -220,18 +220,24 @@ func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
 		if _, e := os.Lstat(h.filename()); !errors.Is(e, os.ErrNotExist) {
 			return nil, cliError{"already_configured", 3}
 		}
-		if e := privateDir(h.config); e != nil {
-			return nil, e
-		}
 		k, e := localkey.Generate(identity)
 		if e != nil {
+			return nil, e
+		}
+		c := localConfig{identity, h.keyfile(), []localSpace{}}
+		if _, e := h.encodeConfig(c); e != nil {
+			return nil, e
+		}
+		if e := privateDir(h.config); e != nil {
 			return nil, e
 		}
 		if e = k.Save(h.keyfile()); e != nil {
 			return nil, e
 		}
-		c := localConfig{identity, h.keyfile(), []localSpace{}}
 		if e = h.save(c); e != nil {
+			// Save exclusively created this key; a failed config publication must
+			// not strand it and prevent initialization with valid input on retry.
+			_ = os.Remove(h.keyfile())
 			return nil, e
 		}
 		return keyData(k), nil
@@ -430,14 +436,37 @@ func addSpace(ctx context.Context, h home, c *localConfig, a arguments, initiali
 	if repositoryAncestor(filepath.Dir(clone)) || repositoryAncestor(cache) {
 		return nil, cliError{"home_inside_repository", 3}
 	}
-	if e := privateDir(filepath.Dir(clone)); e != nil {
-		return nil, e
-	}
 	s := localSpace{id, remote, branch, clone, cache, a.flags["genesis"], kind}
+	var genesis space.SignedPolicy
 	if initialize {
 		if s.GenesisDigest != "" {
 			return nil, cliError{"usage", 2}
 		}
+		k, e := h.key(*c)
+		if e != nil {
+			return nil, e
+		}
+		genesis, e = genesisPolicy(id, kind, k)
+		if e != nil {
+			return nil, e
+		}
+		canonical, e := space.NewCanonicalPolicy(genesis.Policy)
+		if e != nil {
+			return nil, e
+		}
+		s.GenesisDigest = sign.PolicyDigest(canonical.Bytes())
+	} else if s.GenesisDigest == "" {
+		return nil, cliError{"usage", 2}
+	}
+	next := *c
+	next.Spaces = append(append([]localSpace{}, c.Spaces...), s)
+	if _, e := h.encodeConfig(next); e != nil {
+		return nil, e
+	}
+	if e := privateDir(filepath.Dir(clone)); e != nil {
+		return nil, e
+	}
+	if initialize {
 		if _, e := os.Lstat(clone); errors.Is(e, os.ErrNotExist) {
 			if _, e = gitCall(ctx, filepath.Dir(clone), "clone", "--no-tags", "--", remote, filepath.Base(clone)); e != nil {
 				return nil, e
@@ -448,22 +477,11 @@ func addSpace(ctx context.Context, h home, c *localConfig, a arguments, initiali
 				return nil, cliError{"clone_exists", 3}
 			}
 		}
-		k, e := h.key(*c)
-		if e != nil {
-			return nil, e
-		}
-		p, e := genesisPolicy(id, kind, k)
-		if e != nil {
-			return nil, e
-		}
-		_, s.GenesisDigest, e = space.InitializePolicy(ctx, space.Git{Directory: clone, Environment: os.Environ()}, branch, p)
+		_, _, e = space.InitializePolicy(ctx, space.Git{Directory: clone, Environment: os.Environ()}, branch, genesis)
 		if e != nil {
 			return nil, e
 		}
 	} else {
-		if s.GenesisDigest == "" {
-			return nil, cliError{"usage", 2}
-		}
 		if _, e := os.Lstat(clone); errors.Is(e, os.ErrNotExist) {
 			e = space.Clone(ctx, space.Git{Directory: clone, Environment: os.Environ()}, remote, branch)
 			if e != nil {
@@ -480,10 +498,10 @@ func addSpace(ctx context.Context, h home, c *localConfig, a arguments, initiali
 	if e != nil {
 		return nil, e
 	}
-	c.Spaces = append(c.Spaces, s)
-	if e = h.save(*c); e != nil {
+	if e = h.save(next); e != nil {
 		return nil, e
 	}
+	*c = next
 	return summary(s, r), nil
 }
 func genesisPolicy(id, kind string, k *localkey.Key) (space.SignedPolicy, error) {

@@ -23,6 +23,10 @@ type Key struct {
 	private  ed25519.PrivateKey
 }
 
+// Generation, persistence and loading share the encoded-file bound, including
+// JSON escaping and UTF-8 bytes in the identity.
+const maxEncodedKeyBytes = 4096
+
 var _ sign.Signer = (*Key)(nil)
 var _ sign.WriteSigner = (*Key)(nil)
 var _ space.PolicySigner = (*Key)(nil)
@@ -35,7 +39,11 @@ func Generate(identity string) (*Key, error) {
 	if err != nil {
 		return nil, sign.Fail(sign.InvalidKey, "generate")
 	}
-	return &Key{identity, private}, nil
+	k := &Key{identity, private}
+	if _, err := k.encode(); err != nil {
+		return nil, err
+	}
+	return k, nil
 }
 func (k Key) String() string   { return "localkey.Key(<redacted>)" }
 func (k Key) GoString() string { return k.String() }
@@ -90,15 +98,15 @@ func (k *Key) sign(purpose string, canonical []byte) (sign.Signature, error) {
 // Save creates a new regular 0600 file exclusively. It never truncates an
 // existing file or symlink. Callers provide a private trusted parent directory.
 func (k *Key) Save(filename string) error {
-	if k == nil || len(k.private) != ed25519.PrivateKeySize {
-		return sign.Fail(sign.InvalidKey, "key")
+	data, err := k.encode()
+	if err != nil {
+		return err
 	}
 	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return sign.Fail(sign.KeyIO, "save")
 	}
 	defer f.Close()
-	data, _ := json.Marshal(map[string]string{"identity": k.identity, "alg": "ed25519", "seed": base64.StdEncoding.EncodeToString(k.private.Seed())})
 	if err = f.Chmod(0600); err == nil {
 		_, err = f.Write(data)
 	}
@@ -113,6 +121,17 @@ func (k *Key) Save(filename string) error {
 		return sign.Fail(sign.KeyIO, "save")
 	}
 	return nil
+}
+
+func (k *Key) encode() ([]byte, error) {
+	if k == nil || len(k.private) != ed25519.PrivateKeySize || k.identity == "" || !utf8.ValidString(k.identity) {
+		return nil, sign.Fail(sign.InvalidKey, "key")
+	}
+	data, err := json.Marshal(map[string]string{"identity": k.identity, "alg": "ed25519", "seed": base64.StdEncoding.EncodeToString(k.private.Seed())})
+	if err != nil || len(data) > maxEncodedKeyBytes {
+		return nil, sign.Fail(sign.InvalidKey, "key")
+	}
+	return data, nil
 }
 
 // Load accepts an adapter-owned filesystem of ephemeral key files. Parent
@@ -146,15 +165,15 @@ func Load(source fs.FS, name string) (*Key, error) {
 	if !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || info.Mode()&(fs.ModeSetuid|fs.ModeSetgid|fs.ModeSticky) != 0 {
 		return nil, sign.Fail(sign.KeyPermissions, "key")
 	}
-	if info.Size() < 1 || info.Size() > 4096 {
+	if info.Size() < 1 || info.Size() > maxEncodedKeyBytes {
 		return nil, sign.Fail(sign.InvalidKey, "key")
 	}
 	// Bounded read even if a filesystem reports an inaccurate size.
-	data, err := io.ReadAll(io.LimitReader(f, 4097))
+	data, err := io.ReadAll(io.LimitReader(f, maxEncodedKeyBytes+1))
 	if err != nil {
 		return nil, sign.Fail(sign.KeyIO, "load")
 	}
-	if len(data) > 4096 {
+	if len(data) > maxEncodedKeyBytes {
 		return nil, sign.Fail(sign.InvalidKey, "key")
 	}
 
@@ -175,7 +194,11 @@ func Load(source fs.FS, name string) (*Key, error) {
 	if err != nil || len(raw) != ed25519.SeedSize || base64.StdEncoding.EncodeToString(raw) != seed {
 		return nil, sign.Fail(sign.InvalidKey, "key")
 	}
-	return &Key{identity, ed25519.NewKeyFromSeed(raw)}, nil
+	k := &Key{identity, ed25519.NewKeyFromSeed(raw)}
+	if _, err := k.encode(); err != nil {
+		return nil, err
+	}
+	return k, nil
 }
 
 // SignWrite signs the complete validated transaction only for its authenticated actor.
