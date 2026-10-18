@@ -445,32 +445,62 @@ func TestPhaseBAssessAndPromote(t *testing.T) {
 	f.verifyCommits(target)
 }
 
-// Scenario 11: a session-backed assertion's reader must receive the retained
-// excerpt and exact runtime/session/message locator through the public binary.
-// A source ref alone cannot establish what was said or locate the cited session.
+// Scenario 11 (v1): B sees A's exact session-source ref in recall/explain,
+// and check verifies the atomic signed batch containing that source. Revoking
+// space read access hides all data/refs; A still reads, and regrant restores B.
+// This does not claim per-record filtering or locator/excerpt presentation.
 func TestPhaseBSessionSource(t *testing.T) {
 	f := newFixture(t)
 	p := f.project("project:session", "session")
 	id := "record:session-observation"
+	source := recordRef{id + ":source", 1}
 	excerpt := "The session selected a bounded queue.\nPreserve this trailing newline.\n"
 	before := state(f.a, p)
 	refused(t, f.a.start(excerpt, "add", "assertion", "--space", p.id, "--content", "Malformed session control", "--idempotency-key", "deny:session", "--source-session", "runtime:session", "--source-text", "-", "--at", intakeTime).finish(2), "usage")
 	unchanged(t, before, f.a, p)
-	head := writeResult(t, f.a.start(excerpt, "add", "assertion", "--space", p.id, "--id", id, "--content", "Session observation", "--idempotency-key", "session:one", "--source-session", "runtime:planning:message:42", "--source-text", "-", "--at", intakeTime).finish(0), id, 1, 3)
+	added := f.a.start(excerpt, "add", "assertion", "--space", p.id, "--id", id, "--content", "Session observation", "--idempotency-key", "session:one", "--source-session", "runtime:planning:message:42", "--source-text", "-", "--at", intakeTime).finish(0)
+	head := writeResult(t, added, id, 1, 3)
+	data := object(t, added.Data, "id", "version", "commit", "cursor", "receipt")
+	receipt := object(t, data["receipt"], "type", "operation", "outcome", "receipt_handle", "refs", "custody", "erasure_status")
+	expectedRefs := map[recordRef]bool{{id, 1}: true, source: true, {id + ":basis", 1}: true}
+	for _, r := range refs(t, receipt["refs"]) {
+		if !expectedRefs[r] {
+			t.Fatal("unexpected or duplicate batch ref", r)
+		}
+		delete(expectedRefs, r)
+	}
+	if len(expectedRefs) != 0 {
+		t.Fatal("receipt omits a signed batch ref", expectedRefs)
+	}
 	clean(t, f.b, p, head)
-	recalled, explained := readAt(f.b, "recall", "*", p.id), readAt(f.b, "explain", id, p.id)
-	for _, r := range []reply{recalled, explained} {
-		i := item(t, r, p.id, id, 1)
-		content(t, i, "Session observation")
-		if text(t, i["issuer"]) != f.a.identity || !reflect.DeepEqual(refs(t, i["source_refs"]), []recordRef{{id + ":source", 1}}) {
-			t.Fatal("session assertion lost issuer/source ref")
+	assertSource := func(a *agent) {
+		t.Helper()
+		for _, r := range []reply{readAt(a, "recall", "*", p.id), readAt(a, "explain", id, p.id)} {
+			i := item(t, r, p.id, id, 1)
+			content(t, i, "Session observation")
+			if text(t, i["issuer"]) != f.a.identity || !reflect.DeepEqual(refs(t, i["source_refs"]), []recordRef{source}) {
+				t.Fatal("session assertion lost issuer/source ref")
+			}
 		}
 	}
-	f.verifyCommits(p)
-	// The binary must disclose actual source data, not merely an assertion that
-	// the writer happened to include the locator/excerpt in unrelated content.
-	encodedExcerpt, _ := json.Marshal(excerpt)
-	if !bytes.Contains(explained.Data, encodedExcerpt) || !bytes.Contains(explained.Data, []byte("message:42")) || !bytes.Contains(explained.Data, []byte("planning")) {
-		t.Fatalf("session source not shown: explain contains only source refs, missing excerpt and runtime:planning:message:42 locator; binary output: %s", explained.raw)
+	assertSource(f.b)
+	f.owner.run(0, "policy", "revoke", "--space", p.id, "--identity", f.b.identity, "--role", "reader")
+	f.b.run(0, "sync", "--space", p.id)
+	before = state(f.b, p)
+	for _, args := range [][]string{{"recall", "*"}, {"explain", id}} {
+		r := f.b.run(3, append(args, "--space", p.id, "--at", queryTime)...)
+		refused(t, r, "not_authorized")
+		if string(r.Data) != "null" || bytes.Contains(r.raw, []byte(source.ID)) {
+			t.Fatal("no-access reader received source data/ref", string(r.raw))
+		}
 	}
+	unchanged(t, before, f.b, p)
+	assertSource(f.a)
+	f.owner.run(0, "policy", "grant", "--space", p.id, "--identity", f.b.identity, "--role", "reader")
+	clean(t, f.b, p, f.owner.git(p.remote, "rev-parse", "main"))
+	assertSource(f.b)
+	if a, b := f.a.read("recall", 0), f.b.read("recall", 0); !bytes.Equal(a.raw, b.raw) {
+		t.Fatal("source readers differ after regrant")
+	}
+	f.verifyCommits(p)
 }

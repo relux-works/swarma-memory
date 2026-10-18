@@ -65,7 +65,10 @@ the complete architecture stage-3 gate.
 | 8 | `TestPhaseBDecisionRevisionAndChanges` | Distinct issuer B cannot replace A; missing/stale caller preconditions publish nothing; A's token-bound replacement is uniquely current for B |
 | 9 | `TestPhaseBAssessAndPromote` | Writer grant controls targeted assessment; source reader and target writer grants independently control promotion; the derivative has the promoting issuer and a local source citation |
 | 10 | `TestPhaseBDecisionRevisionAndChanges` | A cursor captured at scenario 6 yields exactly replacement version 2 and the later assertion; a current cursor yields zero changed refs; malformed cursors refuse |
-| 11 | `TestPhaseBSessionSource` | A retained session excerpt and its runtime/session/message locator are visible to B through the binary; malformed locators publish nothing |
+| 11 (v1) | `TestPhaseBSessionSource` | B sees A's exact source ref in recall/explain; check verifies the atomic signed source batch; revoking read access hides all refs, A continues reading, and regrant restores B |
+
+The v1 source boundary and fuller locator expectation are recorded in the
+[open package question](#open-package-question-session-source-presentation).
 
 A decision in scenario 6 is a documentary assertion about a decision. The trusted
 CLI profile does not supply external authority receipts, so this test does not
@@ -89,43 +92,35 @@ Changes compares authorized projections, not raw Git writes: the replaced old
 version and auxiliary intake/revision/source records are not extra current change
 refs. Unchanged views may still contain items, with `no_change` and empty refs.
 
-### Blocking CLI gap found by scenario 11
+### Open package question: session source presentation
 
-On base `4c1bc74bcf794543f4b1bed820970b66e3aaabe6`, the session-source write
-succeeds and both agents pass verification, but B's `recall` and `explain` disclose
-only the source **ref**. Neither the retained excerpt nor its locator is in the
-JSON data. The closed read projection has no source-body field. This does not
-satisfy the architecture gate's session-source visibility requirement.
+The v1 [normative view](../spec/kernel/schemas/view.schema.json) exposes
+`source_refs`; source records are not read items. Scenario 11 therefore asserts
+A's exact source ref on B's recall/explain item and a clean verification of the
+signed atomic assertion/source/basis batch. Its negative control revokes B's
+space reader grant: B gets `not_authorized` with null data and no source ref,
+while A continues reading. Regrant restores B's access. The write CLI has no
+per-record disclosure input, so this control does not claim selective hiding of
+a source while its assertion remains readable.
 
-Self-contained reproduction (temporary homes, keys and local remotes are made by
-the fixture):
+The fuller expectation remains open: **B should be able to see the retained
+session excerpt with its exact runtime/session/message locator**, subject to
+source disclosure rules. The current view has no source-body field. Deciding
+which normative package/view may present those fields requires an owner decision;
+this test-only gate does not extend the package contract. See also the
+[integration questions](../UNRESOLVED_QUESTIONS.md) and
+[architecture open questions](../docs/architecture.md#15-open-questions) about
+source presentation and lifetime. No failing or skipped locator expectation is
+part of the v1 tests.
+
+Run the v1 source-ref/access scenario with:
 
 ```sh
 go test -count=1 -run '^TestPhaseBSessionSource$' -v ./e2e
 ```
 
-The operative CLI steps after the owner registers/grants both agents and both
-configure the same pinned project are:
-
-```sh
-printf 'The session selected a bounded queue.\nPreserve this trailing newline.\n' |
-  memory --home "$A_HOME" --json add assertion --space project:session \
-    --id record:session-observation --content 'Session observation' \
-    --idempotency-key session:one --at 2026-10-18T22:00:00Z \
-    --source-session runtime:planning:message:42 --source-text -
-memory --home "$B_HOME" --json sync --space project:session
-memory --home "$B_HOME" --json check --space project:session
-memory --home "$B_HOME" --json recall '*' --space project:session \
-  --at 2026-10-19T00:00:00Z
-memory --home "$B_HOME" --json explain record:session-observation \
-  --space project:session --at 2026-10-19T00:00:00Z
-```
-
-Expected: B can see the cited session source with its locator and retained text.
-Actual: the assertion is attributed to A and cites
-`record:session-observation:source@1`, but neither read includes
-`runtime:planning:message:42` or the excerpt. The negative malformed-locator control
-and valid add/sync/check/attribution controls pass before the visibility assertion
-fails. The test deliberately fails on this requirement; it is neither skipped nor
-converted into an assertion accepting the missing feature. No production fix is
-part of this test-only task.
+The write under test uses `--source-session runtime:planning:message:42` and
+`--source-text -`, retaining a multiline excerpt. A successful write and a verified
+source citation establish signed retained data; they do not establish live
+session resolution, excerpt/locator visibility in this read schema, source truth,
+or independent authority.
