@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:0.2.6:query",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": [
+        "recall",
+        "explain",
+        "changes"
+      ]
+    },
+    "principal": {
+      "type": "string"
+    },
+    "purpose": {
+      "type": "string"
+    },
+    "audience": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "space": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "version": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "version"
+          ],
+          "additionalProperties": false
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "version"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "space",
+        "subject",
+        "schema",
+        "targets"
+      ],
+      "additionalProperties": false
+    },
+    "projection_rule": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "evidence_policy": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "cut": {
+      "type": "object",
+      "properties": {
+        "memory": {
+          "type": "integer"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "owner": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "owner",
+              "revision"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "memory",
+        "sources"
+      ],
+      "additionalProperties": false
+    },
+    "valid_at": {
+      "type": "string"
+    },
+    "now": {
+      "type": "string"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "real",
+        "simulated"
+      ]
+    },
+    "bounds": {
+      "type": "object",
+      "properties": {
+        "roots": {
+          "type": "integer"
+        },
+        "rules": {
+          "type": "integer"
+        },
+        "source_resolutions": {
+          "type": "integer"
+        },
+        "explanations": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "roots",
+        "rules",
+        "source_resolutions",
+        "explanations"
+      ],
+      "additionalProperties": false
+    },
+    "usable_until": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "render": {
+      "type": "string",
+      "enum": [
+        "full",
+        "compact"
+      ]
+    },
+    "since": {
+      "oneOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "kind",
+    "principal",
+    "purpose",
+    "audience",
+    "scope",
+    "projection_rule",
+    "evidence_policy",
+    "policy",
+    "cut",
+    "valid_at",
+    "now",
+    "mode",
+    "bounds",
+    "usable_until",
+    "render",
+    "since"
+  ],
+  "additionalProperties": false
+}

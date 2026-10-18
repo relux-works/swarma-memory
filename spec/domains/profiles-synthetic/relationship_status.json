@@ -1,0 +1,84 @@
+{
+  "id": "schema:relationship_status",
+  "version": 1,
+  "name": "relationship_status",
+  "statement_kind": "self_declaration",
+  "semantics": {
+    "establishes": "An attributed statement only.",
+    "does_not_establish": [
+      "Consent to introductions",
+      "Consent to publish a partner link"
+    ]
+  },
+  "fields": [
+    {
+      "name": "value",
+      "type": "string",
+      "equality": "exact",
+      "required": true,
+      "disclosure_class": "sensitive"
+    }
+  ],
+  "cardinality": {
+    "mode": "single",
+    "slot_fields": []
+  },
+  "incompatibilities": [
+    {
+      "id": "incompat:relationship_status:value",
+      "field": "value",
+      "relation": "unequal",
+      "statement_kinds": [
+        "self_declaration"
+      ],
+      "same": [
+        "subject",
+        "space",
+        "perspective",
+        "slot"
+      ],
+      "overlap": "required"
+    }
+  ],
+  "freshness_default": {
+    "kind": "none"
+  },
+  "disclosure_defaults": [
+    {
+      "field_class": "public",
+      "audiences": [
+        "aud:public",
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    },
+    {
+      "field_class": "restricted",
+      "audiences": [
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    },
+    {
+      "field_class": "sensitive",
+      "audiences": [
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    }
+  ],
+  "requirements": [
+    "synthetic_only",
+    "no_derived_consent",
+    "mutual_partner_confirmation"
+  ]
+}

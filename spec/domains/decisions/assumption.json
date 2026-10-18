@@ -1,0 +1,64 @@
+{
+  "id": "schema:assumption",
+  "version": 1,
+  "name": "assumption",
+  "statement_kind": "fact",
+  "semantics": {
+    "establishes": "An attributed statement only.",
+    "does_not_establish": [
+      "Unregistered dependencies",
+      "Truth from documentary attribution"
+    ]
+  },
+  "fields": [
+    {
+      "name": "value",
+      "type": "string",
+      "equality": "exact",
+      "required": true,
+      "disclosure_class": "public"
+    }
+  ],
+  "cardinality": {
+    "mode": "multi",
+    "slot_fields": []
+  },
+  "incompatibilities": [],
+  "freshness_default": {
+    "kind": "none"
+  },
+  "disclosure_defaults": [
+    {
+      "field_class": "public",
+      "audiences": [
+        "aud:public",
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    },
+    {
+      "field_class": "restricted",
+      "audiences": [
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    },
+    {
+      "field_class": "sensitive",
+      "audiences": [
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    }
+  ],
+  "requirements": []
+}

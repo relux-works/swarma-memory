@@ -1,0 +1,91 @@
+{
+  "id": "schema:location",
+  "version": 1,
+  "name": "location",
+  "statement_kind": "self_declaration",
+  "semantics": {
+    "establishes": "An attributed statement only.",
+    "does_not_establish": [
+      "Public disclosure of exact location"
+    ]
+  },
+  "fields": [
+    {
+      "name": "kind",
+      "type": "string",
+      "equality": "exact",
+      "required": true,
+      "disclosure_class": "public"
+    },
+    {
+      "name": "value",
+      "type": "string",
+      "equality": "exact",
+      "required": true,
+      "disclosure_class": "sensitive"
+    }
+  ],
+  "cardinality": {
+    "mode": "single",
+    "slot_fields": [
+      "kind"
+    ]
+  },
+  "incompatibilities": [
+    {
+      "id": "incompat:location:value",
+      "field": "value",
+      "relation": "unequal",
+      "statement_kinds": [
+        "self_declaration"
+      ],
+      "same": [
+        "subject",
+        "space",
+        "perspective",
+        "slot"
+      ],
+      "overlap": "required"
+    }
+  ],
+  "freshness_default": {
+    "kind": "duration",
+    "seconds": 604800
+  },
+  "disclosure_defaults": [
+    {
+      "field_class": "public",
+      "audiences": [
+        "aud:public",
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    },
+    {
+      "field_class": "restricted",
+      "audiences": [
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    },
+    {
+      "field_class": "sensitive",
+      "audiences": [
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    }
+  ],
+  "requirements": [
+    "synthetic_only"
+  ]
+}

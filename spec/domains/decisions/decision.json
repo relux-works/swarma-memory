@@ -1,0 +1,66 @@
+{
+  "id": "schema:decision",
+  "version": 1,
+  "name": "decision",
+  "statement_kind": "decision_record",
+  "semantics": {
+    "establishes": "An assertion about an exact deciding-authority receipt.",
+    "does_not_establish": [
+      "Permission to act",
+      "Adoption without a canonical receipt"
+    ]
+  },
+  "fields": [
+    {
+      "name": "value",
+      "type": "string",
+      "equality": "exact",
+      "required": true,
+      "disclosure_class": "public"
+    }
+  ],
+  "cardinality": {
+    "mode": "single",
+    "slot_fields": []
+  },
+  "incompatibilities": [],
+  "freshness_default": {
+    "kind": "none"
+  },
+  "disclosure_defaults": [
+    {
+      "field_class": "public",
+      "audiences": [
+        "aud:public",
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    },
+    {
+      "field_class": "restricted",
+      "audiences": [
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    },
+    {
+      "field_class": "sensitive",
+      "audiences": [
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    }
+  ],
+  "requirements": [
+    "authority_receipt_for_current"
+  ]
+}
