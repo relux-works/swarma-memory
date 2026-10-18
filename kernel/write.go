@@ -208,17 +208,9 @@ func (s *State) Write(input map[string]any) (map[string]any, *Refusal) {
 	}
 	// Derive conservative lineage disclosure over the whole candidate graph.
 	s.taint(batch, hypothetical)
-	if s.mint == nil {
-		return nil, refusal(Unavailable)
-	}
-	handle, err := s.mint()
-	if err != nil || !validHandle(handle) {
-		return nil, refusal(Unavailable)
-	}
-	for _, entry := range arr(s.runtime()["idempotency"]) {
-		if obj(obj(entry)["receipt"])["receipt_handle"] == handle {
-			return nil, refusal(Unavailable)
-		}
+	handle, mintRefusal := s.nextHandle()
+	if mintRefusal != nil {
+		return nil, mintRefusal
 	}
 	refs := make([]any, 0, len(batch))
 	for _, r := range batch {
@@ -279,12 +271,9 @@ func (s *State) SeedLoad(actor string, work int64) (map[string]any, *Refusal) {
 	if actor != s.policy()["owner"] {
 		return nil, refusal(NotAuthorized)
 	}
-	if s.mint == nil {
-		return nil, refusal(Unavailable)
-	}
-	h, e := s.mint()
-	if e != nil || !validHandle(h) {
-		return nil, refusal(Unavailable)
+	h, r := s.nextHandle()
+	if r != nil {
+		return nil, r
 	}
 	s.runtime()["hidden_work"] = work
 	return map[string]any{"type": "receipt", "operation": "load", "outcome": "proceeded", "receipt_handle": h, "refs": []any{}, "custody": []any{}, "erasure_status": nil}, nil

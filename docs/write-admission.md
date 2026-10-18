@@ -44,20 +44,20 @@ Known content inputs resolve against the whole batch, independent of array
 order. Incomplete facts preserve their known lower bound and `lineage: unknown`.
 Disclosure taint intersects audience/purpose labels, unions field classes and
 keeps the earliest deadline. Conflicting domain assertions remain separate
-records: admission does not manufacture opposition or evidence. Deterministic
-`incompatible_with` view fields belong to the later evaluator.
+records: admission does not manufacture opposition or evidence. The [read evaluator](read-evaluation.md) computes deterministic
+`incompatible_with` fields without creating signed evidence.
 
 `SeedLoad` is the owner-only harness stimulus for `hidden_work`. It advances no
-record sequence. Capture, reads and all other finite operations still return
-`unsupported_operation`. Erase/revoke/declassify/restore/delivery and evidence
-evaluation are not implemented here.
+record sequence. Capture, reads and the availability stimulus are implemented
+by the [read evaluator](read-evaluation.md). Erase/revoke/declassify/restore/delivery
+operations remain unsupported.
 
 ## Conformance measurement
 
 Run `go run ./cmd/memory conformance` from the repository root. The command
 reports every whole-vector verdict, exact operation agreement by type and all
 six postcondition inventories. Whole-vector comparison remains unchanged and
-currently reports 0/66 because final reads are unsupported.
+reports 56/66 after the read evaluator task.
 
 | Admission result | Matched | Corpus total |
 | --- | ---: | ---: |
@@ -82,13 +82,14 @@ They must be revisited when their prerequisite operations are implemented.
 Only valid declared fresh-handle slots within the part are normalized. Handle
 relations are checked among available valid endpoints; a missing endpoint outside
 the part is judged in its own part and by the unchanged whole-vector comparator.
-Thus an unsupported final read does not erase independent receipt evidence.
+Thus an out-of-scope final result does not erase independent receipt evidence.
 One run establishes handle format and relations, not a statistical distribution.
 
 Both `conformance/passing.txt` (whole-vector ids) and
 `conformance/passing-ops.txt` (admission `vector-id:zero-based-index`) reject
 unknown, duplicate and regressed requirements. Newly passing entries are printed.
-Tests additionally require every matching admission result to be persisted.
+Tests additionally require every matching admission result and newly passing
+whole vector to be persisted.
 
 Current inventory matches, measured over all 66 complete vector executions:
 
@@ -102,7 +103,8 @@ Current inventory matches, measured over all 66 complete vector executions:
 | `external_effects` | 66/66 |
 
 Unimplemented mutations can change expected inventories. These counts are raw
-agreement, not completion claims for erasure, custody or evaluation.
+agreement, not completion claims for erasure or custody. Read evaluation is
+measured separately by the whole-vector ratchet.
 
 ## Specification interpretation
 

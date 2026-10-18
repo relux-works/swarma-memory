@@ -81,17 +81,27 @@ func TestConformanceCLI(t *testing.T) {
 			}
 			if tc.code == 1 {
 				lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
-				if len(lines) < 76 || lines[66] != "0/66 semantic vectors pass" || lines[67] != "admission ops matched: 70/73 (admit 42/45, admit_raw 2/2, revise 26/26)" || lines[len(lines)-1] != "8 deployment vectors are out of scope." || stderr.Len() != 0 {
+				if len(lines) < 76 || lines[66] != "56/66 semantic vectors pass" || lines[67] != "admission ops matched: 70/73 (admit 42/45, admit_raw 2/2, revise 26/26)" || lines[len(lines)-1] != "8 deployment vectors are out of scope." || stderr.Len() != 0 {
 					t.Fatal(stdout.String(), stderr.String())
 				}
 				ids := map[string]bool{}
+				passed := 0
 				for _, line := range lines[:66] {
-					parts := strings.SplitN(line, ": ", 2)
-					if len(parts) != 2 || !strings.HasPrefix(parts[0], "FAIL ") || parts[1] == "" || ids[parts[0]] {
+					fields := strings.Fields(line)
+					if len(fields) < 2 || (fields[0] != "PASS" && fields[0] != "FAIL") || ids[fields[1]] {
 						t.Fatal(line)
 					}
-					ids[parts[0]] = true
+					ids[fields[1]] = true
+					if fields[0] == "PASS" {
+						passed++
+					} else if !strings.Contains(line, ": ") {
+						t.Fatal(line)
+					}
 				}
+				if passed != 56 {
+					t.Fatal("passing whole-vector count", passed)
+				}
+
 			} else if stdout.Len() != 0 || !strings.Contains(stderr.String(), tc.errorPart) {
 				t.Fatal(stdout.String(), stderr.String())
 			}

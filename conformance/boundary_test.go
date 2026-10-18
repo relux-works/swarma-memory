@@ -171,6 +171,7 @@ func TestRefusedInventories(t *testing.T) {
 	input := findVector(t, "S01").Input()
 	input.Operations = nil
 	input.Query["kind"] = "changes"
+	input.Query["policy"].(map[string]any)["version"] = int64(999)
 	input.InitialState["records"] = input.InitialState["records"].([]any)[:1]
 	env := input.InitialState["records"].([]any)[0].(map[string]any)["envelope"].(map[string]any)
 	ref := map[string]any{"id": "rec:gone", "version": int64(1)}
@@ -192,12 +193,12 @@ func TestRefusedInventories(t *testing.T) {
 	if !reflect.DeepEqual(r["postconditions"], want) || !reflect.DeepEqual(input.InitialState, before) {
 		t.Fatal(r["postconditions"])
 	}
-	if !reflect.DeepEqual(r["result"], unsupported()) {
+	if !reflect.DeepEqual(r["result"], map[string]any{"type": "refusal", "code": "policy_mismatch", "retryable": true}) {
 		t.Fatal(r["result"])
 	}
 	input.Query["kind"] = "unknown"
 	r, err = (KernelExecutor{Schemas: schemasForTest(t)}).Execute(input)
-	if err != nil || !reflect.DeepEqual(r["result"], unsupported()) {
+	if err != nil || !reflect.DeepEqual(r["result"], map[string]any{"type": "refusal", "code": "invalid_shape", "retryable": false}) {
 		t.Fatal(r, err)
 	}
 	input.Operations = []any{map[string]any{"op": "unknown"}}

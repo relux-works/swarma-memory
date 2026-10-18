@@ -302,7 +302,7 @@ func plant(t *testing.T, root any, p string, value any) {
 }
 
 // TestKernelWrites proves every in-scope admission result matches, all matched
-// operations are persisted in the ratchet, and queries remain honest refusals.
+// operations are persisted in the ratchet, and executor inputs remain isolated.
 func TestKernelWrites(t *testing.T) {
 	vs := suite(t)
 	executor := KernelExecutor{Schemas: schemasForTest(t)}
@@ -318,8 +318,8 @@ func TestKernelWrites(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range added {
-		t.Log("newly passing vector:", id)
+	if len(added) != 0 {
+		t.Fatal("persist newly passing vectors in passing.txt", added)
 	}
 	text, err = os.ReadFile("passing-ops.txt")
 	if err != nil {
@@ -343,8 +343,8 @@ func TestKernelWrites(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !reflect.DeepEqual(report["result"], unsupported()) || !reflect.DeepEqual(before, input.InitialState) {
-			t.Fatal(v.ID(), "query refusal or input isolation")
+		if !reflect.DeepEqual(before, input.InitialState) {
+			t.Fatal(v.ID(), "input isolation")
 		}
 		if p, detail := inventoryError(map[string]any(report)); detail != "" {
 			t.Fatal(p, detail)

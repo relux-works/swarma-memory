@@ -10,7 +10,7 @@ func TestUnsupported(t *testing.T) {
 	view, b := k.Recall(Context{}, Query{})
 	explanation, c := k.Explain(Context{}, VersionRef{}, Bounds{})
 	changes, d := k.Changes(Context{}, Cursor{}, Bounds{})
-	if receipts.Receipt != nil || view != (View{}) || explanation != (Explanation{}) || changes != (ChangeSet{}) {
+	if receipts.Receipt != nil || len(view) != 0 || len(explanation) != 0 || len(changes) != 0 {
 		t.Fatal("nonzero unsupported payload")
 	}
 	for _, r := range []*Refusal{a, b, c, d} {

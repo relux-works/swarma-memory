@@ -71,7 +71,7 @@ func CheckRatchet(verdicts []Verdict, text string) ([]string, error) {
 	return added, nil
 }
 
-// KernelExecutor drives write transactions from input snapshots. Expected results
+// KernelExecutor drives reads and transactions from input snapshots. Expected results
 // and comparison metadata never enter the state or its handle generator.
 type KernelExecutor struct{ Schemas *kernel.Schemas }
 
@@ -90,28 +90,13 @@ func unsupported() map[string]any {
 	r, _ := kernel.NewRefusal(kernel.UnsupportedOperation)
 	return refusalTree(r)
 }
-func queryRefusal(q map[string]any) map[string]any {
-	var r *kernel.Refusal
-	k := kernel.Unsupported{}
-	switch q["kind"] {
-	case "recall":
-		_, r = k.Recall(kernel.Context{}, kernel.Query{})
-	case "explain":
-		_, r = k.Explain(kernel.Context{}, kernel.VersionRef{}, kernel.Bounds{})
-	case "changes":
-		_, r = k.Changes(kernel.Context{}, kernel.Cursor{}, kernel.Bounds{})
-	default:
-		return unsupported()
-	}
-	return refusalTree(r)
-}
 func (e KernelExecutor) Execute(input Input) (Report, error) {
 	state, r := kernel.NewState(input.InitialState, e.Schemas, freshHandle)
 	if r != nil {
 		return nil, fmt.Errorf("initial snapshot: %s", r.Code)
 	}
 	results := make([]any, 0, len(input.Operations))
-	for _, raw := range input.Operations {
+	for index, raw := range input.Operations {
 		op := raw.(map[string]any)
 		var result map[string]any
 		switch op["op"] {
@@ -128,8 +113,18 @@ func (e KernelExecutor) Execute(input Input) (Report, error) {
 				result = refusalTree(r)
 			}
 		case "capture":
-			result = queryRefusal(op["query"].(map[string]any))
-		case "erase", "restore", "reconcile_restore", "deliver", "revoke", "declassify", "revoke_declassification", "set_availability":
+			var r *kernel.Refusal
+			result, r = state.Capture(int64(index), op["query"].(map[string]any))
+			if r != nil {
+				result = refusalTree(r)
+			}
+		case "set_availability":
+			var r *kernel.Refusal
+			result, r = state.SetAvailability(op)
+			if r != nil {
+				result = refusalTree(r)
+			}
+		case "erase", "restore", "reconcile_restore", "deliver", "revoke", "declassify", "revoke_declassification":
 			result = unsupported()
 		default:
 			return nil, fmt.Errorf("unsupported harness operation %q", op["op"])
@@ -159,5 +154,9 @@ func (e KernelExecutor) Execute(input Input) (Report, error) {
 			return bytes.Compare(a, b) < 0
 		})
 	}
-	return Report{"operation_results": results, "result": queryRefusal(input.Query), "postconditions": post}, nil
+	result, r := state.Read(input.Query)
+	if r != nil {
+		result = refusalTree(r)
+	}
+	return Report{"operation_results": results, "result": result, "postconditions": post}, nil
 }

@@ -18,6 +18,8 @@ type Context struct {
 	Actor, At, AdmissionClass, IdempotencyKey string
 	ExpectedGeneration                        int64
 	RetentionContext                          RetentionContext
+	// ReadQuery supplies the complete pinned query for Explain and Changes.
+	ReadQuery Query
 }
 
 type RetentionContext struct{ Audience, Purpose string }
@@ -28,23 +30,25 @@ type Record map[string]any
 // Receipts carries one atomic write receipt.
 type Receipts struct{ Receipt map[string]any }
 
-// placeholder: defined by later stage-1 tasks
-type Query struct{}
+// Query is the complete closed read envelope, including authorization, public
+// configuration pins, knowledge cut, context and per-component bounds.
+type Query map[string]any
 
-// placeholder: defined by later stage-1 tasks
-type View struct{}
+// View is the complete view wire value. Every successful request has one fresh
+// opaque handle shared by all its polarity records.
+type View map[string]any
 
-// placeholder: defined by later stage-1 tasks
-type VersionRef struct{}
+// VersionRef identifies an exact admitted record (id and positive version).
+type VersionRef map[string]any
 
-// placeholder: defined by later stage-1 tasks
-type Bounds struct{}
+// Bounds names roots, rules, source_resolutions and explanations.
+type Bounds map[string]any
 
-// placeholder: defined by later stage-1 tasks
-type Explanation struct{}
+// Explanation retains the full view and both extended polarity records.
+type Explanation map[string]any
 
-// placeholder: defined by later stage-1 tasks
-type Cursor struct{}
+// Cursor carries the protected capture operation index as since (or null).
+type Cursor map[string]any
 
-// placeholder: defined by later stage-1 tasks
-type ChangeSet struct{}
+// ChangeSet retains the full view with its authorized changes object.
+type ChangeSet map[string]any

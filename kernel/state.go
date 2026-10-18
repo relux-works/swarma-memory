@@ -8,15 +8,16 @@ import (
 
 const packageSchema = "urn:bounded-evidence:0.2.6:"
 
-// State owns an admitted snapshot. Writes serialize validation and commit under
-// one lock; callers never receive aliases into its records or replay ledger.
+// State owns an admitted snapshot. Reads and writes serialize validation and
+// computation under one lock; callers never receive mutable state aliases.
 // The adapter supplies opaque fresh handles; the kernel has no clock or entropy IO.
 type State struct {
-	Unsupported
 	mu       sync.Mutex
 	snapshot map[string]any
 	schemas  *Schemas
 	mint     func() (string, error)
+	captures map[int64]capturedView
+	issued   map[string]bool
 }
 
 var _ Kernel = (*State)(nil)
@@ -198,4 +199,26 @@ func badVersion(v any) bool {
 		}
 	}
 	return false
+}
+
+// nextHandle checks the adapter contract without deriving any output from cuts,
+// contents, counters or identifiers. Imported replay handles also remain reserved.
+func (s *State) nextHandle() (string, *Refusal) {
+	if s.mint == nil {
+		return "", refusal(Unavailable)
+	}
+	h, e := s.mint()
+	if e != nil || !validHandle(h) || s.issued[h] {
+		return "", refusal(Unavailable)
+	}
+	for _, v := range arr(s.runtime()["idempotency"]) {
+		if obj(obj(v)["receipt"])["receipt_handle"] == h {
+			return "", refusal(Unavailable)
+		}
+	}
+	if s.issued == nil {
+		s.issued = map[string]bool{}
+	}
+	s.issued[h] = true
+	return h, nil
 }

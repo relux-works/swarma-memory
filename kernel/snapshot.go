@@ -223,7 +223,7 @@ func (s *State) validateSnapshot() *Refusal {
 			}
 		}
 	}
-	return nil
+	return s.validateReadConfiguration()
 }
 
 // The replay ledger pins a complete authenticated intent, not arbitrary JSON.
