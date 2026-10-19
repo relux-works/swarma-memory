@@ -1,0 +1,14 @@
+{
+  "schema_version": 8,
+  "runtime_roots": [],
+  "build_roots": ["go"],
+  "commands": {
+    "memory": {
+      "type": "build",
+      "driver": "go-v1",
+      "source_dir": "go/cmd/memory"
+    }
+  },
+  "capabilities": {},
+  "dependencies": {}
+}

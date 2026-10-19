@@ -1,8 +1,9 @@
 # Memory CLI: administration, reads and writes
 
-Build `go build -o bin/memory ./cmd/memory`. The application embeds the public
-package schemas and domain documents and runs outside the source checkout.
-`conformance` retains its repository-root working-directory contract.
+Build `go -C go build -o ../bin/memory ./cmd/memory`. The application embeds the public
+package schemas, domain documents, semantic vectors and conformance ratchets,
+and runs outside the source checkout. Default `conformance` is independent of
+working directory; an explicit vectors path is resolved from the caller's cwd.
 
 ## Home and config
 
@@ -14,7 +15,7 @@ identity key live under `$XDG_CONFIG_HOME/swarma-memory` (default
 The home must be outside Git working/bare repositories and metadata directories, including symlink aliases.
 
 `config.json` has exactly `identity`, `key_file`, and `spaces`; its closed
-[schema](../cmd/memory/config.schema.json) is enforced on load. Each space has
+[schema](../go/cmd/memory/config.schema.json) is enforced on load. Each space has
 exactly `id`, `remote`, `branch`, `clone_path`, `cache_path`, `genesis_digest` and
 `kind` (`agent`, `project`, `platform`). Clone/cache names are SHA-256 encodings
 of IDs under `clones/` and `caches/`; paths must match those locations and cannot
@@ -419,6 +420,14 @@ Legacy `conformance` retains exit 1 for semantic disagreement and 2 for harness 
 usage errors; JSON mode wraps either as `conformance_failed`. Legacy plain
 `version` retains its one-line output.
 
+## Limitations
+
+Readers currently see session sources only as source refs. The source locator
+(runtime, session, message and digest) and excerpt are not included in recall or
+explain output. Showing them requires a package change to the closed kernel view
+or a disclosure-aware source-content API; this remains an open question. The CLI
+does not reconstruct source payloads from the raw snapshot.
+
 ## Git and validation tools
 
 Git receives `os.Environ()` explicitly and unchanged: no hidden credential,
@@ -440,7 +449,7 @@ pre-push barrier from the same parent, every typed refusal with publication-stat
 checks (including HEAD/index/tree equality with the verified cursor), read-bound
 token and two-home prior-read/NFF regressions, raw scanner-output redaction,
 session excerpts, receipt retries, promotion
-read/write gates and quoted instruction-like data. Run `go test ./cmd/memory`,
-`go test -race ./space ./cmd/...`, `go vet ./...`,
-`python3 spec/checks/validate.py`, and `go run ./cmd/memory conformance`.
+read/write gates and quoted instruction-like data. Run `go -C go test ./cmd/memory`,
+`go -C go test -race ./space ./cmd/...`, `go -C go vet ./...`,
+`python3 spec/checks/validate.py`, and `go -C go run ./cmd/memory conformance`.
 Go temp artifacts use `TMPDIR`; saved project logs belong under `.temp/`.

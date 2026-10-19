@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:0.2.6:receipt",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "const": "receipt"
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "admit",
+        "revise",
+        "declassify",
+        "erase",
+        "revoke",
+        "revoke_declassification",
+        "restore",
+        "reconcile_restore",
+        "deliver",
+        "control",
+        "load",
+        "set_availability"
+      ]
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "admitted",
+        "revised",
+        "challenged",
+        "availability_changed",
+        "declassified",
+        "purged",
+        "incomplete",
+        "revoked",
+        "fenced",
+        "reconciled",
+        "delivered",
+        "proceeded"
+      ]
+    },
+    "receipt_handle": {
+      "type": "string"
+    },
+    "refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "custody": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "erasure_status": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "access_closed",
+            "purge_pending",
+            "purged_within_boundary",
+            "unavailable"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "type",
+    "operation",
+    "outcome",
+    "receipt_handle",
+    "refs",
+    "custody",
+    "erasure_status"
+  ],
+  "additionalProperties": false
+}

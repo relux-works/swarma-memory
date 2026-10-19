@@ -4,7 +4,7 @@ The signing and policy-verification primitives operate on full in-memory records
 and adapter-supplied `io/fs` filesystems. The separate [git adapter](git-spaces.md)
 provides transport and history integration; these primitives discover no host
 agent, CLI configuration or key holder.
-`sign/localkey` generates temporary Ed25519 identity keys and provides explicit
+`go/sign/localkey` generates temporary Ed25519 identity keys and provides explicit
 private-file persistence. Tests generate their own ephemeral keys only.
 
 ## Record signatures
@@ -26,7 +26,7 @@ The wire envelope is exactly:
 ```
 
 `record` here stands for a complete kernel record, not an empty object.
-The closed schema is [signed-record.schema.json](../sign/schema/signed-record.schema.json);
+The closed schema is [signed-record.schema.json](../go/sign/schema/signed-record.schema.json);
 its five record branches reference the existing kernel schema URIs. Base64
 length/canonical spelling and cryptographic checks are enforced by verification.
 `sign.ParseRecord` uses strict kernel JSON parsing: duplicate/unknown fields,
@@ -84,7 +84,7 @@ policy purpose. The payload retains all architecture §5.3 fields:
 The payload additionally has `version` (positive integer), `previous` (prior
 policy digest or null) and `author` (the signing owner identity). Empty arrays
 are encoded as `[]`, not null. All custom schemas are closed and live under
-[space/schema](../space/schema), outside `spec/`.
+[space/schema](../go/space/schema), outside `spec/`.
 
 Writer grants have no wildcards. A record must match identity, admission class,
 schema and kind within one complete grant. A schema selector of `null` explicitly
@@ -203,11 +203,11 @@ genesis digest and trusted historical binding are mandatory inputs here.
 Threshold approval and operational retirement/revocation behavior remain design
 questions for their owning tasks; this layer does not silently choose actions.
 
-`go test ./...` covers all required forgery, replay, registry, owner-chain, grant,
+`go -C go test ./...` covers all required forgery, replay, registry, owner-chain, grant,
 submitter and canonical round-trip cases with real ephemeral keys and valid
 controls. It also covers key persistence/permissions, owner transfer/key rotation,
 non-assertion grants, closed-schema violation controls, immutable results and
 fail-closed snapshot integration. Independent stdlib signing checks the framing.
-Use `go test -race ./...`, `go vet ./...`, `python3 -B spec/checks/validate.py` and
-`go run ./cmd/memory conformance` for the full gates. Optional logs belong in
+Use `go -C go test -race ./...`, `go -C go vet ./...`, `python3 -B spec/checks/validate.py` and
+`go -C go run ./cmd/memory conformance` for the full gates. Optional logs belong in
 ignored `.temp/`; no key material belongs in documentation or outcome resources.

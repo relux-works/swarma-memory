@@ -12,13 +12,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: go/go.mod
           cache: false
-      - run: go vet ./...
-      - run: go test ./...
+      - name: Build Curator command
+        run: go -C go build -mod=vendor -trimpath -buildvcs=false -o ../bin/memory ./cmd/memory
+        env:
+          CGO_ENABLED: '0'
+          GOPROXY: 'off'
+          GOTOOLCHAIN: local
+      - name: Embedded assets match normative sources
+        run: go -C go test ./assets
+      - run: go -C go vet ./...
+      - run: go -C go test ./...
       - name: CLI end-to-end gate
-        run: go test -count=1 -v ./e2e
-      - run: go test -race ./space ./cmd/...
+        run: go -C go test -count=1 -v ./e2e
+      - run: go -C go test -race ./space ./cmd/...
       - run: python3 spec/checks/validate.py
       - name: Semantic conformance
-        run: go run ./cmd/memory conformance
+        run: go -C go run ./cmd/memory conformance

@@ -266,15 +266,17 @@ escalation and protected-deployment qualification remain separate stages.
 
 Run from the module root:
 
+Run these commands from the repository root:
+
 ```sh
-go vet ./...
-go test ./...
-go test -race ./space
-go run ./cmd/memory conformance
+go -C go vet ./...
+go -C go test ./...
+go -C go test -race ./space
+go -C go run ./cmd/memory conformance
 python3 -B spec/checks/validate.py
 ```
 
-`space/git_test.go` contains claim-commented real-git gates for concurrent writers,
+`go/space/git_test.go` contains claim-commented real-git gates for concurrent writers,
 NFF retries and bounds, stale expected versions, merged competing and independent
 sequences, both policy-fork orders and an actual policy merge, all five required
 forgery classes with valid same-commit neighbours, transaction tampering, rewrite
@@ -287,7 +289,7 @@ use an atomic `update-ref` inside the temporary bare fixture to model the exact
 force-push reference transition without issuing a force-push command. Optional
 logs belong in ignored `.temp/`.
 
-`space/git_rework_test.go` additionally preserves source-commit and policy
+`go/space/git_rework_test.go` additionally preserves source-commit and policy
 transplant witnesses, isolates all authenticated context fields, checks SHA-1 and
 SHA-256 trees against Git, and pairs overlapping stale-generation/output-mismatch
 refusals with valid transactions and a valid-only control. CI retains the space

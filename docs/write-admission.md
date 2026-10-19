@@ -54,7 +54,7 @@ erase and restore are implemented in the same pure state model.
 
 ## Conformance measurement
 
-Run `go run ./cmd/memory conformance` from the repository root. The command
+Run `go -C go run ./cmd/memory conformance` from the repository root. The command
 reports every whole-vector verdict, exact operation agreement by type and all
 six postcondition inventories. Whole-vector comparison remains unchanged and
 reports 66/66 with stage 1 complete.
@@ -78,8 +78,8 @@ the part is judged in its own part and by the unchanged whole-vector comparator.
 Thus an out-of-scope final result does not erase independent receipt evidence.
 One run establishes handle format and relations, not a statistical distribution.
 
-Both `conformance/passing.txt` (whole-vector ids) and
-`conformance/passing-ops.txt` (admission `vector-id:zero-based-index`) reject
+Both `go/conformance/passing.txt` (whole-vector ids) and
+`go/conformance/passing-ops.txt` (admission `vector-id:zero-based-index`) reject
 unknown, duplicate and regressed requirements. Newly passing entries are printed.
 Tests additionally require every matching admission result and newly passing
 whole vector to be persisted.

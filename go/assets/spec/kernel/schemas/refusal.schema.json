@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:0.2.6:refusal",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "const": "refusal"
+    },
+    "code": {
+      "type": "string",
+      "enum": [
+        "invalid_json",
+        "invalid_shape",
+        "unknown_schema",
+        "unknown_profile",
+        "invalid_reference",
+        "duplicate_record",
+        "invalid_domain_value",
+        "invalid_time",
+        "unknown_rule",
+        "cycle",
+        "cross_scope",
+        "representation_invalid",
+        "not_authorized",
+        "quarantined",
+        "authority_receipt_required",
+        "version_conflict",
+        "idempotency_conflict",
+        "rule_unqualified",
+        "assessment_kind_invalid",
+        "mode_mismatch",
+        "limit_exceeded",
+        "policy_mismatch",
+        "erasure_fenced",
+        "stale_generation",
+        "erasure_incomplete",
+        "declassification_invalid",
+        "disclosure_revoked",
+        "publication_stale",
+        "unavailable",
+        "execution_required",
+        "unsupported_operation"
+      ]
+    },
+    "retryable": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "type",
+    "code",
+    "retryable"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,614 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:0.2.6:assessment",
+  "type": "object",
+  "properties": {
+    "envelope": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string",
+          "const": "assessment"
+        },
+        "schema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "version"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "subject": {
+          "type": "string"
+        },
+        "issuer": {
+          "type": "string"
+        },
+        "submitter": {
+          "type": "string"
+        },
+        "representation_ref": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "integer"
+                },
+                "checked": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "version",
+                "checked"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "perspective": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "own",
+                "observer",
+                "team"
+              ]
+            },
+            "principal": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "principal"
+          ],
+          "additionalProperties": false
+        },
+        "admission_class": {
+          "type": "string",
+          "enum": [
+            "self_declaration",
+            "imported_publication",
+            "machine_observation",
+            "semantic_inference"
+          ]
+        },
+        "space": {
+          "type": "string"
+        },
+        "valid": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "known"
+                },
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "precision": {
+                  "type": "string",
+                  "const": "second"
+                }
+              },
+              "required": [
+                "kind",
+                "from",
+                "to",
+                "precision"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "unknown"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "confirmed_at": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "recorded": {
+          "type": "object",
+          "properties": {
+            "sequence": {
+              "type": "integer"
+            },
+            "at": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "sequence",
+            "at"
+          ],
+          "additionalProperties": false
+        },
+        "lineage": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id",
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            },
+            {
+              "type": "string",
+              "const": "unknown"
+            }
+          ]
+        },
+        "disclosure": {
+          "type": "object",
+          "properties": {
+            "audiences": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "purposes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "retain_until": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "field_classes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "restricted",
+                  "sensitive"
+                ]
+              }
+            },
+            "declassification": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id",
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "audiences",
+            "purposes",
+            "retain_until",
+            "field_classes",
+            "declassification"
+          ],
+          "additionalProperties": false
+        },
+        "context": {
+          "type": "string",
+          "enum": [
+            "real",
+            "simulated"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "kind",
+        "schema",
+        "subject",
+        "issuer",
+        "submitter",
+        "representation_ref",
+        "perspective",
+        "admission_class",
+        "space",
+        "valid",
+        "confirmed_at",
+        "recorded",
+        "lineage",
+        "disclosure",
+        "context"
+      ],
+      "additionalProperties": false
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "check_kind": {
+          "type": "string",
+          "enum": [
+            "source_binding",
+            "signature",
+            "test_result",
+            "formal_entailment",
+            "semantic_review",
+            "account_control",
+            "declassification"
+          ]
+        },
+        "executor": {
+          "type": "string",
+          "enum": [
+            "human",
+            "deterministic",
+            "model"
+          ]
+        },
+        "result": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail",
+            "indeterminate"
+          ]
+        },
+        "pins": {
+          "type": "object",
+          "properties": {
+            "subject": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "version"
+              ],
+              "additionalProperties": false
+            },
+            "rule": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "version"
+              ],
+              "additionalProperties": false
+            },
+            "policy": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "version"
+              ],
+              "additionalProperties": false
+            },
+            "environment": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "version"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "subject",
+            "rule",
+            "policy",
+            "environment"
+          ],
+          "additionalProperties": false
+        },
+        "target": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "assertion": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                },
+                "polarity": {
+                  "type": "string",
+                  "enum": [
+                    "support",
+                    "oppose"
+                  ]
+                }
+              },
+              "required": [
+                "assertion",
+                "polarity"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "version"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "origin": {
+          "type": "string"
+        },
+        "source_requirement": {
+          "type": "string",
+          "enum": [
+            "current",
+            "retained",
+            "independent"
+          ]
+        },
+        "usable_until": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "declassification": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "decision": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                },
+                "inputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "version": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "version"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "transformation": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                },
+                "output_schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                },
+                "output_digest": {
+                  "type": "string"
+                },
+                "audience": {
+                  "type": "string"
+                },
+                "purpose": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "decision",
+                "inputs",
+                "transformation",
+                "output_schema",
+                "output_digest",
+                "audience",
+                "purpose"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "check_kind",
+        "executor",
+        "result",
+        "pins",
+        "target",
+        "sources",
+        "origin",
+        "source_requirement",
+        "usable_until",
+        "declassification"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "envelope",
+    "body"
+  ],
+  "additionalProperties": false
+}

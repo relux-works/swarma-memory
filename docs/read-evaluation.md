@@ -124,7 +124,7 @@ adapter/deployment obligations.
 
 ## Measurement and validation
 
-All 66 semantic vectors pass whole and are required in `conformance/passing.txt`.
+All 66 semantic vectors pass whole and are required in `go/conformance/passing.txt`.
 Admission agreement is 73/73, required by `passing-ops.txt`. The CLI exits 0;
 semantic conformance is mandatory in CI. Disclosure, delivery and erasure tests
 are described in [disclosure and erasure](disclosure-erasure.md).
@@ -139,12 +139,14 @@ checks, hidden headers and transitive content inputs at historical cuts. Corpus
 comparator oracle and mutation controls remain unchanged. Run from the repository
 root:
 
+Run these commands from the repository root:
+
 ```sh
-go vet ./...
-go test ./...
-go test -race ./kernel -run 'TestRead|TestHidden|TestDirtyProjection|TestFrozen|TestAvailability|TestTyped|TestThreeConflict|TestSourceAndPremise|TestChanges'
+go -C go vet ./...
+go -C go test ./...
+go -C go test -race ./kernel -run 'TestRead|TestHidden|TestDirtyProjection|TestFrozen|TestAvailability|TestTyped|TestThreeConflict|TestSourceAndPremise|TestChanges'
 python3 -B spec/checks/validate.py
-go run ./cmd/memory conformance
+go -C go run ./cmd/memory conformance
 ```
 
 The structural checker is not an evidence evaluator. Logs and task notes belong

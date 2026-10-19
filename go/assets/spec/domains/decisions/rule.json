@@ -1,0 +1,79 @@
+{
+  "id": "schema:rule",
+  "version": 1,
+  "name": "rule",
+  "statement_kind": "fact",
+  "semantics": {
+    "establishes": "An attributed statement only.",
+    "does_not_establish": [
+      "Automatic execution"
+    ]
+  },
+  "fields": [
+    {
+      "name": "value",
+      "type": "string",
+      "equality": "exact",
+      "required": true,
+      "disclosure_class": "public"
+    }
+  ],
+  "cardinality": {
+    "mode": "single",
+    "slot_fields": []
+  },
+  "incompatibilities": [
+    {
+      "id": "incompat:rule:value",
+      "field": "value",
+      "relation": "unequal",
+      "statement_kinds": [
+        "fact"
+      ],
+      "same": [
+        "subject",
+        "space",
+        "perspective",
+        "slot"
+      ],
+      "overlap": "required"
+    }
+  ],
+  "freshness_default": {
+    "kind": "none"
+  },
+  "disclosure_defaults": [
+    {
+      "field_class": "public",
+      "audiences": [
+        "aud:public",
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    },
+    {
+      "field_class": "restricted",
+      "audiences": [
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    },
+    {
+      "field_class": "sensitive",
+      "audiences": [
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    }
+  ],
+  "requirements": []
+}

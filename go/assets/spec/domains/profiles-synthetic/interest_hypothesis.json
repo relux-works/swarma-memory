@@ -1,0 +1,65 @@
+{
+  "id": "schema:interest_hypothesis",
+  "version": 1,
+  "name": "interest_hypothesis",
+  "statement_kind": "proposal",
+  "semantics": {
+    "establishes": "An attributed statement only.",
+    "does_not_establish": [
+      "The subject made this statement"
+    ]
+  },
+  "fields": [
+    {
+      "name": "value",
+      "type": "string",
+      "equality": "exact",
+      "required": true,
+      "disclosure_class": "restricted"
+    }
+  ],
+  "cardinality": {
+    "mode": "multi",
+    "slot_fields": []
+  },
+  "incompatibilities": [],
+  "freshness_default": {
+    "kind": "none"
+  },
+  "disclosure_defaults": [
+    {
+      "field_class": "public",
+      "audiences": [
+        "aud:public",
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    },
+    {
+      "field_class": "restricted",
+      "audiences": [
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    },
+    {
+      "field_class": "sensitive",
+      "audiences": [
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    }
+  ],
+  "requirements": [
+    "synthetic_only"
+  ]
+}

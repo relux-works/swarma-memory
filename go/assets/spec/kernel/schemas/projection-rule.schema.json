@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:0.2.6:projection-rule",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "issuer": {
+          "type": "string"
+        },
+        "perspective": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "own",
+                "observer",
+                "team"
+              ]
+            },
+            "principal": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "principal"
+          ],
+          "additionalProperties": false
+        },
+        "sequence_resolution": {
+          "type": "string",
+          "const": "issuer_and_authority"
+        },
+        "time_policy": {
+          "type": "string",
+          "const": "query_cut"
+        },
+        "freshness_policy": {
+          "type": "string",
+          "const": "query_override_else_schema"
+        },
+        "excluded_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "version"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "family": {
+          "type": "string",
+          "const": "issuer_current"
+        },
+        "audience": {
+          "type": "null"
+        },
+        "purpose": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "issuer",
+        "perspective",
+        "sequence_resolution",
+        "time_policy",
+        "freshness_policy",
+        "excluded_refs",
+        "family",
+        "audience",
+        "purpose"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "issuer": {
+          "type": "string"
+        },
+        "perspective": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "own",
+                "observer",
+                "team"
+              ]
+            },
+            "principal": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "principal"
+          ],
+          "additionalProperties": false
+        },
+        "sequence_resolution": {
+          "type": "string",
+          "const": "issuer_and_authority"
+        },
+        "time_policy": {
+          "type": "string",
+          "const": "query_cut"
+        },
+        "freshness_policy": {
+          "type": "string",
+          "const": "query_override_else_schema"
+        },
+        "excluded_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "version"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "family": {
+          "type": "string",
+          "const": "observer_model"
+        },
+        "audience": {
+          "type": "null"
+        },
+        "purpose": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "issuer",
+        "perspective",
+        "sequence_resolution",
+        "time_policy",
+        "freshness_policy",
+        "excluded_refs",
+        "family",
+        "audience",
+        "purpose"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "issuer": {
+          "type": "string"
+        },
+        "perspective": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "own",
+                "observer",
+                "team"
+              ]
+            },
+            "principal": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "principal"
+          ],
+          "additionalProperties": false
+        },
+        "sequence_resolution": {
+          "type": "string",
+          "const": "issuer_and_authority"
+        },
+        "time_policy": {
+          "type": "string",
+          "const": "query_cut"
+        },
+        "freshness_policy": {
+          "type": "string",
+          "const": "query_override_else_schema"
+        },
+        "excluded_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "version"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "family": {
+          "type": "string",
+          "const": "audience_projection"
+        },
+        "audience": {
+          "type": "string"
+        },
+        "purpose": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "issuer",
+        "perspective",
+        "sequence_resolution",
+        "time_policy",
+        "freshness_policy",
+        "excluded_refs",
+        "family",
+        "audience",
+        "purpose"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "id": "schema:intent",
+  "version": 1,
+  "name": "intent",
+  "statement_kind": "intent",
+  "semantics": {
+    "establishes": "An attributed statement only.",
+    "does_not_establish": [
+      "A commitment",
+      "Consent to contact"
+    ]
+  },
+  "fields": [
+    {
+      "name": "value",
+      "type": "string",
+      "equality": "exact",
+      "required": true,
+      "disclosure_class": "restricted"
+    }
+  ],
+  "cardinality": {
+    "mode": "multi",
+    "slot_fields": []
+  },
+  "incompatibilities": [],
+  "freshness_default": {
+    "kind": "duration",
+    "seconds": 604800
+  },
+  "disclosure_defaults": [
+    {
+      "field_class": "public",
+      "audiences": [
+        "aud:public",
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    },
+    {
+      "field_class": "restricted",
+      "audiences": [
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    },
+    {
+      "field_class": "sensitive",
+      "audiences": [
+        "aud:private"
+      ],
+      "purposes": [
+        "purpose:read",
+        "purpose:publish"
+      ]
+    }
+  ],
+  "requirements": [
+    "synthetic_only"
+  ]
+}

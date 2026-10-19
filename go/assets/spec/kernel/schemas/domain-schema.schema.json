@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:0.2.6:domain-schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer"
+    },
+    "name": {
+      "type": "string"
+    },
+    "statement_kind": {
+      "type": "string",
+      "enum": [
+        "fact",
+        "self_declaration",
+        "proposal",
+        "decision_record",
+        "intent",
+        "assessment_summary"
+      ]
+    },
+    "semantics": {
+      "type": "object",
+      "properties": {
+        "establishes": {
+          "type": "string"
+        },
+        "does_not_establish": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "establishes",
+        "does_not_establish"
+      ],
+      "additionalProperties": false
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "string",
+              "integer",
+              "boolean",
+              "string_set"
+            ]
+          },
+          "equality": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "set"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "disclosure_class": {
+            "type": "string",
+            "enum": [
+              "public",
+              "restricted",
+              "sensitive"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "equality",
+          "required",
+          "disclosure_class"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "cardinality": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "single",
+            "multi"
+          ]
+        },
+        "slot_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "mode",
+        "slot_fields"
+      ],
+      "additionalProperties": false
+    },
+    "incompatibilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          },
+          "relation": {
+            "type": "string",
+            "const": "unequal"
+          },
+          "statement_kinds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "fact",
+                "self_declaration",
+                "proposal",
+                "decision_record",
+                "intent",
+                "assessment_summary"
+              ]
+            }
+          },
+          "same": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "subject",
+                "space",
+                "perspective",
+                "slot"
+              ]
+            }
+          },
+          "overlap": {
+            "type": "string",
+            "const": "required"
+          }
+        },
+        "required": [
+          "id",
+          "field",
+          "relation",
+          "statement_kinds",
+          "same",
+          "overlap"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "freshness_default": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "none"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "duration"
+            },
+            "seconds": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "seconds"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "disclosure_defaults": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "field_class": {
+            "type": "string",
+            "enum": [
+              "public",
+              "restricted",
+              "sensitive"
+            ]
+          },
+          "audiences": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "purposes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "field_class",
+          "audiences",
+          "purposes"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "authority_receipt_for_current",
+          "account_control_for_established",
+          "synthetic_only",
+          "no_derived_consent",
+          "adult_opt_in",
+          "mutual_contact_consent",
+          "mutual_partner_confirmation"
+        ]
+      }
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "name",
+    "statement_kind",
+    "semantics",
+    "fields",
+    "cardinality",
+    "incompatibilities",
+    "freshness_default",
+    "disclosure_defaults",
+    "requirements"
+  ],
+  "additionalProperties": false
+}

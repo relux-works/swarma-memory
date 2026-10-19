@@ -87,11 +87,11 @@ real adapter. Semantic agreement is not deployment qualification.
 Run from the repository root:
 
 ```sh
-go vet ./...
-go test ./...
-go test -race ./kernel
+go -C go vet ./...
+go -C go test ./...
+go -C go test -race ./kernel
 python3 -B spec/checks/validate.py
-go run ./cmd/memory conformance
+go -C go run ./cmd/memory conformance
 ```
 
 All 66 whole vectors, 73 admission operations, boundary operations and six
