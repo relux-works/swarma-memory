@@ -39,12 +39,10 @@ keys and sockets are absent. Git allows only local file transport; SSH transport
 is disabled. Fixture SSH keys sign fixture commits only. They are independent
 of the memory record keys and of any host signing identity.
 
-Each memory clone is pre-created with its own external `git-store` metadata.
-The env files set **new fixture-specific** `GIT_DIR` and `GIT_WORK_TREE`; they do
-not preserve the caller's values. Normal CLI `spaces init/add` adopts these
-existing worktrees, then verifies/syncs them normally. No `.git` entry is created.
-All Git commands in an agent environment target that agent's memory clone;
-do not use the environment to operate on an unrelated repository.
+Memory `spaces init/add` creates ordinary Git clones in scratch, exercising the
+product's real clone/verification/sync path. Caller `GIT_DIR` and `GIT_WORK_TREE`
+are excluded from every fixture environment. The source checkout's Git metadata
+is neither copied nor changed.
 
 The JSON printed to stdout is also saved as `scratch/summary.json`. It includes:
 
@@ -193,7 +191,7 @@ decision and B sync/recall, then runs `verify`. It requires these exact results:
 
 It also plants ambient Curator/agent/Git settings and checks their exclusion,
 and checks the sourceable env files against the JSON environments used by the
-harness. It checks that the fixture contains no `.git` entry. It writes
+harness. It checks that the CLI created ordinary A/B scratch clones. It writes
 `evidence/self-test.json` and per-control verifier results.
 The final fixture deliberately contains B's negative-control write. Prepare a
 new fixture for real agents. No agent runs, network remote, server, global

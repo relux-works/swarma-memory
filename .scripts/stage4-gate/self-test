@@ -42,12 +42,9 @@ def run(args):
         env = json.loads((root / f'{name}.env.json').read_text())
         # This proves the allowlist removes poisoned caller variables and Git metadata.
         gate.require(not any(k.startswith('CURATOR_') or k in
-                             ('CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'A2A_AGENT')
+                             ('CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'GIT_DIR', 'GIT_WORK_TREE', 'A2A_AGENT')
                              for k in env) and all('ambient-must-not-be-used' not in v for v in env.values()),
                      'ambient_environment_leak', name)
-        gate.require(env['GIT_DIR'] == summary['agents'][name]['git_dir'] and
-                     env['GIT_WORK_TREE'] == summary['agents'][name]['clone'],
-                     'fixture_metadata_mismatch', name)
         # The sourceable shell file and the exact env used by the verifier must agree.
         envfile = summary['agents'][name]['env_file']
         shell = subprocess.run(['/bin/sh', '-c', '. "$1"; exec /usr/bin/env -0', 'sh', envfile],
@@ -96,8 +93,10 @@ def run(args):
                 '--id', 'record:stage4-b-control', '--content', 'Unrelated B control observation',
                 '--idempotency-key', 'stage4:b-control:one'], 'self-test-B-add')
     verdict('b-wrote', decision, 1, 'b_wrote_record')
-    gate.require(not list(root.rglob('.git')), 'forbidden_git_entry',
-                 'Fixture created a .git path instead of using separate metadata')
+    # Scratch clones exercise the product's normal CLI clone path, not a prebuilt fixture.
+    gate.require(all((Path(summary['agents'][name]['clone']) / '.git').is_dir()
+                     for name in ('A', 'B')), 'fixture_clone_missing',
+                 'Expected ordinary CLI-created scratch clones for A and B')
     result = {'verdict': 'pass', 'scratch': str(root), 'cases': results,
               'agents_started': False, 'note': 'Fixture is deliberately negative after the last control; prepare a new one for agents.'}
     gate.dump(root / 'evidence/self-test.json', result)

@@ -77,10 +77,6 @@ def memory(summary, name, args, label, stdin=None):
     return result['data']
 
 
-def bare_env(env):
-    return {k: v for k, v in env.items() if k not in ('GIT_DIR', 'GIT_WORK_TREE')}
-
-
 def public_tree(source, dest):
     """Copy only the declared package input; never walk scratch or key trees."""
     require(not source.is_symlink(), 'invalid_source', 'Source root must not be a symlink')
@@ -190,20 +186,6 @@ def prepare(args):
         for i, (k, v) in enumerate(settings):
             agent_env[f'GIT_CONFIG_KEY_{i}'] = k
             agent_env[f'GIT_CONFIG_VALUE_{i}'] = v
-        # Pre-create an empty worktree and separate metadata, with no .git entry.
-        # spaces init/add adopt it through their existing-clone path, then perform
-        # normal genesis verification, fetch, sync, admission and publication.
-        clone = base / 'memory/clones' / hashlib.sha256(SPACE.encode()).hexdigest()
-        clone.mkdir(parents=True, mode=0o700)
-        metadata = base / 'git-store'
-        call(['git', 'init', '--bare', '--initial-branch=main', metadata], agent_env,
-             root, f'{name}-git-init', evidence)
-        for setting, value in [('core.bare', 'false'), ('core.worktree', str(clone))]:
-            call(['git', '--git-dir', metadata, 'config', setting, value], agent_env,
-                 root, f'{name}-{setting}', evidence)
-        call(['git', '--git-dir', metadata, 'remote', 'add', 'origin', summary['remote']],
-             agent_env, root, f'{name}-origin', evidence)
-        agent_env.update(GIT_DIR=str(metadata), GIT_WORK_TREE=str(clone))
         dump(root / f'{name}.env.json', agent_env)
         envfile = root / (f'agent-{name}.env' if name != 'owner' else 'owner.env')
         envfile.write_text('# Source only in an empty environment; see README.\n' + ''.join(
@@ -212,9 +194,8 @@ def prepare(args):
         keyinfo = memory(summary, name, ['keys', 'init', '--identity', identity], f'{name}-memory-key')
         summary['agents'][name] = dict(keyinfo, env_file=str(envfile),
                                       memory_home=agent_env['MEMORY_HOME'],
-                                      clone=str(clone), git_dir=str(metadata),
                                       env_sha256=digest(root / f'{name}.env.json'))
-    owner_env = bare_env(json.loads((root / 'owner.env.json').read_text()))
+    owner_env = json.loads((root / 'owner.env.json').read_text())
     call(['git', 'init', '--bare', '--initial-branch=main', summary['remote']], owner_env,
          project, 'remote-init', evidence)
     init = memory(summary, 'owner', ['spaces', 'init', SPACE, '--remote', summary['remote'],
@@ -259,7 +240,7 @@ def verify(args):
             'Topic and expected text must be nonempty')
     require(installation(root, project) == s['installed'], 'installation_changed',
             'Installed skill/launcher/artifact/receipt changed since prepare')
-    env = bare_env(json.loads((root / 'owner.env.json').read_text()))
+    env = json.loads((root / 'owner.env.json').read_text())
     head = call(['git', '--git-dir', s['remote'], 'rev-parse', 'main'], env, project,
                 'verify-remote-head', evidence)
     checks = {}
