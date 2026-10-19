@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""Exercise the real installed CLI; never launch a Codex/Claude agent."""
+import argparse
+import importlib.util
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location('stage4_gate', Path(__file__).with_name('gate.py'))
+gate = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(gate)
+
+
+def run(args):
+    scripts = Path(__file__).resolve().parent
+    root = Path(args.scratch).absolute()
+    command = [str(scripts / 'prepare'), str(root), str(Path(args.source).resolve())]
+    if args.curator:
+        command += ['--curator', args.curator]
+    if args.go:
+        command += ['--go', args.go]
+    # A hostile ambient identity/config must not leak into Curator or agent fixtures.
+    ambient = dict(os.environ, CURATOR_HOME='/ambient-must-not-be-used',
+                   CODEX_HOME='/ambient-must-not-be-used', CLAUDE_CONFIG_DIR='/ambient-must-not-be-used',
+                   GIT_DIR='/ambient-must-not-be-used', MEMORY_HOME='/ambient-must-not-be-used',
+                   GIT_AUTHOR_EMAIL='ambient@example.invalid', A2A_AGENT='ambient-must-not-be-used')
+    prepared = subprocess.run(command, env=ambient, capture_output=True, text=True, timeout=900)
+    gate.require(prepared.returncode == 0, 'prepare_failed', prepared.stdout)
+    summary = json.loads(prepared.stdout)
+    root = Path(summary['scratch'])
+    gate.dump(root / 'evidence/self-test-prepare.json', summary)
+    curator_env = json.loads((root / 'evidence/curator-environment.json').read_text())
+    gate.require(not any(k.startswith('CURATOR_') or k in
+                         ('CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'GIT_DIR', 'GIT_WORK_TREE', 'A2A_AGENT')
+                         for k in curator_env) and
+                 all('ambient-must-not-be-used' not in v for v in curator_env.values()),
+                 'ambient_curator_environment_leak', 'Curator inherited caller configuration')
+    for name in ('owner', 'A', 'B'):
+        env = json.loads((root / f'{name}.env.json').read_text())
+        # This proves the allowlist removes poisoned caller variables and Git metadata.
+        gate.require(not any(k.startswith('CURATOR_') or k in
+                             ('CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'A2A_AGENT')
+                             for k in env) and all('ambient-must-not-be-used' not in v for v in env.values()),
+                     'ambient_environment_leak', name)
+        gate.require(env['GIT_DIR'] == summary['agents'][name]['git_dir'] and
+                     env['GIT_WORK_TREE'] == summary['agents'][name]['clone'],
+                     'fixture_metadata_mismatch', name)
+        # The sourceable shell file and the exact env used by the verifier must agree.
+        envfile = summary['agents'][name]['env_file']
+        shell = subprocess.run(['/bin/sh', '-c', '. "$1"; exec /usr/bin/env -0', 'sh', envfile],
+                               env={}, capture_output=True, check=True)
+        shellenv = dict(v.split(b'=', 1) for v in shell.stdout.split(b'\0') if v)
+        gate.require(all(shellenv.get(k.encode()) == v.encode() for k, v in env.items()),
+                     'env_file_mismatch', name)
+    topic, decision = 'stage4-queue', 'Decision: stage4-queue uses a bounded durable queue'
+    gate.memory(summary, 'A', ['add', 'assertion', '--space', gate.SPACE,
+                '--id', 'record:stage4-decision', '--content', decision,
+                '--idempotency-key', 'stage4:decision:one',
+                '--source-session', 'runtime:stage4-self-test:message:1', '--source-text', '-'],
+                'self-test-A-add', stdin='The working session chose a bounded durable queue.\n')
+    gate.memory(summary, 'B', ['sync', '--space', gate.SPACE], 'self-test-B-sync')
+    recalled = gate.memory(summary, 'B', ['recall', topic, '--space', gate.SPACE], 'self-test-B-recall')
+    gate.require(recalled['spaces'], 'self_test_no_recall', 'B did not recall the decision')
+    results = []
+
+    def verdict(label, expected, want_exit, reason=None):
+        result = subprocess.run([str(scripts / 'verify'), str(root), topic, expected],
+                                capture_output=True, text=True, timeout=600)
+        value = json.loads(result.stdout)
+        gate.dump(root / f'evidence/self-test-{label}.json',
+                  {'exit': result.returncode, 'verdict': value, 'stderr': result.stderr})
+        gate.require(result.returncode == want_exit and (reason is None or value.get('reason') == reason),
+                     'wrong_control_verdict', f'{label}: {value}')
+        results.append({'case': label, 'exit': result.returncode,
+                        'verdict': value['verdict'], 'reason': value.get('reason')})
+
+    # Positive control: the real installed CLI records A's source-linked decision and B reads it.
+    verdict('positive', decision, 0)
+    # Wrong text must fail the content requirement, rather than any setup/signature error.
+    verdict('wrong-text', 'A different decision that was never recorded', 1, 'decision_text_mismatch')
+    # A changed shim must be rejected before it can run. Restore exact bytes/mode afterwards.
+    shim = Path(summary['installed']['shim'])
+    gate.require(not shim.is_symlink(), 'self_test_shim_shape', 'This control requires the POSIX wrapper')
+    original = shim.read_bytes()
+    try:
+        shim.write_bytes(original + b'\n# planted change\n')
+        verdict('changed-shim', decision, 1, 'installation_changed')
+    finally:
+        shim.write_bytes(original)
+    verdict('restored-shim', decision, 0)
+    # B's otherwise valid signed write to another topic must fail the no-B-history requirement.
+    gate.memory(summary, 'B', ['add', 'assertion', '--space', gate.SPACE,
+                '--id', 'record:stage4-b-control', '--content', 'Unrelated B control observation',
+                '--idempotency-key', 'stage4:b-control:one'], 'self-test-B-add')
+    verdict('b-wrote', decision, 1, 'b_wrote_record')
+    gate.require(not list(root.rglob('.git')), 'forbidden_git_entry',
+                 'Fixture created a .git path instead of using separate metadata')
+    result = {'verdict': 'pass', 'scratch': str(root), 'cases': results,
+              'agents_started': False, 'note': 'Fixture is deliberately negative after the last control; prepare a new one for agents.'}
+    gate.dump(root / 'evidence/self-test.json', result)
+    print(json.dumps(result, indent=2, sort_keys=True))
+
+
+p = argparse.ArgumentParser(description=__doc__)
+p.add_argument('scratch', help='Fresh absent directory; all fixture artifacts are retained here')
+p.add_argument('source', help='swarma-memory source checkout')
+p.add_argument('--curator')
+p.add_argument('--go')
+os.umask(0o077)
+try:
+    run(p.parse_args())
+except (gate.Failure, OSError, ValueError, KeyError, subprocess.TimeoutExpired) as error:
+    print(json.dumps({'verdict': 'fail', 'reason': getattr(error, 'code', 'self_test_error'), 'detail': str(error)}))
+    sys.exit(1)

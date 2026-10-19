@@ -122,6 +122,7 @@ Every excerpt is fully `[REDACTED]`. Findings for unsafe object keys and their d
 | Curator | `curator skill check . --json`; `curator install PROJECT` using the project's declared source | Managed context/shims in the selected environment; binary/build receipts in manager-owned state |
 | Asset sync / identity gate | `python3 -B .scripts/sync-assets.py`; `go -C go test ./assets` | Committed `go/assets/`; exact bytes/file-set checks in terminal |
 | Complete layout replay | `python3 -B .scripts/relayout.py`; `python3 -B .scripts/relayout.py --check BASE`; `python3 -B .scripts/relayout-test.py BASE` | Relocated module and complete packaging patch; exact-tree comparison and controls in ignored scratch |
+| Stage-4 agent gate harness | `.scripts/stage4-gate/prepare SCRATCH SOURCE`; `.scripts/stage4-gate/verify SCRATCH TOPIC TEXT`; `.scripts/stage4-gate/self-test SCRATCH SOURCE` ([launch recipe and evidence limits](.scripts/stage4-gate/README.md)) | Fresh scratch Curator install, local signed space, agent env files and JSON evidence under `SCRATCH`; starts no agents |
 | Python 3.10+ | `python3 spec/checks/validate.py` | Structural specification checks in terminal |
 
 Optional validation logs and scratch artifacts go in ignored `.temp/`.
