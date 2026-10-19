@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -55,8 +56,34 @@ func TestKeyInitEncodedLimit(t *testing.T) {
 // Config save must obey the loader's exact encoded bound, preserving the last
 // loadable config on oversized/invalid input, including escaping and UTF-8.
 func TestConfigSaveLoadContract(t *testing.T) {
-	dir := t.TempDir()
-	h := home{dir, dir}
+	configSaveLoadContract(t, t.TempDir())
+}
+
+// A home reached through a symlinked parent stores canonical paths at exactly
+// 1 MiB; one extra encoded byte refuses without replacing the loadable config.
+func TestConfigSaveLoadSymlinkedParent(t *testing.T) {
+	root := t.TempDir()
+	parent := filepath.Join(root, "longer-canonical-parent")
+	if err := os.MkdirAll(filepath.Join(parent, "home"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(root, "alias")
+	if err := os.Symlink(parent, alias); err != nil {
+		t.Fatal(err)
+	}
+	configSaveLoadContract(t, filepath.Join(alias, "home"))
+}
+
+func configSaveLoadContract(t *testing.T, dir string) {
+	t.Helper()
+	want, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := resolveHome(dir)
+	if err != nil || h.config != want || h.state != want {
+		t.Fatal("home did not resolve to its canonical directory", h, want, err)
+	}
 	clone, cache := h.paths("space:test")
 	c := localConfig{"person:test", h.keyfile(), []localSpace{{"space:test", "remote:", "main", clone, cache, strings.Repeat("a", 64), "project"}}}
 	b, err := json.Marshal(c)
@@ -71,10 +98,10 @@ func TestConfigSaveLoadContract(t *testing.T) {
 	if err != nil || len(before) != 1<<20 {
 		t.Fatal("exact config boundary", len(before), err)
 	}
-	if _, err := h.load(); err != nil {
-		t.Fatal(err)
+	if got, err := h.load(); err != nil || !reflect.DeepEqual(got, c) {
+		t.Fatal("canonical config did not round-trip", err)
 	}
-	for _, mutate := range []func(*localConfig){
+	for i, mutate := range []func(*localConfig){
 		func(c *localConfig) { c.Spaces[0].Remote += "x" },
 		func(c *localConfig) { c.Spaces[0].Remote += "<" },
 		func(c *localConfig) { c.Spaces[0].Remote += "界" },
@@ -89,6 +116,12 @@ func TestConfigSaveLoadContract(t *testing.T) {
 		next := c
 		next.Spaces = append([]localSpace{}, c.Spaces...)
 		mutate(&next)
+		if i == 0 {
+			encoded, err := json.Marshal(next)
+			if err != nil || len(encoded)+1 != (1<<20)+1 {
+				t.Fatal("negative control is not exactly one encoded byte over", len(encoded)+1, err)
+			}
+		}
 		if err := h.save(next); err == nil || classify(err) != (wireError{"invalid_configuration", 3}) {
 			t.Fatal("invalid config save", err)
 		}

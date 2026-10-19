@@ -264,8 +264,6 @@ escalation and protected-deployment qualification remain separate stages.
 
 ## Validation
 
-Run from the module root:
-
 Run these commands from the repository root:
 
 ```sh
