@@ -32,7 +32,7 @@ Record decisions made in the work, observations, rejected hypotheses and concise
 non-sensitive session excerpts with their runtime/session/message locators.
 Never record secrets, credentials, personal data about people or raw tool output.
 The scanner catches obvious cases; it does not prove the absence of secrets.
-Use the documented session-excerpt flags to retain the excerpt and its digest.
+Use `--source-session` and `--source-text` as shown below to retain an excerpt.
 
 Never revise blind. Take `--expected-version N` from the disclosed read's
 `ref.version`, or pass its exact `write_token` as `--expected-token TOKEN`.
@@ -40,6 +40,64 @@ Targeted assessments require the same precondition. Read tokens expire after any
 space commit. On a stale token, sync and read before deciding again; do not just
 substitute a newer version. Use a stable, non-secret idempotency key for the same
 complete intent. Changed intent needs a new key.
+
+## Worked examples
+
+POSIX shell examples use the resolved `memory` executable and an already configured
+home/space. Replace the example IDs, content and idempotency keys for real work.
+
+### Record a decision with its session source
+
+Set shell variables `runtime`, `session` and `message` from the actual session:
+
+- Codex: `runtime=codex`, `session="$CODEX_THREAD_ID"`; `message` is the message
+  index from the runtime's session evidence, not the task number or shell PID.
+- Claude Code: `runtime=claude-code`; copy the rendered `${CLAUDE_SESSION_ID}`
+  skill substitution or the hook input's `session_id` into `session`. Do not
+  assume it is a shell environment variable. Use the message ID or index from
+  that session's runtime-provided evidence for `message`.
+
+If coordinates are unavailable, ask the runtime owner; do not invent them or
+search unrelated sessions. The locator is `runtime:session:message`: its first
+two colons delimit runtime/session, and the remainder is the exact message ID/index.
+The quoted heredoc sends the non-sensitive excerpt, including its final newline,
+to `--source-text -` on stdin. No other input may consume stdin in that command.
+
+```sh
+memory sync --json
+memory add assertion --id record:queue-choice \
+  --content 'Decision: use a bounded durable queue' \
+  --idempotency-key "${runtime:?}:${session:?}:${message:?}:queue-choice" \
+  --source-session "$runtime:$session:$message" --source-text - --json <<'EXCERPT'
+Decision: use a bounded durable queue
+EXCERPT
+```
+
+This records an attributed observation of a decision; it grants no decision
+authority. In v1, readers see source refs, not the retained excerpt.
+
+### Revise only the version you read
+
+```sh
+memory sync --json
+memory explain record:queue-choice --json
+```
+
+Inspect `data.spaces[].views[].items[]` from `explain` (or `recall --json`).
+Select the disclosed target's `ref.id` and `ref.version`; stop if the target is
+hidden or its current decision is ambiguous. For the fresh example above,
+the read returns `{"id":"record:queue-choice","version":1}`. Copy that observed
+version into the revision; **1 is not a default for an existing record**:
+
+```sh
+memory revise record:queue-choice --relation replace \
+  --content 'Decision: use a bounded durable queue with capacity 128' \
+  --expected-version 1 --idempotency-key queue-choice:capacity-128 --json
+```
+
+Alternatively, pass that item's exact `write_token` as `--expected-token TOKEN`
+instead of `--expected-version`. If either precondition is stale, sync, read and
+reconsider the change before retrying; never blindly advance the version/token.
 
 ## Conflicts
 
