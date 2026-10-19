@@ -39,10 +39,10 @@ output examples next to a valid control. Read comparisons pin logical UTC time.
 | Scenario | Test | Required result |
 | --- | --- | --- |
 | 1 | `TestPhaseAOwnerAndTwoAgents` | Owner initializes project, registers/grants both agents, both clone the pin and pass sync/check with separate keys/homes/clones |
-| 2 | `TestPhaseAForgedPushExcluded` | Raw Git push carries bad-signature and unregistered-key records; both checks exit 5 with exact diagnostics and both recalls exclude them |
-| 3 | `TestPhaseAHistoryRewrite` | Owner rewinds fixture remote to genesis; both sync/read exit 4, preserve last verified data/cursors, and recover after restore |
-| 4 | `TestPhaseAReaderRevocation` | B loses recall/changes (exit 3, no data), A continues; signed regrant restores B |
-| 5 | `TestPhaseATwoReadableSpaces` | Each agent recalls both spaces in ID order with independent cursors, stable JSON and a composite changes cursor |
+| 2 | `TestPhaseAForgedPushExcluded` | Raw Git push carries bad-signature and unregistered-key records; both checks exit 5 with exact diagnostics, both recalls exclude them and retain exactly one legitimate CLI-written assertion |
+| 3 | `TestPhaseAHistoryRewrite` | Owner rewinds fixture remote to genesis; both sync/read exit 4, preserve exactly one assertion with its identity/content/issuer and the complete last verified data/cursors, and recover after restore |
+| 4 | `TestPhaseAReaderRevocation` | B loses recall/changes (exit 3, no data), A retains the exact assertion; signed regrant restores B's populated reads |
+| 5 | `TestPhaseATwoReadableSpaces` | Each agent recalls distinct assertions from both spaces in ID order with independent cursors, stable JSON and a composite changes cursor |
 
 The raw-Git exception constructs adversarial records only; record bodies have
 intentionally invalid signatures. A known registered key reaches
@@ -51,10 +51,14 @@ The exact codes ensure malformed fixture/setup errors cannot satisfy the test.
 All raw Git commits themselves remain signed. Rewrites use compare-and-swap
 `update-ref` on the disposable bare remote; no force push is used.
 
-Phase A uses genuinely empty admitted histories: read grants, rollback of
-verified policy/cursors and multi-space selection are exercised, but nonempty
-record preservation/content union is **not** claimed. A passing phase A is not
-the complete architecture stage-3 gate.
+Scenario 1 checks the newly initialized empty space. Scenarios 2–5 pair their
+negative or aggregation assertions with nonempty CLI-written controls: rejected
+neighbors must not hide a legitimate record, rollback must retain both readers'
+last verified record and cursor, revocation must leave the other reader's record
+visible, and combined recall must contain each space's distinct record. Scenario 3
+checks exact cardinality/content and byte-identical read data before, during and
+after the rewind; retaining only an old cursor with empty views cannot pass.
+Phase B adds revision, concurrency and source semantics to complete the gate.
 
 ## Phase B
 

@@ -95,8 +95,22 @@ func forgeryDiagnostics(t *testing.T, got []diagnostic, want map[string]string, 
 	}
 }
 
+// A populated control requires exactly the intended current assertion, so an
+// empty or overinclusive projection cannot satisfy a refusal/preservation test.
+func onlyRecord(t *testing.T, items []map[string]json.RawMessage, id, value, issuer string) {
+	t.Helper()
+	if len(items) != 1 {
+		t.Fatalf("expected exactly one retained record %s, got %d", id, len(items))
+	}
+	i := items[0]
+	if ref(t, i["ref"]) != (recordRef{id, 1}) || text(t, i["issuer"]) != issuer || text(t, i["currentness"]) != "current" {
+		t.Fatal("wrong retained record identity/issuer/currentness", i)
+	}
+	content(t, i, value)
+}
+
 // Scenario 1: a CLI owner grants two independently keyed agents; both clone the
-// pinned project and pass sync/check. This phase does not exercise valid writes.
+// pinned project and pass sync/check. Scenarios 2–5 add populated read controls.
 func TestPhaseAOwnerAndTwoAgents(t *testing.T) {
 	f := newFixture(t)
 	p := f.project("space:project", "project")
@@ -144,17 +158,15 @@ func TestPhaseAOwnerAndTwoAgents(t *testing.T) {
 
 // Scenario 2: a raw push's structurally valid records reach the signature/key
 // checks, receive the exact diagnostics, and never enter either reader's view.
-// Empty clean views are the positive control until legitimate CLI writes land.
+// A legitimate CLI assertion remains visible alongside the excluded forgeries.
 func TestPhaseAForgedPushExcluded(t *testing.T) {
 	f := newFixture(t)
 	p := f.project("space:project", "project")
-	head := f.owner.git(p.remote, "rev-parse", "main")
+	id, value := "record:legitimate", "Legitimate content survives rejected neighbors"
+	head := writeResult(t, add(f.a, p, id, value), id, 1, 1)
 	for _, a := range []*agent{f.a, f.b} {
 		clean(t, a, p, head)
-		spaces, _ := readSpaces(t, a.read("recall", 0))
-		if len(spaces) != 1 || len(spaces[0].Views) != 0 {
-			t.Fatal("unexpected baseline records")
-		}
+		onlyRecord(t, readItems(t, a.read("recall", 0), p.id), id, value, f.a.identity)
 	}
 	rogue := f.newAgent("unregistered")
 	clone := clonePath(f.a, p)
@@ -198,10 +210,11 @@ func TestPhaseAForgedPushExcluded(t *testing.T) {
 		}
 		forgeryDiagnostics(t, checkDiagnostics, want, badHead)
 		spaces, _ := readSpaces(t, a.read("recall", 0))
-		if len(spaces) != 1 || spaces[0].Cursor != badHead || len(spaces[0].Views) != 0 || len(spaces[0].Diagnostics) != 2 {
+		if len(spaces) != 1 || spaces[0].Cursor != badHead || len(spaces[0].Diagnostics) != 2 {
 			t.Fatal("forged push not excluded with exact diagnostic count")
 		}
 		forgeryDiagnostics(t, spaces[0].Diagnostics, want, badHead)
+		onlyRecord(t, projectedItems(t, spaces, p.id), id, value, f.a.identity)
 		if bytes.Contains(a.read("recall", 0).Data, []byte("forged-content-must-never-be-recalled")) {
 			t.Fatal("forged content leaked into recall")
 		}
@@ -233,21 +246,33 @@ func forgedRecord(space, id, submitter, key string) []byte {
 
 // Scenario 3: a rewind to genesis preserves the last verified view and cursor
 // (including grants absent at genesis), reports exit 4, and recovers on restore.
-// Phase A compares empty views; nonempty record preservation belongs to phase B.
+// Both readers retain one exact CLI-written assertion before/during/after rewind.
 func TestPhaseAHistoryRewrite(t *testing.T) {
 	f := newFixture(t)
 	p := f.project("space:project", "project")
-	head := f.owner.git(p.remote, "rev-parse", "main")
+	id, value := "record:retained", "Verified content must survive a history rewrite"
+	head := writeResult(t, add(f.a, p, id, value), id, 1, 1)
+	assertRetained := func(r reply) {
+		t.Helper()
+		spaces, cursors := readSpaces(t, r)
+		if len(spaces) != 1 || spaces[0].ID != p.id || cursors[p.id] != head {
+			t.Fatal("rewrite lost the last verified space/cursor")
+		}
+		onlyRecord(t, readItems(t, r, p.id), id, value, f.a.identity)
+	}
 	baseline := map[*agent]json.RawMessage{}
 	for _, a := range []*agent{f.a, f.b} {
 		clean(t, a, p, head)
-		baseline[a] = a.read("recall", 0).Data
+		r := a.read("recall", 0)
+		assertRetained(r)
+		baseline[a] = r.Data
 	}
 	f.owner.git(p.remote, "update-ref", "refs/heads/main", p.genesis, head)
 	for _, a := range []*agent{f.a, f.b} {
 		refused(t, a.run(4, "sync"), "history_rewritten")
 		r := a.read("recall", 4)
 		refused(t, r, "history_rewritten")
+		assertRetained(r)
 		if !bytes.Equal(baseline[a], r.Data) {
 			t.Fatal("rewrite changed last verified data/cursor")
 		}
@@ -258,10 +283,13 @@ func TestPhaseAHistoryRewrite(t *testing.T) {
 	f.owner.git(p.remote, "update-ref", "refs/heads/main", head, p.genesis)
 	for _, a := range []*agent{f.a, f.b} {
 		clean(t, a, p, head)
-		if !bytes.Equal(baseline[a], a.read("recall", 0).Data) {
+		r := a.read("recall", 0)
+		assertRetained(r)
+		if !bytes.Equal(baseline[a], r.Data) {
 			t.Fatal("restored history did not recover")
 		}
 	}
+	f.verifyCommits(p)
 }
 
 // Scenario 4: current signed reader revocation blocks B's recall and changes
@@ -269,9 +297,21 @@ func TestPhaseAHistoryRewrite(t *testing.T) {
 func TestPhaseAReaderRevocation(t *testing.T) {
 	f := newFixture(t)
 	p := f.project("space:project", "project")
+	id, value := "record:readable", "Read grants protect populated views"
+	writeResult(t, add(f.a, p, id, value), id, 1, 1)
+	assertReadable := func(a *agent, command string) {
+		t.Helper()
+		r := a.read(command, 0)
+		spaces, _ := readSpaces(t, r)
+		if len(spaces) != 1 || spaces[0].ID != p.id {
+			t.Fatal("reader did not select exactly its authorized space")
+		}
+		onlyRecord(t, readItems(t, r, p.id), id, value, f.a.identity)
+	}
 	for _, a := range []*agent{f.a, f.b} {
-		a.read("recall", 0)
-		a.read("changes", 0)
+		for _, command := range []string{"recall", "changes"} {
+			assertReadable(a, command)
+		}
 	}
 	f.owner.run(0, "policy", "revoke", "--space", p.id, "--identity", f.b.identity, "--role", "reader")
 	for _, command := range []string{"recall", "changes"} {
@@ -280,28 +320,25 @@ func TestPhaseAReaderRevocation(t *testing.T) {
 		if string(r.Data) != "null" {
 			t.Fatal("revoked reader received partial data")
 		}
-		spaces, _ := readSpaces(t, f.a.read(command, 0))
-		if len(spaces) != 1 || spaces[0].ID != p.id {
-			t.Fatal("revocation affected the other agent")
-		}
+		assertReadable(f.a, command)
 	}
 	f.owner.run(0, "policy", "grant", "--space", p.id, "--identity", f.b.identity, "--role", "reader")
 	for _, command := range []string{"recall", "changes"} {
-		spaces, _ := readSpaces(t, f.b.read(command, 0))
-		if len(spaces) != 1 || spaces[0].ID != p.id {
-			t.Fatal("regrant did not restore read authority")
-		}
+		assertReadable(f.b, command)
 	}
 	f.verifyCommits(p)
 }
 
 // Scenario 5: one recall selects both readable spaces in stable ID order, with
 // independent current commit cursors; selecting either space is the control.
-// This checks empty-space aggregation, not a union of admitted record contents.
+// Distinct CLI assertions in each space must survive both read selections.
 func TestPhaseATwoReadableSpaces(t *testing.T) {
 	f := newFixture(t)
 	z := f.project("space:zulu", "zulu")
 	a := f.project("space:alpha", "alpha")
+	for _, p := range []project{z, a} {
+		writeResult(t, add(f.a, p, "record:"+p.id, "Content for "+p.id), "record:"+p.id, 1, 1)
+	}
 	for _, reader := range []*agent{f.a, f.b} {
 		for _, p := range []project{z, a} {
 			clean(t, reader, p, f.owner.git(p.remote, "rev-parse", "main"))
@@ -310,6 +347,7 @@ func TestPhaseATwoReadableSpaces(t *testing.T) {
 			if len(spaces) != 1 || spaces[0].ID != p.id {
 				t.Fatal("single-space control failed")
 			}
+			onlyRecord(t, readItems(t, r, p.id), "record:"+p.id, "Content for "+p.id, f.a.identity)
 		}
 		result := reader.read("recall", 0)
 		spaces, cursors := readSpaces(t, result)
@@ -317,6 +355,7 @@ func TestPhaseATwoReadableSpaces(t *testing.T) {
 			t.Fatal("spaces not independently ordered/cursored")
 		}
 		for _, p := range []project{a, z} {
+			onlyRecord(t, readItems(t, result, p.id), "record:"+p.id, "Content for "+p.id, f.a.identity)
 			if cursors[p.id] != f.owner.git(p.remote, "rev-parse", "main") {
 				t.Fatal("stale/crossed space cursor")
 			}
@@ -327,6 +366,8 @@ func TestPhaseATwoReadableSpaces(t *testing.T) {
 		data := object(t, result.Data, "cursor", "spaces")
 		reader.run(0, "changes", "--since", text(t, data["cursor"]), "--at", "2026-10-19T00:00:00Z")
 	}
+	f.verifyCommits(a)
+	f.verifyCommits(z)
 }
 
 // The test-side closed-output checker detects unknown/missing/duplicate fields

@@ -53,11 +53,20 @@ func refs(t *testing.T, raw json.RawMessage) []recordRef {
 func readItems(t *testing.T, r reply, space string) []map[string]json.RawMessage {
 	t.Helper()
 	spaces, _ := readSpaces(t, r)
-	result := []map[string]json.RawMessage{}
 	for _, s := range spaces {
 		if len(s.Diagnostics) != 0 {
 			t.Fatal("unexpected read diagnostics", s.Diagnostics)
 		}
+	}
+	return projectedItems(t, spaces, space)
+}
+
+// Callers accepting diagnostic-bearing reads must check their exact diagnostics
+// separately; item shape and attribution checks remain identical to clean reads.
+func projectedItems(t *testing.T, spaces []readSpace, space string) []map[string]json.RawMessage {
+	t.Helper()
+	result := []map[string]json.RawMessage{}
+	for _, s := range spaces {
 		for _, raw := range s.Views {
 			v := object(t, raw, "type", "semantic_profile", "projection_rule", "evidence_policy", "policy", "data_classification", "items", "currentness", "historical", "review_required", "explanation", "cutoffs", "changes")
 			object(t, v["changes"], "state", "refs")
