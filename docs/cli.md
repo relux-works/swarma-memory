@@ -637,8 +637,9 @@ foreign reader cannot become a resolver. Failed edits publish nothing and prior
 policy routing remains in force. No matching route falls back to owners with
 `default_owners`; other bases are `named` and `catch_all`. Routing grants no powers.
 
-Issuers can revise/withdraw their own records and assessments. Revision preserves
-the target's subject and perspective. Assessments accept `--perspective own|team`
+Issuers can revise/withdraw their own records and assessments. An issuer's revision preserves
+the target's subject and perspective; another issuer's challenge retains the
+challenger's own perspective. Assessments accept `--perspective own|team`
 and `--perspective-principal ID`, like assertion writes; cross-issuer evidence
 must explicitly target the same team perspective to qualify under this profile.
 A non-issuer resolver issues its own ruling in its own sequence; the caller must

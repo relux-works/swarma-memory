@@ -512,9 +512,12 @@ func (in writeInput) revision(snapshot, prior map[string]any, spaceID, actor, id
 		return nil, e
 	}
 	env["subject"] = targetEnv["subject"]
-	// A revision must remain in its target's exact perspective to affect that
-	// read graph. Its issuer still uses the existing representation checks.
-	env["perspective"] = copyValue(targetEnv["perspective"])
+	// An issuer's revision stays in its target's exact read perspective. A
+	// different issuer's challenge retains the challenger's own perspective;
+	// existing representation checks still refuse foreign replacements.
+	if targetEnv["issuer"] == env["issuer"] {
+		env["perspective"] = copyValue(targetEnv["perspective"])
+	}
 	body := map[string]any{"relation": relation, "target": recordRef(target), "replacement": nil, "availability": nil, "authority_receipt": nil}
 	var replacement any
 	if relation == "replace" || relation == "correct" {
