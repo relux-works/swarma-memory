@@ -115,3 +115,66 @@ The CLI has no per-record disclosure input: this e2e control proves space access
 revocation. Kernel S46–S49 independently cover hidden source/citation changes and
 audience redaction. No live resolver, source truth or independent authority is
 claimed.
+
+## Stage 5: two owners
+
+Run the complete stage-5 gate with:
+
+```sh
+go -C go test -count=1 -timeout=30m -run '^TestStage5TwoOwners$' -v ./e2e
+```
+
+`stage5_test.go` uses four separate local bare remotes: `o1/platform`,
+`o2/platform`, `o1/project:alpha` and `o2/project:beta`. The owners
+`o1/owner` and `o2/owner` and agents `o1/agent:a1` and `o2/agent:b1`
+have separate homes, process environments and identity/commit keys. The harness
+simulates out-of-band public-key and signed-advertisement exchange. Each owner
+attests foreign key registrations in the target policy and signs publications
+in its own directory. Each agent manually pins only its own platform; both own
+and foreign project pins come from that directory.
+
+| Scenario/control | Subtest or fixture step | Required result |
+| --- | --- | --- |
+| Owner setup and discovery | Fixture setup | Four spaces, distinct keys, platform-only manual pins, two owner-wrapped project advertisements in each directory |
+| Documentary decision and assumption | Fixture setup | A1 writes a decision with a session source and multiline Unicode excerpt; B1 writes an assumption in its own project |
+| Listed but never granted | `listed-but-ungranted` | Both registered foreign agents can discover a project but get `not_authorized`, null data and unchanged configuration when reading it; each own reader retains the populated record |
+| Reciprocal sharing | `reciprocal-source-reads` | Owner-signed foreign reader grants permit both reads; recall and explain retain the original issuer, exact locator, raw-text digest, complete excerpt and `unavailable` source state |
+| Revoke/regrant while listed | `revoke-and-regrant` | B1 loses all Alpha data while A1 keeps reading; regrant restores B1's record and source payload |
+| Foreign writer and direct write | `cross-owner-writes-and-promotion` | Writer grant gives `cross_owner_writer`; direct write gives `not_authorized`; config, remote/local heads, tree, index, status and reachable/reflog commit count stay fixed |
+| Cross-owner promotion | `cross-owner-writes-and-promotion` | `cross_owner_promotion`, unchanged target/config and both populated project controls retained |
+| Tampered advertisement | `tampered-advertisement-and-third-identity` | Wrong genesis gives `directory_mismatch`, unchanged config and no retained clone/cache/staging; restoring the valid advertisement permits discovery |
+| Ungranted third identity | `tampered-advertisement-and-third-identity` | `o2/agent:c1` can use its granted own directory but cannot read the listed project; B1 still reads it |
+| Other owner's directory | `other-owner-directory-without-pin` | The unknown platform refuses with `unknown_space` and no config change; the own pinned directory remains usable |
+| Directory non-authority | `directory-is-not-a-kernel-write` | Republish in both directories leaves all four populated semantic views unchanged and does not move either project head |
+| Manual access without an entry | `manual-pin-without-entry` | Neither directory lists O1's platform; a separate B1 home with its target grant and manual platform pin reads its marker. That foreign platform pin cannot serve as B1's own discovery root |
+| Lost-home recovery | `both-home-recoveries` | Both memory homes are wiped, new identity keys differ from the lost keys, owners register the replacements, and platform-only manual pins recover each own project's original record/source |
+| Agent writer publishes | `writer-signed-directory-entry` | CLI publication refuses without side effects; a raw valid writer-signed entry receives `directory_unauthorized`, is absent from discovery, and leaves a valid project neighbour usable |
+
+The decision is a documentary assertion, not an authority-receipted
+`decision_record`. The manual-access control uses a nonempty platform marker so
+it needs no fifth remote and neither directory has any entry for that target.
+Its extra home intentionally exercises the manual-pin exception, independently
+of the two agents' platform-only discovery/recovery paths. Source assertions pin
+logical UTC time and include the excerpt's trailing newline.
+
+View invariance compares all CLI-projected semantic fields after checking item
+and source shapes/attribution. It removes only Git cursor attribution and
+cursor-bound write tokens, because a platform publication legitimately advances
+its Git head. Both project Git heads must remain unchanged. The raw directory
+exception uses an independently encoded, correctly signed adversarial object
+with an ephemeral in-memory key registered to the agent writer; it imports no
+application API and reads no identity private file. Its Git commit remains signed.
+
+The listed-but-ungranted row is the reader-authority instrument witness. In an
+isolated source copy, substituting a target owner's read principal for an
+ungranted directory reader must fail this row with
+`listed-but-ungranted: target reader check bypassed`; the restored implementation
+must pass. The plant is never part of the committed gate. The task outcome records
+the plant, restored run and exact tested source.
+
+**Hosting ACL gap:** file remotes have no git hosting authentication or repository
+ACL. This gate proves CLI, signed-policy, discovery, source and recovery behavior;
+it does not prove that a hosting service prevents cloning or pushing. A deployed
+sharing setup must separately grant and revoke repository access. Withdrawing a
+directory entry is not a substitute for revoking the target reader grant or
+hosting access.

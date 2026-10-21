@@ -405,7 +405,7 @@ No memory is injected into the session context automatically in the first versio
 | 2. Spaces and signing | `go/space/`, `go/sign/localkey`, `go/scan/`, policy file | Integration tests on temporary git repositories: concurrent writers, forged records, rewritten history |
 | 3. CLI | read and write commands | End-to-end tests on a project space with two agents |
 | 4. Skill and install | Root `SKILL.md`, Curator manifest and `go/` build root | An agent installed by Curator records and recalls a decision |
-| 5. Platform space | directory, promotion, sharing with a second owner | Two owners' agents read each other's shared spaces |
+| 5. Platform space | directory, promotion, sharing with a second owner | [`TestStage5TwoOwners`](../go/e2e/stage5_test.go): reciprocal shared-space reads, source attribution, discovery non-authority, refusals and lost-home recovery; [gate rows and hosting-ACL gap](../go/e2e/README.md#stage-5-two-owners) |
 | 6. Escalation | conflict flags, exit codes, skill rule | A conflicting decision stops a dependent step and reaches its resolvers |
 | 7. Use in real work | agents on real projects | The metrics below |
 
