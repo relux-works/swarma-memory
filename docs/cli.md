@@ -17,7 +17,8 @@ The home must be outside Git working/bare repositories and metadata directories,
 `config.json` has exactly `identity`, `key_file`, and `spaces`; its closed
 [schema](../go/cmd/memory/config.schema.json) is enforced on load. Each space has
 exactly `id`, `remote`, `branch`, `clone_path`, `cache_path`, `genesis_digest` and
-`kind` (`agent`, `project`, `platform`). Clone/cache names are SHA-256 encodings
+`kind` (`agent`, `project`, `platform`), plus optional `directory_space` recording
+the platform used for discovery diagnostics. Clone/cache names are SHA-256 encodings
 of IDs under `clones/` and `caches/`; paths must match those locations and cannot
 redirect through symlinks. The explicit key path must match `localkey.json` in
 the config home. There is no local authority or grants field; additional fields
@@ -50,6 +51,13 @@ flag parsing for literal queries/IDs beginning with dashes. IDs are opaque;
 | `spaces list` | Sorted configured spaces |
 | `spaces add ID --remote URL --genesis DIGEST [--branch main] [--kind project]` | Clone, verify the externally obtained genesis pin, then save configuration |
 | `spaces init ID --remote URL [--branch main] [--kind project]` | Clone an empty remote, sign owner registrations and genesis policy, commit with `-S`, verify and push; return the genesis digest for distribution |
+| `spaces add ID --from-directory PLATFORM` | Discover through the pinned own-owner platform; verify target in staging, then save its pin |
+| `spaces update ID --from-directory PLATFORM` | Relocate an existing space under its unchanged genesis and first-parent cursor |
+| `directory advertise --space ID --out FILE [--bindings FILE]` | Target owner exports a signed advertisement from the verified clone; output must not already exist |
+| `directory publish --space PLATFORM --entry FILE` | Platform owner wraps, signs, commits and pushes the supplied signed advertisement |
+| `directory withdraw --space PLATFORM --space-id ID` | Publish the next version as a withdrawal |
+| `directory list --space PLATFORM` | Sorted current heads with active/withdrawn/stale state and replay diagnostics |
+| `directory show --space PLATFORM [--space-id ID]` | All heads, or one selected head, with replay diagnostics, as data |
 | `spaces show ID` | Sync and return verified policy, digest, cursor and diagnostics |
 | `keys register --space ID --identity ID --public-key BASE64` | Current owner endorses a key in a new signed policy version |
 | `policy grant --space ID --identity ID --role reader\|writer` | Current owner replaces that identity's role grant in a new version |
@@ -76,7 +84,7 @@ validity to retain historical evidence. Default reads sync every configured
 space, omit unreadable spaces, and refuse `not_authorized` if none is readable.
 Named reader identities require possession of a local key registered for that
 identity in the **current verified policy**. Editing `identity` in config cannot
-impersonate a registered reader. A signed `public` reader grant uses the public
+impersonate a registered reader. A signed `public` reader grant in a legacy unqualified policy uses the public
 audience and needs no named registration. Named readers use the private audience.
 
 Genesis explicitly grants the owner both reader and writer roles. An owner title
@@ -291,6 +299,8 @@ receipt authority or fresh resolver is invented. The documentary profile still
 reports unknown lineage; independently authenticated cross-space lineage remains
 an integration question. Target schema/authority checks can still refuse (for
 example a foreign self declaration cannot become the new issuer's declaration).
+Promotion across owner namespaces refuses `cross_owner_promotion`: v1 has no
+forward-right contract. Legacy unqualified spaces compare their single owners.
 The latest source version is the default; use `--version` for a stable citation
 when retrying after the source has advanced.
 
@@ -466,3 +476,60 @@ read/write gates and quoted instruction-like data. Run `go -C go test ./cmd/memo
 `go -C go test -race ./space ./cmd/...`, `go -C go vet ./...`,
 `python3 spec/checks/validate.py`, and `go -C go run ./cmd/memory conformance`.
 Go temp artifacts use `TMPDIR`; saved project logs belong under `.temp/`.
+
+## Directory discovery and owner qualification
+
+Pin only your own owner's platform genesis out of band, using manual `spaces add`.
+The namespace is the prefix of genesis owners (`a/agent:owner` gives `a`), not the
+space ID. A foreign platform pin cannot become your directory. Wholly unqualified
+single-owner legacy platforms remain supported, with unqualified identities only.
+Named platform readers must possess a key registered in its current policy;
+listing or a binding never creates a reader grant in the listed space.
+
+```sh
+memory directory advertise --space a/project:example --out advertisement.json
+memory directory publish --space a/platform:shared --entry advertisement.json
+memory directory list --space a/platform:shared
+memory spaces add a/project:example --from-directory a/platform:shared
+memory recall '*' --space a/project:example
+memory spaces update a/project:example --from-directory a/platform:shared
+memory directory withdraw --space a/platform:shared --space-id a/project:example
+```
+
+For another owner's target, that owner exports the advertisement and our platform
+owner publishes the file. Each signature has its own purpose and authority.
+`--bindings FILE` is a JSON array of closed `{kind: "identity"|"project", id: STRING}`
+pairs, sorted by kind then ID with no duplicates. Project advertisements default
+to one project binding of their space ID; agent/platform advertisements default
+to `[]`. Agent identity is never inferred from a space name. `list`/`show` expose
+these lookup keys as data; they grant no access and carry no keys.
+
+Advertisement generation copies ID, kind, genesis, configured remote/branch and
+the observed verified policy. Discovery verifies the target's complete policy
+chain, the exact observed policy floor and its owner's signature before saving
+anything. Metadata/signature/anchor mismatches give `directory_mismatch`.
+Different existing pins give `genesis_conflict`; add of an existing same pin gives
+`duplicate_space`. Update changes location only, refuses dirty clones, and retains
+the first-parent cursor guard (`history_rewritten`). Neither call silently re-pins.
+
+Only SSH/HTTPS target locations are accepted. Explicit file transport is for
+isolated tests (`GIT_ALLOW_PROTOCOL=file`). Option-shaped URLs, helpers such as
+`ext::`, and control characters refuse `directory_transport` before target Git.
+New add/update calls refuse `directory_withdrawn` or `directory_stale` when the
+publisher is no longer a current platform owner. Previously configured targets
+keep syncing their own pins; `sync`/`check` report a `directory_diagnostic` without
+revoking access or failing those commands solely for the directory warning. Unsharing requires target reader revocation **and** Git access
+revocation. A still-listed target after reader revocation gives `not_authorized`.
+
+Every registration/grant identity in an owner-qualified policy must be qualified
+(`identity_owner_mismatch`). A local owner may register `b/agent:reader` and grant
+it reader access to owner `a`'s space. The signature attests this association;
+raw `--public-key` bytes have no origin metadata and cannot expose false owner
+attribution. Mixed owner namespaces refuse `mixed_owner_namespace`; foreign writer
+grants refuse `cross_owner_writer`. No guest writes, forward rights, federation,
+expiry or automatic Git ACL management are introduced.
+
+After losing a home, recreate/recover the identity key and obtain any needed
+owner-signed replacement registrations, manually pin the own-owner platform,
+then discover target pins again. Recovery does not restore a lost temporary key
+or bypass current reader authorization.

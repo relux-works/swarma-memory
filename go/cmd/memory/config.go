@@ -22,13 +22,14 @@ type localConfig struct {
 	Spaces   []localSpace `json:"spaces"`
 }
 type localSpace struct {
-	ID            string `json:"id"`
-	Remote        string `json:"remote"`
-	Branch        string `json:"branch"`
-	ClonePath     string `json:"clone_path"`
-	CachePath     string `json:"cache_path"`
-	GenesisDigest string `json:"genesis_digest"`
-	Kind          string `json:"kind"`
+	DirectorySpace string `json:"directory_space,omitempty"`
+	ID             string `json:"id"`
+	Remote         string `json:"remote"`
+	Branch         string `json:"branch"`
+	ClonePath      string `json:"clone_path"`
+	CachePath      string `json:"cache_path"`
+	GenesisDigest  string `json:"genesis_digest"`
+	Kind           string `json:"kind"`
 }
 type home struct{ config, state string }
 
@@ -228,7 +229,7 @@ func (h home) save(c localConfig) error {
 func (h home) encodeConfig(c localConfig) ([]byte, error) {
 	texts := []string{c.Identity, c.KeyFile}
 	for _, s := range c.Spaces {
-		texts = append(texts, s.ID, s.Remote, s.Branch, s.ClonePath, s.CachePath, s.GenesisDigest, s.Kind)
+		texts = append(texts, s.ID, s.Remote, s.Branch, s.ClonePath, s.CachePath, s.GenesisDigest, s.Kind, s.DirectorySpace)
 	}
 	for _, s := range texts {
 		if !utf8.ValidString(s) {

@@ -112,6 +112,9 @@ func (r *Repository) replayCapture(ctx context.Context, head, since string, quer
 	previous := map[string]treeEntry{}
 	seen := map[string]bool{}
 	chain := []SignedPolicy{}
+	policies := []*VerifiedPolicy{}
+	directory := map[string]SignedDirectory{}
+	acceptedDirectory := map[string]bool{}
 	var policy *VerifiedPolicy
 	domains, _ := r.config.Template["domain_schemas"].([]any)
 	priorCommit := ""
@@ -133,6 +136,7 @@ func (r *Repository) replayCapture(ctx context.Context, head, since string, quer
 					if e == nil {
 						chain = candidate
 						policy = verified[len(verified)-1]
+						policies = verified
 					}
 				}
 			}
@@ -156,7 +160,22 @@ func (r *Repository) replayCapture(ctx context.Context, head, since string, quer
 				paths = append(paths, path)
 			}
 		}
-		sort.Strings(paths)
+		sort.Slice(paths, func(i, j int) bool {
+			a, b := strings.SplitN(paths[i], "/", 3), strings.SplitN(paths[j], "/", 3)
+			if len(a) == 3 && len(b) == 3 && a[0] == "directory" && b[0] == "directory" && a[1] == b[1] {
+				x, xe := strconv.ParseInt(strings.TrimSuffix(a[2], ".json"), 10, 64)
+				y, ye := strconv.ParseInt(strings.TrimSuffix(b[2], ".json"), 10, 64)
+				xok := xe == nil && x > 0 && strconv.FormatInt(x, 10)+".json" == a[2]
+				yok := ye == nil && y > 0 && strconv.FormatInt(y, 10)+".json" == b[2]
+				if xok != yok {
+					return xok
+				}
+				if xok && x != y {
+					return x < y
+				}
+			}
+			return paths[i] < paths[j]
+		})
 		valid := map[string]sign.SignedRecord{}
 		bound := map[string]bool{}
 		for _, path := range paths {
@@ -164,8 +183,8 @@ func (r *Repository) replayCapture(ctx context.Context, head, since string, quer
 				continue
 			}
 			if strings.HasPrefix(path, "directory/") {
-				if policy == nil || policy.policy.Kind != "platform" {
-					diag(path, fail("directory_not_platform"))
+				for _, err := range r.replayDirectory(ctx, policy, path, tree, directory, acceptedDirectory) {
+					diag(path, err)
 				}
 				continue
 			}
@@ -341,7 +360,7 @@ func (r *Repository) replayCapture(ctx context.Context, head, since string, quer
 	if policy == nil {
 		return nil, nil, nil, fail("no_verified_policy")
 	}
-	return &index{head, state.Snapshot(), diagnostics}, policy, state, nil
+	return &index{Cursor: head, Snapshot: state.Snapshot(), Diagnostics: diagnostics, Directory: directory, Policies: policies}, policy, state, nil
 }
 
 // An authenticated tree is meaningful only if it actually introduced the signed

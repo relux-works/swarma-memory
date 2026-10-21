@@ -32,7 +32,7 @@ length/canonical spelling and cryptographic checks are enforced by verification.
 `sign.ParseRecord` uses strict kernel JSON parsing: duplicate/unknown fields,
 non-integral numbers, invalid Unicode and malformed shapes are rejected.
 
-All four signature purposes use the same explicit framing:
+All six signature purposes use the same explicit framing:
 
 ```text
 UTF-8(purpose) || 0x00 || kernel.CanonicalJSON(payload)
@@ -40,7 +40,9 @@ UTF-8(purpose) || 0x00 || kernel.CanonicalJSON(payload)
 
 The tags are `swarma-memory-record/1`, `swarma-memory-policy/1` and
 `swarma-memory-key-registration/1`, plus `swarma-memory-write/1` for the
-[git adapter's authenticated transaction metadata](git-spaces.md#authenticated-admission-metadata).
+[git adapter's authenticated transaction metadata](git-spaces.md#authenticated-admission-metadata),
+and `swarma-memory-space-advertisement/1` and `swarma-memory-directory/1` for
+[target advertisements and platform publications](git-spaces.md#platform-directory).
 `signature` itself is outside its signed payload. Changing or retagging a signature cannot cross these domains. Values
 are Ed25519 signatures encoded in canonical padded standard base64. Key IDs are
 `ed25519:sha256:` followed by lowercase hex SHA-256 of the raw 32-byte public key
@@ -73,7 +75,7 @@ policy purpose. The payload retains all architecture §5.3 fields:
 | `space_id`, `kind` | Nonempty identity; `agent`, `project` or `platform` |
 | `owners` | Nonempty unique identity list |
 | `writers` | Grants with `identity`, `admission_classes`, `schemas`, `kinds` |
-| `readers` | Entries with `identity` and `spaces`; identity `public` denotes open access |
+| `readers` | Entries with `identity` and `spaces`; identity `public` denotes open access in unqualified legacy policies |
 | `keys` | Owner-signed registration envelopes described below |
 | `schemas` | Exact domain `{id, version}` references |
 | `ceiling` | Exactly `non-sensitive` for git spaces |
@@ -211,3 +213,33 @@ fail-closed snapshot integration. Independent stdlib signing checks the framing.
 Use `go -C go test -race ./...`, `go -C go vet ./...`, `python3 -B spec/checks/validate.py` and
 `go -C go run ./cmd/memory conformance` for the full gates. Optional logs belong in
 ignored `.temp/`; no key material belongs in documentation or outcome resources.
+
+## Directory signatures and owner namespaces
+
+`SignedAdvertisement` is `{advertisement, signature}` and `SignedDirectory` is
+`{entry, signature}`. Their closed adapter schemas live in `go/space/schema`.
+`NewCanonicalAdvertisement` and `NewCanonicalDirectory` make detached typed
+requests; `localkey.SignAdvertisement`/`SignDirectory` require their own author's
+identity and reject zero requests. Neither method signs arbitrary hashes.
+Directory payload digests use SHA-256 of the directory-purpose framed canonical
+entry, including its nested signed advertisement; `previous` points to that
+payload digest, not to Git or the outer signature.
+
+Replay verifies the publication with the platform owners/registered keys in
+force on the accepted first-parent line. Merely being a platform writer is
+insufficient (`directory_unauthorized`). Purposes are checked before schema or
+cryptography, including the nested advertisement (`purpose_mismatch`). Its
+cryptographic signature is checked on use against the target's verified policy
+at the exact observed version/digest. A current publisher must still be a current
+owner; removal makes new discovery stale, without retroactively invalidating the
+historical publication or independently pinned target access.
+
+Genesis owners establish the immutable owner namespace (`<owner>/<id>`). Owners
+cannot span namespaces (`mixed_owner_namespace`). Registrations and grants in a
+qualified space must be qualified (`identity_owner_mismatch`); foreign qualified
+readers and registrations are allowed, foreign writers are not
+(`cross_owner_writer`). A raw public key asserts no provenance. Only the local
+owner's signed registration attests its identity; v1 cannot identify falsely
+attributed key bytes. Wholly unqualified single-owner legacy policies stay
+unqualified; qualified and legacy identities cannot be mixed. Cross-owner
+promotion refuses `cross_owner_promotion`; no forward-right mechanism exists yet.

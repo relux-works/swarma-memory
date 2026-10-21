@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:space:1:signed-directory",
+  "type": "object",
+  "properties": {
+    "entry": {
+      "$ref": "urn:bounded-evidence:space:1:directory"
+    },
+    "signature": {
+      "type": "object",
+      "properties": {
+        "purpose": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "alg": {
+          "type": "string",
+          "enum": [
+            "ed25519"
+          ]
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "purpose",
+        "key",
+        "alg",
+        "value"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "entry",
+    "signature"
+  ],
+  "additionalProperties": false
+}

@@ -16,9 +16,10 @@ type registeredKey struct {
 // VerifiedPolicy is immutable and can only be constructed by a complete,
 // genesis-anchored chain check. Accessors return detached values.
 type VerifiedPolicy struct {
-	policy Policy
-	digest string
-	keys   map[string]registeredKey
+	policy    Policy
+	digest    string
+	keys      map[string]registeredKey
+	namespace string
 }
 
 func (p *VerifiedPolicy) Digest() string {
@@ -80,13 +81,23 @@ func verifyNextPolicy(previous *VerifiedPolicy, signed SignedPolicy, genesisDige
 	} else if p.Version != previous.policy.Version+1 || p.Previous == nil || *p.Previous != previous.digest || p.SpaceID != previous.policy.SpaceID || p.Kind != previous.policy.Kind {
 		return nil, sign.Fail(sign.PolicySequence, "policy.previous")
 	}
+	ns, err := policyNamespace(p)
+	if err != nil {
+		return nil, err
+	}
+	if previous != nil {
+		ns = previous.namespace
+	}
+	if err := validateNamespace(p, ns); err != nil {
+		return nil, err
+	}
 	keys := map[string]registeredKey{}
 	for _, entry := range p.Keys {
 		r := entry.Registration
 		public, _ := base64.StdEncoding.Strict().DecodeString(r.PublicKey)
 		keys[r.Key] = registeredKey{r.Identity, public}
 	}
-	authority := &VerifiedPolicy{policy: p, digest: digest, keys: keys}
+	authority := &VerifiedPolicy{policy: p, digest: digest, keys: keys, namespace: ns}
 	if previous != nil {
 		authority = previous
 	}
@@ -115,7 +126,7 @@ func verifyNextPolicy(previous *VerifiedPolicy, signed SignedPolicy, genesisDige
 			return nil, err
 		}
 	}
-	return &VerifiedPolicy{policy: p, digest: digest, keys: keys}, nil
+	return &VerifiedPolicy{policy: p, digest: digest, keys: keys, namespace: ns}, nil
 }
 
 // VerifyRecord implements architecture 6.3 rules 1–3 under this exact historical

@@ -101,9 +101,11 @@ type Diagnostic struct {
 	Code   string `json:"code"`
 }
 type index struct {
-	Cursor      string         `json:"cursor"`
-	Snapshot    map[string]any `json:"snapshot"`
-	Diagnostics []Diagnostic   `json:"diagnostics"`
+	Directory   map[string]SignedDirectory `json:"-"`
+	Policies    []*VerifiedPolicy          `json:"-"`
+	Cursor      string                     `json:"cursor"`
+	Snapshot    map[string]any             `json:"snapshot"`
+	Diagnostics []Diagnostic               `json:"diagnostics"`
 }
 
 // Repository serializes operations on one caller-owned clean working clone.

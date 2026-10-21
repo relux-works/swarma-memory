@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:space:1:directory",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "swarma-memory-directory/1"
+    },
+    "directory_space": {
+      "type": "string"
+    },
+    "space_id": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer"
+    },
+    "previous": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "withdrawn"
+      ]
+    },
+    "advertisement": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "urn:bounded-evidence:space:1:signed-advertisement"
+        }
+      ]
+    },
+    "author": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "format",
+    "directory_space",
+    "space_id",
+    "version",
+    "previous",
+    "status",
+    "advertisement",
+    "author"
+  ],
+  "additionalProperties": false
+}

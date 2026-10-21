@@ -10,9 +10,11 @@ import (
 )
 
 const (
-	RecordPurpose       = "swarma-memory-record/1"
-	PolicyPurpose       = "swarma-memory-policy/1"
-	RegistrationPurpose = "swarma-memory-key-registration/1"
+	AdvertisementPurpose = "swarma-memory-space-advertisement/1"
+	DirectoryPurpose     = "swarma-memory-directory/1"
+	RecordPurpose        = "swarma-memory-record/1"
+	PolicyPurpose        = "swarma-memory-policy/1"
+	RegistrationPurpose  = "swarma-memory-key-registration/1"
 )
 
 type Code string

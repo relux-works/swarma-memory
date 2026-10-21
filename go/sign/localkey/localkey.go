@@ -208,3 +208,19 @@ func (k *Key) SignWrite(write sign.CanonicalWrite) (sign.Signature, error) {
 	}
 	return k.sign(sign.WritePurpose, write.Bytes())
 }
+
+// SignAdvertisement signs a validated advertisement authored by this identity.
+func (k *Key) SignAdvertisement(p space.CanonicalAdvertisement) (sign.Signature, error) {
+	if k == nil || p.Author() != k.identity || len(p.Bytes()) == 0 {
+		return sign.Signature{}, sign.Fail(sign.SubmitterMismatch, "advertisement.author")
+	}
+	return k.sign(sign.AdvertisementPurpose, p.Bytes())
+}
+
+// SignDirectory signs a validated publication authored by this identity.
+func (k *Key) SignDirectory(p space.CanonicalDirectory) (sign.Signature, error) {
+	if k == nil || p.Author() != k.identity || len(p.Bytes()) == 0 {
+		return sign.Signature{}, sign.Fail(sign.SubmitterMismatch, "entry.author")
+	}
+	return k.sign(sign.DirectoryPurpose, p.Bytes())
+}

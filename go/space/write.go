@@ -256,7 +256,7 @@ func (r *Repository) commit(ctx context.Context, head string, files map[string][
 		}
 	}()
 	for path, data := range files {
-		if !strings.HasPrefix(path, "records/") {
+		if !strings.HasPrefix(path, "records/") && !strings.HasPrefix(path, "directory/") {
 			return "", fail("invalid_path")
 		}
 		parent := r.config.Git.Directory

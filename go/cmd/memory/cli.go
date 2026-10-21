@@ -260,7 +260,7 @@ func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
 		}
 		return keyData(k), nil
 	}
-	if cmd != "keys" && cmd != "spaces" && cmd != "policy" && cmd != "sync" && cmd != "check" && cmd != "recall" && cmd != "explain" && cmd != "changes" && cmd != "add" && cmd != "revise" && cmd != "assess" && cmd != "promote" {
+	if cmd != "directory" && cmd != "keys" && cmd != "spaces" && cmd != "policy" && cmd != "sync" && cmd != "check" && cmd != "recall" && cmd != "explain" && cmd != "changes" && cmd != "add" && cmd != "revise" && cmd != "assess" && cmd != "promote" {
 		return nil, cliError{"usage", 2}
 	}
 	c, e := h.load()
@@ -268,6 +268,8 @@ func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
 		return nil, e
 	}
 	switch cmd {
+	case "directory":
+		return directoryCLI(ctx, h, c, a)
 	case "keys":
 		if len(a.pos) == 2 && a.pos[1] == "show" {
 			if e = a.allow(); e != nil {
@@ -295,7 +297,12 @@ func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
 				return nil, e
 			}
 			return map[string]any{"spaces": c.Spaces}, nil
+		case "update":
+			return directorySpace(ctx, h, &c, a, true)
 		case "init", "add":
+			if a.pos[1] == "add" && a.flags["from-directory"] != "" {
+				return directorySpace(ctx, h, &c, a, false)
+			}
 			return addSpace(ctx, h, &c, a, a.pos[1] == "init")
 		case "show":
 			if len(a.pos) != 3 {
@@ -336,7 +343,11 @@ func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
 			if e != nil {
 				return map[string]any{"spaces": items}, e
 			}
-			items = append(items, summary(s, r))
+			item := summary(s, r).(map[string]any)
+			if warning := directoryDiagnostic(ctx, h, c, s); warning != "" {
+				item["directory_diagnostic"] = warning
+			}
+			items = append(items, item)
 			bad = bad || len(r.Diagnostics()) > 0
 		}
 		if cmd == "check" && bad {
@@ -372,11 +383,7 @@ func selected(c localConfig, id string) ([]localSpace, error) {
 	return []localSpace{s}, nil
 }
 func openSpace(ctx context.Context, s localSpace) (*space.Repository, error) {
-	template, schemas, e := agentprofile.Load()
-	if e != nil {
-		return nil, e
-	}
-	r, e := space.Open(space.Config{Git: space.Git{Directory: s.ClonePath, Environment: os.Environ()}, Branch: s.Branch, CacheDirectory: s.CachePath, GenesisDigest: s.GenesisDigest, Template: template, Schemas: schemas, Mint: agentprofile.Mint, Profile: agentprofile.Configure})
+	r, e := localRepository(s)
 	if e != nil {
 		return nil, e
 	}
@@ -456,7 +463,7 @@ func addSpace(ctx context.Context, h home, c *localConfig, a arguments, initiali
 	if repositoryAncestor(filepath.Dir(clone)) || repositoryAncestor(cache) {
 		return nil, cliError{"home_inside_repository", 3}
 	}
-	s := localSpace{id, remote, branch, clone, cache, a.flags["genesis"], kind}
+	s := localSpace{ID: id, Remote: remote, Branch: branch, ClonePath: clone, CachePath: cache, GenesisDigest: a.flags["genesis"], Kind: kind}
 	var genesis space.SignedPolicy
 	if initialize {
 		if s.GenesisDigest != "" {

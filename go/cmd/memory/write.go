@@ -213,6 +213,13 @@ func writeCLI(ctx context.Context, h home, c localConfig, a arguments) (any, err
 		if target.ID == selectedSpace.ID {
 			return nil, cliError{"usage", 2}
 		}
+		targetRepo, err := openSpace(ctx, target)
+		if err != nil {
+			return nil, err
+		}
+		if r.VerifiedPolicy().OwnerNamespace() != targetRepo.VerifiedPolicy().OwnerNamespace() || r.VerifiedPolicy().OwnerNamespace() == "" && r.VerifiedPolicy().Policy().Owners[0] != targetRepo.VerifiedPolicy().Policy().Owners[0] {
+			return nil, cliError{"cross_owner_promotion", 3}
+		}
 		promoted, e = promotionSource(r, k, a)
 		if e != nil {
 			return nil, e

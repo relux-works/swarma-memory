@@ -85,7 +85,7 @@ func configSaveLoadContract(t *testing.T, dir string) {
 		t.Fatal("home did not resolve to its canonical directory", h, want, err)
 	}
 	clone, cache := h.paths("space:test")
-	c := localConfig{"person:test", h.keyfile(), []localSpace{{"space:test", "remote:", "main", clone, cache, strings.Repeat("a", 64), "project"}}}
+	c := localConfig{"person:test", h.keyfile(), []localSpace{{"", "space:test", "remote:", "main", clone, cache, strings.Repeat("a", 64), "project"}}}
 	b, err := json.Marshal(c)
 	if err != nil {
 		t.Fatal(err)

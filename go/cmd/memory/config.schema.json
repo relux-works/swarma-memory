@@ -39,6 +39,9 @@
               "project",
               "platform"
             ]
+          },
+          "directory_space": {
+            "type": "string"
           }
         },
         "required": [

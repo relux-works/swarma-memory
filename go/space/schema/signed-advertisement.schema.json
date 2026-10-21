@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:space:1:signed-advertisement",
+  "type": "object",
+  "properties": {
+    "advertisement": {
+      "$ref": "urn:bounded-evidence:space:1:advertisement"
+    },
+    "signature": {
+      "type": "object",
+      "properties": {
+        "purpose": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "alg": {
+          "type": "string",
+          "enum": [
+            "ed25519"
+          ]
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "purpose",
+        "key",
+        "alg",
+        "value"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "advertisement",
+    "signature"
+  ],
+  "additionalProperties": false
+}

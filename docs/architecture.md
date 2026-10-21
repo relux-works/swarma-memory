@@ -118,7 +118,7 @@ Each space is one git repository. An agent can read and write several spaces wit
 ```text
 space.json                        policy: identity, kind, owners, grants, keys, limits
 records/<kind>/<id>/<version>.json   one signed record per file, never modified
-directory/                        platform space only: where other spaces live
+directory/<hex(space_id)>/<version>.json  platform only: immutable signed directory entry
 ```
 
 A record file is never rewritten: a change is a new version or a revision record in a new file. Because every write adds new files, concurrent writers do not produce merge conflicts in git; competing versions of one sequence are resolved by the kernel (section 7.3).
@@ -132,7 +132,7 @@ A record file is never rewritten: a change is a new version or a revision record
 | `space_id`, `kind` | Stable id and kind of the space |
 | `owners` | Identities that may change the policy |
 | `writers` | Grants: identity → allowed admission classes, schemas and record kinds |
-| `readers` | Identities and spaces that may read; `public` for open spaces |
+| `readers` | Identities and spaces that may read; `public` for open legacy spaces |
 | `keys` | Temporary keys: identity → public keys, each entry signed by an owner |
 | `schemas` | Domain schemas and versions accepted in this space |
 | `ceiling` | Sensitivity ceiling; `non-sensitive` for every git space |
@@ -144,7 +144,37 @@ A policy change is a new signed version of `space.json` committed by an owner. R
 
 ### 5.4 Directory
 
-The platform space holds a directory: one entry per known space with its id, kind, owner identity, git remote and access. An agent finds another agent's or project's memory through it. Sharing a space with another owner means granting git read access and adding a directory entry.
+Each owner keeps a directory in their own platform space. Agents trust only that
+owner's platform genesis pin, obtained out of band. A listing supplies a target
+space's genesis pin and Git location; it grants no read, write or forward right.
+Sharing requires an owner-signed target reader grant and Git read access.
+
+A target owner signs an `Advertisement` containing `format`, `space_id`, `kind`,
+`bindings`, `git: {remote, branch}`, `genesis_digest`, `observed_policy: {version,
+digest}` and `author`. Bindings are sorted unique `{kind: identity|project, id}`
+lookup keys, with no ACL data. A platform owner then signs a `DirectoryEntry`
+containing `format`, `directory_space`, `space_id`, `version`, `previous`, `status`,
+`advertisement` (the signed advertisement, or null for withdrawal) and `author`.
+One target owner and one platform owner signature suffice; delegated publishers,
+thresholds, expiry and federation are outside v1.
+
+Sync verifies publisher authority at the entry's first-parent position, the
+platform binding, closed schemas, purposes, exact path and immutable version chain.
+The first accepted version wins. A bad entry cannot hide valid neighbours.
+A lookup requires an active head whose publisher remains a current platform
+owner. Target cloning additionally verifies its advertised genesis, ID/kind,
+observed policy floor and the advertiser's ownership/key at that exact policy.
+Relocation preserves the genesis and requires first-parent cursor descent.
+Withdrawal makes new discovery refuse; existing pins keep syncing with a diagnostic.
+Unsharing still means revoking the reader grant and Git access.
+
+Qualified identities use `<owner>/<id>`. The genesis owners' prefix defines an
+immutable namespace, independently of the space name. Mixed owner namespaces
+are refused. Foreign qualified keys and reader grants are owner-attested; foreign
+writer grants and promotion across owners are refused in v1. Wholly unqualified
+single-owner spaces retain the legacy convention. Raw public keys carry no origin
+claim: registration signatures attest the identity; they cannot detect a lie by
+the registering owner.
 
 ### 5.5 Where an agent space lives
 
@@ -169,6 +199,21 @@ Every record carries one signature by its submitter:
 ```
 
 The signature covers the purpose tag followed by the record's canonical bytes. The purpose tag keeps a memory signature from being replayed as a message, receipt or attestation signature. Nothing is signed blind: whoever signs receives the whole record and checks it, in particular that the record's submitter is the identity asking for the signature. Commit signatures remain for transport and history; trust in a record comes from its own signature, so a record stays verifiable outside git.
+
+The six purpose tags are:
+
+| Purpose | Signed payload |
+| --- | --- |
+| `swarma-memory-record/1` | Stored kernel record |
+| `swarma-memory-policy/1` | Space policy |
+| `swarma-memory-key-registration/1` | Owner-attested identity/key registration |
+| `swarma-memory-write/1` | Authenticated admission transaction |
+| `swarma-memory-space-advertisement/1` | Target owner's discovery advertisement |
+| `swarma-memory-directory/1` | Platform owner's versioned publication |
+
+Every signature frames the full canonical payload as `UTF-8(purpose) || 0x00 ||
+canonical_payload`. Directory metadata remains in the adapter and changes no
+kernel record or listed space's view.
 
 ### 6.2 Signers
 
@@ -372,5 +417,4 @@ Usefulness is measured on real work: correct current decision with its source, r
 - The residual risk of secrets in memory that outlives the home.
 - How a lost temporary key is replaced without breaking the agent's history.
 - Who resolves which conflicts in shared spaces, and the exact escalation path.
-- The format and owner of the space directory.
 - How long sources must stay presentable.

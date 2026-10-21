@@ -2,7 +2,7 @@
 
 `space.Repository` is the stage-2 library adapter. It uses explicit `os/exec`
 argument vectors, the existing signing/policy layer, the production kernel and
-`scan.Scan`. There is no shell, daemon or directory discovery. The [foundation CLI](cli.md) supplies local configuration and the provisional trusted profile.
+`scan.Scan`. There is no shell or daemon; platform directories supply discovery metadata. The [foundation CLI](cli.md) supplies local configuration and the provisional trusted profile.
 The remote and branch are explicit caller configuration. Tests use temporary
 local bare repositories, isolated git configuration and ephemeral record keys.
 
@@ -35,7 +35,7 @@ and immutable `records/<kind>/<encoded-id>/<version>.json` files. IDs are encode
 as lowercase hexadecimal UTF-8 bytes: identifiers remain opaque, path separators,
 dot components and case-insensitive filesystem aliases cannot change identity.
 Versions use canonical positive decimal. `directory/` is reserved for platform
-spaces; its format and interpretation remain out of scope.
+spaces; its signed format is described in [Platform directory](#platform-directory).
 
 The template has an empty records array and complete independently trusted kernel
 configuration: domain registry, grants, lineage facts, intake reviews, subject
@@ -259,8 +259,8 @@ with the rewrite error. Other errors return no partial collection.
 This is a library, not a hosted service or hostile-filesystem sandbox. The caller
 owns clone/cache isolation, configuration authenticity, genesis distribution,
 record-key custody, git transport access and retention of verified git objects.
-Owner retirement actions, directory contents, CLI, installation, promotion,
-escalation and protected-deployment qualification remain separate stages.
+Owner retirement actions, escalation and protected-deployment qualification
+remain separate stages; the CLI implements directory discovery and local promotion.
 
 ## Validation
 
@@ -292,3 +292,78 @@ transplant witnesses, isolates all authenticated context fields, checks SHA-1 an
 SHA-256 trees against Git, and pairs overlapping stale-generation/output-mismatch
 refusals with valid transactions and a valid-only control. CI retains the space
 race gate alongside the normal tests.
+
+## Platform directory
+
+A platform repository additionally contains
+`directory/<lowercase hex UTF-8 space_id>/<positive decimal version>.json`.
+Each file is a closed `{entry, signature}` publication. Its entry contains:
+
+```text
+format: swarma-memory-directory/1
+ directory_space, space_id, version, previous, status, advertisement, author
+```
+
+`previous` is null at version 1, otherwise the previous accepted entry's framed
+payload digest. Status is `active` with a signed advertisement, or `withdrawn`
+with null. The advertisement wrapper is `{advertisement, signature}`; its payload
+has `format: swarma-memory-space-advertisement/1`, `space_id`, `kind`, `bindings`,
+`git: {remote, branch}`, `genesis_digest`, `observed_policy: {version, digest}`,
+and `author`. Bindings are sorted unique `{kind: identity|project, id}` lookup
+keys, never readers/access hints. No expiry is supported.
+
+`Repository.Advertisement` creates a typed owner-signed advertisement from verified
+state. The local caller supplies the configured transport and explicit bindings.
+`PublishDirectory` signs with a current platform owner, commits with `-S`, verifies
+that commit and ordinarily pushes. It serializes version allocation after sync;
+a racing publication refuses `version_conflict` without force-pushing.
+
+Replay applies policies before entries at each first-parent position. It checks
+closed schemas and purposes, the platform ID and exact path, historical publisher
+ownership/key/signature and version/previous continuity. `directory_sequence`
+keeps the first accepted version. Changed/deleted accepted files produce
+`directory_rewritten` and cannot replace the accepted head; a competing signed
+version at that same immutable path also produces `directory_sequence`.
+`directory/` outside a platform space produces `directory_not_platform`.
+Within a single commit, versions for one encoded space ID are checked in numeric
+order, before invalid path spellings. Invalid neighbours are diagnosed independently and never affect the kernel view.
+
+`Directory` returns sorted detached heads and status, under current platform
+reader authorization. `LookupDirectory` refuses withdrawn/stale heads. A stale
+publisher is one no longer present in current platform owners. On use,
+`VerifyAdvertisement` requires the target's genesis-anchored chain to reach the
+exact observed policy version/digest, verifies the owner/key at that version,
+and matches ID/kind. Invalid targets give `directory_mismatch`; no config or
+permanent clone/cache is saved. The directory supplies pins, never grants.
+
+CLI discovery uses a private staging clone/cache, then installs them and publishes
+config only after all validation succeeds. Existing different genesis pins refuse
+`genesis_conflict`. Update relocates under the same pin and requires the existing
+verified cursor on the new remote's first-parent line (`history_rewritten`).
+Dirty existing clones refuse replacement. A failed update preserves config,
+clone and cache. Existing configured spaces keep their own pins after withdrawal
+or publisher removal, with `directory_diagnostic` on `sync`/`check`; neither event
+revokes target grants or Git access.
+
+Advertised remotes permit HTTPS and SSH (URL or SCP form) only; file URLs/absolute paths require
+explicit `GIT_ALLOW_PROTOCOL` containing `file` for isolated tests. Helpers
+(including `ext::`), option-shaped URLs and control characters refuse
+`directory_transport` before target Git starts. Clone passes its URL after `--`
+and uses `DirectoryEnvironment` to constrain `GIT_ALLOW_PROTOCOL` to SSH/HTTPS
+(and explicitly opted-in file) during clone and subsequent target sync. This
+blocks helpers selected through `insteadOf` even when per-protocol configuration
+explicitly enables them. Other environment/authentication remain caller-owned.
+
+Use `<owner>/<id>` for cross-owner identities and space names. The namespace
+anchor is the genesis owners' prefix, **not** a space-name prefix. All owners must
+share it; registration and grant identities must be qualified in qualified spaces.
+Foreign registrations and named reader grants are accepted: the local owner's
+registration signature attests identity, while raw public-key bytes disclose no
+origin. Foreign writer grants refuse `cross_owner_writer`; unqualified identities
+in qualified spaces refuse `identity_owner_mismatch`. Wholly unqualified,
+single-owner legacy spaces remain supported without mixing qualified identities.
+Promotion across namespace anchors refuses `cross_owner_promotion` in v1.
+
+The two-owner stage-5 integration gate, delegated publishers, key-bearing identity
+entries, expiry, federation and a shared cross-owner directory remain outside this
+adapter feature.

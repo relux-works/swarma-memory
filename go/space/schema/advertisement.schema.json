@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:space:1:advertisement",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "swarma-memory-space-advertisement/1"
+    },
+    "space_id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "agent",
+        "project",
+        "platform"
+      ]
+    },
+    "bindings": {
+      "$ref": "urn:bounded-evidence:space:1:bindings"
+    },
+    "git": {
+      "type": "object",
+      "properties": {
+        "remote": {
+          "type": "string"
+        },
+        "branch": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "remote",
+        "branch"
+      ],
+      "additionalProperties": false
+    },
+    "genesis_digest": {
+      "type": "string"
+    },
+    "observed_policy": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer"
+        },
+        "digest": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "digest"
+      ],
+      "additionalProperties": false
+    },
+    "author": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "format",
+    "space_id",
+    "kind",
+    "bindings",
+    "git",
+    "genesis_digest",
+    "observed_policy",
+    "author"
+  ],
+  "additionalProperties": false
+}
