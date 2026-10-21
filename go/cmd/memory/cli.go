@@ -101,6 +101,7 @@ func emit(out, errout io.Writer, jsonMode bool, command string, data any, e erro
 		fmt.Fprintf(out, "%s\n", b)
 	} else {
 		fmt.Fprintf(out, "memory data: %s\n", b)
+		renderSourceDetails(out, data)
 	}
 	return code
 }
@@ -624,4 +625,32 @@ func administer(ctx context.Context, h home, c localConfig, a arguments, action 
 		return nil, e
 	}
 	return map[string]any{"commit": head, "space": summary(s, r)}, nil
+}
+
+// Compact reads keep the complete data envelope and show retained source details
+// as decoded text. JSON output above always preserves the exact kernel payload.
+func renderSourceDetails(out io.Writer, data any) {
+	for _, rawSpace := range agentprofile.Array(agentprofile.Object(data)["spaces"]) {
+		for _, rawView := range agentprofile.Array(agentprofile.Object(rawSpace)["views"]) {
+			for _, rawSource := range agentprofile.Array(agentprofile.Object(rawView)["sources"]) {
+				source := agentprofile.Object(rawSource)
+				fmt.Fprintf(out, "source %v (%v)\n", source["ref"], source["availability"])
+				if source["availability"] == "erased" {
+					continue
+				}
+				fmt.Fprintf(out, "  owner: %v; object: %v; revision: %v; digest: %v\n", source["owner"], source["object"], source["revision"], source["digest"])
+				locator := map[string]string{}
+				origin, _ := source["origin"].(string)
+				if json.Unmarshal([]byte(origin), &locator) == nil && len(locator) == 3 && locator["runtime"] != "" && locator["session"] != "" && locator["message"] != "" {
+					fmt.Fprintf(out, "  runtime: %s; session: %s; message: %s\n", locator["runtime"], locator["session"], locator["message"])
+				} else {
+					fmt.Fprintf(out, "  origin: %s\n", origin)
+				}
+				excerpt := agentprofile.Object(source["excerpt"])
+				if excerpt["state"] == "present" {
+					fmt.Fprintf(out, "  excerpt:\n%s\n", excerpt["text"])
+				}
+			}
+		}
+	}
 }

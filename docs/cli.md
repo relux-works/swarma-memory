@@ -99,6 +99,21 @@ kernel views, not arbitrary Git file edits. Current reader authorization is
 required even when reconstructing an older baseline. Baseline evaluation uses its
 own policy, then current evaluation uses the latest verified policy.
 
+Every kernel view carries `sources`: exactly the deduplicated entries cited by
+its displayed items, ordered by id and numeric version. Live entries include
+locator fields, effective availability and `{state: "present", text}` or
+`{state: "none"}`. An unavailable session keeps its retained excerpt. Erased
+entries contain attribution and `{state: "erased"}`, with no locator, digest,
+origin or text. Hidden sources produce no entry or placeholder. Audience
+projections carry `sources: []`. This presentation creates no witness and cannot
+satisfy a current source requirement. `changes` includes an item when a cited
+source entry changes; captures freeze the table with the items.
+
+`--json` passes these kernel entries through byte-exactly, including multiline
+Unicode text. Recall's text filter retains only entries still cited by displayed
+items. Compact output includes the data envelope plus decoded locator,
+availability and retained excerpt lines. Sources are never separately enumerable.
+
 ## Write commands
 
 Writes use the same home, local signer, trusted profile and verified policy as
@@ -242,16 +257,22 @@ memory add assertion --space project:example --idempotency-key session:one \
 For `add assertion` and `assess`, `--source-session runtime:session:message` requires
 `--source-text FILE|-`. The first two colons delimit runtime and session; the rest
 is the exact message ID or index. The text is retained byte-for-byte as UTF-8 in
-an atomic source record's `body.excerpt`, and SHA256 hashes the raw text bytes,
-including trailing newlines. The structured runtime/session/message locator is a
-canonical JSON string in `body.origin`; `body.object` is its
-`sha256:<raw-text-digest>` locator, `body.revision` is the message ID, and
-`body.digest` is null. This preserves the distinction from the spec's separately
-framed `sha256-cjson-v1` digest. The source includes a retention-admission reference
-to this signed intake; that reference grants nothing and the kernel independently
-requires retain rights. Availability is `unavailable`: no external session
-resolver or survival of the original session is claimed. A documentary link or
-assessment source ref cites it in the same atomic transaction.
+an atomic source record's `body.excerpt`. Its digest is
+`{algorithm: "sha256-bytes-v1", value: "<lowercase SHA-256 hex>"}` over the exact
+UTF-8 retained text, including trailing newlines, with no framing. **This digest
+covers the retained text, not necessarily the whole message.** It is distinct
+from the canonical-JSON digest `sha256-cjson-v1`.
+
+New session sources use `owner: runtime:<runtime>`, `object: session:<id>`,
+`revision: message:<id>` or `index:<n>`, `provenance: reported`, and
+`availability: unavailable`. Explicit `message:`/`index:` prefixes survive;
+bare decimal positions use `index:` and other IDs use `message:`. The canonical
+JSON `origin` preserves the original runtime/session/message components. A
+retention-admission reference names this signed intake but grants nothing;
+retain rights are checked independently. A documentary link or assessment source
+ref cites it in the same atomic transaction. No live session resolver is claimed.
+Legacy sources with the hash in `object`, null `digest` and locator in `origin`
+remain valid and render exactly as stored.
 
 ### Promote
 
@@ -308,7 +329,7 @@ Pre-publication refusals create no record file or commit and perform no push.
 | §7.1 / §11 | Common flags, stable identity/time, original receipt vs current cursor | Required caller key; documented stable IDs/defaults, recover original intake defaults from verified intent, preserve original receipt/commit and report current cursor separately. |
 | §7.1 | Retry bound and a losing push's local commit | Two additional attempts; align the clean checkout to the last verified cursor on every Write return, keeping the signed unpublished attempt only in reflog. |
 | §7.1 | Provisional scan quarantine precedes the adapter's post-admission scan | Translate only confirmed scanner quarantine to typed redacted findings; no admission rule or profile change. |
-| §7.2 / closed source schema | Structured session locator and raw digest have no new fields | Origin holds canonical locator JSON, object holds raw SHA256 locator, excerpt is retained body data; no mislabelled canonical digest. |
+| §7.2 / K-SRC-1 | Session source presentation and digest scope | The kernel joins cited source entries; new sources separate runtime owner, session object, message/index revision and raw retained-text digest. Legacy fields render as stored. |
 | §7.1 / K-REV-1 / review B1 | Read-to-write races and exact retry after head changes | Require caller-observed numeric/read tokens for revise and assess; pin target before sync can retarget it; recheck freshness after NFF; original-token replay retains its receipt and kernel authority checks. |
 | §11 | Assessment defaults and check execution | Pin documentary evidence; never execute the check or turn a model check into deterministic evidence. |
 | §11 / stage 5 boundary | Promotion before a directory or cross-space lineage integration exists | Only configured spaces; kernel source read plus target write; preserve disclosure and create a local documentary citation with unknown lineage. |
@@ -419,14 +440,6 @@ source state, freshness, coverage, qualification and dependency limits.
 Legacy `conformance` retains exit 1 for semantic disagreement and 2 for harness or
 usage errors; JSON mode wraps either as `conformance_failed`. Legacy plain
 `version` retains its one-line output.
-
-## Limitations
-
-Readers currently see session sources only as source refs. The source locator
-(runtime, session, message and digest) and excerpt are not included in recall or
-explain output. Showing them requires a package change to the closed kernel view
-or a disclosure-aware source-content API; this remains an open question. The CLI
-does not reconstruct source payloads from the raw snapshot.
 
 ## Git and validation tools
 

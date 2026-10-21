@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:bounded-evidence:0.2.6:view",
+  "$id": "urn:bounded-evidence:0.3.0:view",
   "type": "object",
   "properties": {
     "type": {
@@ -9,7 +9,7 @@
     },
     "semantic_profile": {
       "type": "string",
-      "const": "0.2.6-draft"
+      "const": "0.3.0-draft"
     },
     "projection_rule": {
       "type": "object",
@@ -644,6 +644,337 @@
         "additionalProperties": false
       }
     },
+    "sources": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id",
+                  "version"
+                ],
+                "additionalProperties": false
+              },
+              "issuer": {
+                "type": "string"
+              },
+              "submitter": {
+                "type": "string"
+              },
+              "representation_ref": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "version": {
+                        "type": "integer"
+                      },
+                      "checked": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "version",
+                      "checked"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "admission_class": {
+                "type": "string",
+                "enum": [
+                  "self_declaration",
+                  "imported_publication",
+                  "machine_observation",
+                  "semantic_inference"
+                ]
+              },
+              "owner": {
+                "type": "string"
+              },
+              "source_kind": {
+                "type": "string",
+                "enum": [
+                  "document",
+                  "direct_declaration",
+                  "publication",
+                  "mirror",
+                  "artifact"
+                ]
+              },
+              "provenance": {
+                "type": "string",
+                "enum": [
+                  "canonical",
+                  "direct",
+                  "imported",
+                  "reported"
+                ]
+              },
+              "original_issuer": {
+                "type": "string"
+              },
+              "carrier": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "object": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "string"
+              },
+              "digest": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "algorithm": {
+                        "type": "string",
+                        "enum": [
+                          "sha256-cjson-v1",
+                          "sha256-bytes-v1"
+                        ]
+                      },
+                      "value": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "algorithm",
+                      "value"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "origin": {
+                "type": "string"
+              },
+              "availability": {
+                "type": "string",
+                "enum": [
+                  "resolvable",
+                  "unavailable"
+                ]
+              },
+              "excerpt": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": {
+                        "type": "string",
+                        "const": "present"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "state",
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": {
+                        "type": "string",
+                        "const": "none"
+                      }
+                    },
+                    "required": [
+                      "state"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": [
+              "ref",
+              "issuer",
+              "submitter",
+              "representation_ref",
+              "admission_class",
+              "owner",
+              "source_kind",
+              "provenance",
+              "original_issuer",
+              "carrier",
+              "object",
+              "revision",
+              "digest",
+              "origin",
+              "availability",
+              "excerpt"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id",
+                  "version"
+                ],
+                "additionalProperties": false
+              },
+              "issuer": {
+                "type": "string"
+              },
+              "submitter": {
+                "type": "string"
+              },
+              "representation_ref": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "version": {
+                        "type": "integer"
+                      },
+                      "checked": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "version",
+                      "checked"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "admission_class": {
+                "type": "string",
+                "enum": [
+                  "self_declaration",
+                  "imported_publication",
+                  "machine_observation",
+                  "semantic_inference"
+                ]
+              },
+              "owner": {
+                "type": "string"
+              },
+              "source_kind": {
+                "type": "string",
+                "enum": [
+                  "document",
+                  "direct_declaration",
+                  "publication",
+                  "mirror",
+                  "artifact"
+                ]
+              },
+              "provenance": {
+                "type": "string",
+                "enum": [
+                  "canonical",
+                  "direct",
+                  "imported",
+                  "reported"
+                ]
+              },
+              "original_issuer": {
+                "type": "string"
+              },
+              "carrier": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "availability": {
+                "type": "string",
+                "const": "erased"
+              },
+              "excerpt": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "const": "erased"
+                  }
+                },
+                "required": [
+                  "state"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "ref",
+              "issuer",
+              "submitter",
+              "representation_ref",
+              "admission_class",
+              "owner",
+              "source_kind",
+              "provenance",
+              "original_issuer",
+              "carrier",
+              "availability",
+              "excerpt"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
     "currentness": {
       "type": "string",
       "enum": [
@@ -806,6 +1137,7 @@
     "authorized_snapshot_handle",
     "data_classification",
     "items",
+    "sources",
     "currentness",
     "historical",
     "review_required",

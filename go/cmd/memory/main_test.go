@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -41,7 +42,7 @@ func TestCLI(t *testing.T) {
 	}
 }
 
-// TestConformanceCLI proves the built command reports 66/66 semantic agreement and
+// TestConformanceCLI proves the built command reports 77/77 semantic agreement and
 // exits 0 from an unrelated cwd (embedded default and explicit source directory),
 // while harness/usage errors exit 2
 // without success output. Deployment vectors are explicitly excluded.
@@ -82,12 +83,12 @@ func TestConformanceCLI(t *testing.T) {
 			}
 			if tc.code == 0 {
 				lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
-				if len(lines) < 76 || lines[66] != "66/66 semantic vectors pass" || lines[67] != "admission ops matched: 73/73 (admit 45/45, admit_raw 2/2, revise 26/26)" || lines[len(lines)-1] != "8 deployment vectors are out of scope." || stderr.Len() != 0 {
+				if len(lines) < 87 || lines[77] != "77/77 semantic vectors pass" || lines[78] != "admission ops matched: 79/79 (admit 48/48, admit_raw 3/3, revise 28/28)" || lines[len(lines)-1] != "8 deployment vectors are out of scope." || stderr.Len() != 0 {
 					t.Fatal(stdout.String(), stderr.String())
 				}
 				ids := map[string]bool{}
 				passed := 0
-				for _, line := range lines[:66] {
+				for _, line := range lines[:77] {
 					fields := strings.Fields(line)
 					if len(fields) < 2 || (fields[0] != "PASS" && fields[0] != "FAIL") || ids[fields[1]] {
 						t.Fatal(line)
@@ -99,7 +100,7 @@ func TestConformanceCLI(t *testing.T) {
 						t.Fatal(line)
 					}
 				}
-				if passed != 66 {
+				if passed != 77 {
 					t.Fatal("passing whole-vector count", passed)
 				}
 
@@ -107,5 +108,37 @@ func TestConformanceCLI(t *testing.T) {
 				t.Fatal(stdout.String(), stderr.String())
 			}
 		})
+	}
+}
+
+// Compact output decodes locator/excerpt text, while JSON has exactly the
+// original payload; an erased entry never acquires locator or excerpt details.
+func TestSourceOutputModes(t *testing.T) {
+	source := map[string]any{"ref": map[string]any{"id": "rec:s", "version": int64(1)}, "availability": "unavailable", "owner": "runtime:example", "object": "session:planning", "revision": "message:42", "digest": nil, "origin": "{\"runtime\":\"example\",\"session\":\"planning\",\"message\":\"42\"}", "excerpt": map[string]any{"state": "present", "text": "café\nsecond line\n"}}
+	data := map[string]any{"spaces": []any{map[string]any{"views": []any{map[string]any{"sources": []any{source}}}}}}
+	var compact, raw, stderr bytes.Buffer
+	if emit(&compact, &stderr, false, "recall", data, nil) != 0 || emit(&raw, &stderr, true, "recall", data, nil) != 0 {
+		t.Fatal("render failed")
+	}
+	if !strings.Contains(compact.String(), "runtime: example; session: planning; message: 42") || !strings.Contains(compact.String(), "café\nsecond line\n") || !strings.Contains(compact.String(), "unavailable") {
+		t.Fatal("missing decoded details", compact.String())
+	}
+	var decoded struct {
+		Data map[string]any `json:"data"`
+	}
+	if err := json.Unmarshal(raw.Bytes(), &decoded); err != nil {
+		t.Fatal(err)
+	}
+	want, _ := json.Marshal(data)
+	got, _ := json.Marshal(decoded.Data)
+	if !bytes.Equal(want, got) || strings.Count(raw.String(), "\n") != 1 {
+		t.Fatal("JSON payload changed", raw.String())
+	}
+	erased := map[string]any{"ref": source["ref"], "availability": "erased", "excerpt": map[string]any{"state": "erased"}}
+	data["spaces"].([]any)[0].(map[string]any)["views"].([]any)[0].(map[string]any)["sources"] = []any{erased}
+	compact.Reset()
+	renderSourceDetails(&compact, data)
+	if strings.Contains(compact.String(), "runtime:") || strings.Contains(compact.String(), "excerpt") || !strings.Contains(compact.String(), "erased") {
+		t.Fatal("erased details rendered", compact.String())
 	}
 }

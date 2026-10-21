@@ -94,7 +94,7 @@ python3 -B spec/checks/validate.py
 go -C go run ./cmd/memory conformance
 ```
 
-All 66 whole vectors, 73 admission operations, boundary operations and six
+All 77 whole vectors, 79 admission operations, boundary operations and six
 inventories match. Both ratchets are full; CI conformance is mandatory.
 Tests retain mismatched-pin and revoked/fenced-evidence witnesses, admitted
 assessment withdrawal/replacement/correction with challenge controls, transitive

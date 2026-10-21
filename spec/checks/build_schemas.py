@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BASE = 'urn:bounded-evidence:0.2.6:'
+BASE = 'urn:bounded-evidence:0.3.0:'
 S = {'type': 'string'}
 I = {'type': 'integer'}
 B = {'type': 'boolean'}
@@ -29,7 +29,7 @@ DECLASS_PINS = dict(inputs=arr(R), transformation=R, output_schema=R, output_dig
 DECLASS = obj(decision=R,**DECLASS_PINS)
 BODIES = {
  'assertion': obj(statement_kind=enum('fact','self_declaration','proposal','decision_record','intent','assessment_summary'), slot=S, content=arr(obj(field=S,value=VALUE)), authority_receipt=opt(R)),
- 'source': obj(owner=S, source_kind=enum('document','direct_declaration','publication','mirror','artifact'), object=S, revision=S, digest=opt(obj(algorithm=const('sha256-cjson-v1'), value=S)), provenance=enum('canonical','direct','imported','reported'), availability=enum('resolvable','unavailable','erased'), origin=S, original_issuer=S, carrier=opt(S), excerpt=opt(S), retention_admission=opt(R)),
+ 'source': obj(owner=S, source_kind=enum('document','direct_declaration','publication','mirror','artifact'), object=S, revision=S, digest=opt(obj(algorithm=enum('sha256-cjson-v1','sha256-bytes-v1'), value=S)), provenance=enum('canonical','direct','imported','reported'), availability=enum('resolvable','unavailable','erased'), origin=S, original_issuer=S, carrier=opt(S), excerpt=opt(S), retention_admission=opt(R)),
  'justification': obj(target=LIT, premises=arr(choice(obj(kind=const('assertion'),literal=LIT),obj(kind=const('source'),source=R))), rule=R, rule_kind=enum('declared_rationale','checked_entailment'), role=enum('documentary_basis','review_on_change','sufficient_support'), check=opt(R)),
  'assessment': obj(check_kind=enum('source_binding','signature','test_result','formal_entailment','semantic_review','account_control','declassification'), executor=enum('human','deterministic','model'), result=enum('pass','fail','indeterminate'), pins=PIN, target=opt(LIT), sources=arr(R), origin=S, source_requirement=enum('current','retained','independent'), usable_until=opt(S), declassification=opt(DECLASS)),
  'revision': obj(relation=enum('replace','withdraw','correct','challenge','availability'), target=R, replacement=opt(R), availability=opt(enum('resolvable','unavailable','erased')), authority_receipt=opt(R))
@@ -62,7 +62,11 @@ SCHEMAS['query']=QUERY
 COVERAGE=choice(obj(kind=const('unknown')),obj(kind=const('declared'),ref=R))
 POL=obj(witness=enum('present','not_found'),evaluation=enum('complete','incomplete'),corpus_coverage=COVERAGE,premise_quality=enum('clean_path','conflicted_premises_only','not_fully_checked'),evidence_qualification=arr(enum('semantic_review','test_result','formal_entailment','source_binding','signature','account_control','declassification')),source_state=enum('resolvable_now','prior_assessment_only','independent_attestation'),freshness=enum('fresh','stale','not_applicable'),authorized_snapshot_handle=S,dependency_coverage=const('registered_only'),witness_roots=arr(S),independent_root_count=I)
 ITEM=obj(ref=opt(R),subject=S,issuer=S,submitter=S,perspective=PERSPECTIVE,representation_ref=opt(REP),admission_class=ENV['properties']['admission_class'],statement_kind=BODIES['assertion']['properties']['statement_kind'],content=BODIES['assertion']['properties']['content'],valid=VALID,confirmed_at=opt(S),usable_until=opt(S),currentness=enum('current','historical','ambiguous_current','last_received'),authority_receipt=opt(R),incompatible_with=arr(R),needs_review=B,source_refs=arr(R),support=POL,oppose=POL)
-VIEW=obj(type=const('view'),semantic_profile=const('0.2.6-draft'),projection_rule=R,evidence_policy=R,policy=R,authorized_snapshot_handle=S,data_classification=const('data'),items=arr(ITEM),currentness=enum('none','current','ambiguous_current','last_received'),historical=arr(R),review_required=arr(R),explanation=obj(status=enum('complete','partial'),paths=arr(arr(R)),reason=opt(enum('explanation_limit','evaluation_limit'))),cutoffs=arr(enum('root_limit','rule_limit','source_limit','source_unavailable','dirty','runtime_unavailable')),changes=obj(state=enum('initial','changed','no_change'),refs=arr(R)))
+SOURCE_HEADER = dict(ref=R, **{k: ENV['properties'][k] for k in ('issuer','submitter','representation_ref','admission_class')}, **{k:BODIES['source']['properties'][k] for k in ('owner','source_kind','provenance','original_issuer','carrier')})
+SOURCE_VIEW = choice(
+ obj(**SOURCE_HEADER, **{k:BODIES['source']['properties'][k] for k in ('object','revision','digest','origin')}, availability=enum('resolvable','unavailable'), excerpt=choice(obj(state=const('present'),text=S),obj(state=const('none')))),
+ obj(**SOURCE_HEADER, availability=const('erased'), excerpt=obj(state=const('erased'))))
+VIEW=obj(type=const('view'),semantic_profile=const('0.3.0-draft'),projection_rule=R,evidence_policy=R,policy=R,authorized_snapshot_handle=S,data_classification=const('data'),items=arr(ITEM),sources=arr(SOURCE_VIEW),currentness=enum('none','current','ambiguous_current','last_received'),historical=arr(R),review_required=arr(R),explanation=obj(status=enum('complete','partial'),paths=arr(arr(R)),reason=opt(enum('explanation_limit','evaluation_limit'))),cutoffs=arr(enum('root_limit','rule_limit','source_limit','source_unavailable','dirty','runtime_unavailable')),changes=obj(state=enum('initial','changed','no_change'),refs=arr(R)))
 SCHEMAS['view']=VIEW
 CODES=['invalid_json','invalid_shape','unknown_schema','unknown_profile','invalid_reference','duplicate_record','invalid_domain_value','invalid_time','unknown_rule','cycle','cross_scope','representation_invalid','not_authorized','quarantined','authority_receipt_required','version_conflict','idempotency_conflict','rule_unqualified','assessment_kind_invalid','mode_mismatch','limit_exceeded','policy_mismatch','erasure_fenced','stale_generation','erasure_incomplete','declassification_invalid','disclosure_revoked','publication_stale','unavailable','execution_required','unsupported_operation']
 REFUSAL=obj(type=const('refusal'),code=enum(*CODES),retryable=B)

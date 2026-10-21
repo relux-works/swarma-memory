@@ -521,7 +521,7 @@
     "operation_results": [
       {
         "type": "view",
-        "semantic_profile": "0.2.6-draft",
+        "semantic_profile": "0.3.0-draft",
         "projection_rule": {
           "id": "projection:main",
           "version": 1
@@ -537,6 +537,7 @@
         "authorized_snapshot_handle": "@h1",
         "data_classification": "data",
         "items": [],
+        "sources": [],
         "currentness": "none",
         "historical": [],
         "review_required": [],
@@ -554,7 +555,7 @@
     ],
     "result": {
       "type": "view",
-      "semantic_profile": "0.2.6-draft",
+      "semantic_profile": "0.3.0-draft",
       "projection_rule": {
         "id": "projection:observer",
         "version": 1
@@ -636,6 +637,7 @@
           }
         }
       ],
+      "sources": [],
       "currentness": "current",
       "historical": [],
       "review_required": [],

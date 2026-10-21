@@ -124,8 +124,8 @@ adapter/deployment obligations.
 
 ## Measurement and validation
 
-All 66 semantic vectors pass whole and are required in `go/conformance/passing.txt`.
-Admission agreement is 73/73, required by `passing-ops.txt`. The CLI exits 0;
+All 77 semantic vectors pass whole and are required in `go/conformance/passing.txt`.
+Admission agreement is 79/79, required by `passing-ops.txt`. The CLI exits 0;
 semantic conformance is mandatory in CI. Disclosure, delivery and erasure tests
 are described in [disclosure and erasure](disclosure-erasure.md).
 
@@ -151,3 +151,9 @@ go -C go run ./cmd/memory conformance
 
 The structural checker is not an evidence evaluator. Logs and task notes belong
 under ignored `.temp/`; no alternative evaluator is used by this implementation.
+
+K-SRC-1 adds an authorized source table after audience redaction. Its exact
+citation union, numeric ref ordering, live/erased closed variants, retained
+excerpts and source-aware changes share the existing graph and availability
+calculation. S43–S53 cover this presentation contract; retained text never adds
+an evaluation root. Source construction consumes no logical budget.

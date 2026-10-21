@@ -217,10 +217,21 @@ The same idempotency key with the same content returns the existing receipt; the
 When an agent records something that happened in a session, the record holds the piece itself: the statement, or an admitted non-sensitive excerpt. Its source reference is a session locator:
 
 ```json
-{ "runtime": "claude-code", "session": "<session id>", "message": "<message id or index>", "digest": "sha256:<digest of the message text>" }
+{ "runtime": "claude-code", "session": "<session id>", "message": "<message id or index>", "digest": "sha256:<digest of the retained text>" }
 ```
 
-The message id is used where the runtime has one; otherwise the index of the message in the session's stored sequence. The record stays valid when the session is later deleted; its source then reports as unavailable.
+The digest covers the retained UTF-8 text, not necessarily the whole message.
+New source bindings use `owner: runtime:<runtime>`, `object: session:<id>`,
+`revision: message:<id>` or `index:<n>` and `digest.algorithm: sha256-bytes-v1`.
+The canonical locator JSON stays in `origin`; provenance is `reported` and
+availability starts `unavailable`. Legacy bindings render as stored.
+
+The message id is used where the runtime has one; otherwise the index of the
+message in the session's stored sequence. A deleted session does not remove the
+retained excerpt. Authorized recall/explain views show the locator and byte-exact
+excerpt through their cited `sources` table (K-SRC-1). Erasure removes locator,
+digest, origin and excerpt from fresh current/historical reads; an earlier
+capture remains frozen and grants no current delivery rights.
 
 ### 7.3 Concurrent versions
 
@@ -233,7 +244,7 @@ Two writers can extend one sequence from the same expected version before either
 1. **Sync** the readable spaces.
 2. **Verify** every record not yet verified (section 6.3) and update the local index.
 3. **Evaluate** with the kernel over the verified records of all readable spaces, under the requested projection rule.
-4. **Return** the view as JSON (`--json`) or a compact rendering. Every item carries issuer, perspective, source and the `data` classification; the rendering keeps premise quality, source state and freshness.
+4. **Return** the view as JSON (`--json`) or a compact rendering. Every item carries issuer, perspective, source and the `data` classification; the rendering keeps premise quality, source state and freshness. The kernel supplies `sources`, the deduplicated union of displayed citations, ordered by id and numeric version; the CLI preserves exact payloads in JSON and decodes locators/excerpts in compact output. Hidden sources leave no placeholders, audience projections carry an empty table, and source entry changes mark their citing items changed. Retained text never creates a witness or repairs current resolution.
 
 The local index is a cache outside the space repositories and can always be rebuilt from them.
 

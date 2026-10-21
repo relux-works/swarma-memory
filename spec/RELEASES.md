@@ -1,5 +1,14 @@
 # Package releases
 
+## 0.3.0-draft
+
+K-SRC-1 adds the required, citation-closed source table with live and erased
+variants, shared effective availability, byte-exact retained excerpts, source-aware
+changes and frozen captures. Audience projections omit sources. S43–S53 cover
+presentation, non-interference and write refusals. The source digest enum adds
+`sha256-bytes-v1`. All package URNs and semantic profiles now consistently use
+0.3.0, resolving the prior 0.2.6 schema / 0.2.7 package label mismatch.
+
 ## 0.2.7-draft
 
 The Swarma adapter binds kernel principals (issuer, subject, submitter) to platform identity cells resolved through the owner registry; the representation basis is a registry grant checked at admission; an unavailable registry is never a grant. Key rotation and revocation are stated for the adapter. Kernel semantics, schemas and all 74 vectors are unchanged.

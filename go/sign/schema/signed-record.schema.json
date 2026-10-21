@@ -6,19 +6,19 @@
     "record": {
       "oneOf": [
         {
-          "$ref": "urn:bounded-evidence:0.2.6:assertion"
+          "$ref": "urn:bounded-evidence:0.3.0:assertion"
         },
         {
-          "$ref": "urn:bounded-evidence:0.2.6:source"
+          "$ref": "urn:bounded-evidence:0.3.0:source"
         },
         {
-          "$ref": "urn:bounded-evidence:0.2.6:justification"
+          "$ref": "urn:bounded-evidence:0.3.0:justification"
         },
         {
-          "$ref": "urn:bounded-evidence:0.2.6:assessment"
+          "$ref": "urn:bounded-evidence:0.3.0:assessment"
         },
         {
-          "$ref": "urn:bounded-evidence:0.2.6:revision"
+          "$ref": "urn:bounded-evidence:0.3.0:revision"
         }
       ]
     },

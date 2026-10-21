@@ -201,7 +201,7 @@ func entropyExempt(text, path string, root any) bool {
 			object, _ = object["body"].(map[string]any)
 		}
 		digest, _ := object["digest"].(map[string]any)
-		return digest["algorithm"] == "sha256-cjson-v1" && lowerHex(text, 64)
+		return (digest["algorithm"] == "sha256-cjson-v1" || digest["algorithm"] == "sha256-bytes-v1") && lowerHex(text, 64)
 	}
 	return false
 }

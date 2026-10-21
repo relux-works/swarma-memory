@@ -12,7 +12,7 @@ import (
 )
 
 const testSchemaID = "urn:bounded-evidence:test:root"
-const packageSchemaBase = "urn:bounded-evidence:0.2.6:"
+const packageSchemaBase = "urn:bounded-evidence:0.3.0:"
 
 func schemaFile(t *testing.T, id, schema string) *fstest.MapFile {
 	t.Helper()

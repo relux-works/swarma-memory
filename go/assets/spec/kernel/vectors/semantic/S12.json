@@ -593,7 +593,7 @@
     "operation_results": [],
     "result": {
       "type": "view",
-      "semantic_profile": "0.2.6-draft",
+      "semantic_profile": "0.3.0-draft",
       "projection_rule": {
         "id": "projection:main",
         "version": 1
@@ -680,6 +680,27 @@
           }
         }
       ],
+      "sources": [
+        {
+          "ref": {
+            "id": "rec:s",
+            "version": 1
+          },
+          "issuer": "subj:h1",
+          "submitter": "subj:h1",
+          "representation_ref": null,
+          "admission_class": "machine_observation",
+          "owner": "system:documents",
+          "source_kind": "document",
+          "provenance": "canonical",
+          "original_issuer": "subj:h1",
+          "carrier": null,
+          "availability": "erased",
+          "excerpt": {
+            "state": "erased"
+          }
+        }
+      ],
       "currentness": "current",
       "historical": [],
       "review_required": [],
@@ -725,7 +746,7 @@
       "value": "present"
     },
     {
-      "path": "/result/items/0/excerpt",
+      "path": "/result/sources/0/excerpt/text",
       "test": "exists",
       "value": null
     }

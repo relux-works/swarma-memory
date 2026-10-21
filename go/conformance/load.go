@@ -9,7 +9,7 @@ import (
 	"github.com/relux-works/swarma-memory/go/kernel"
 )
 
-const vectorSchema = "urn:bounded-evidence:0.2.6:vector"
+const vectorSchema = "urn:bounded-evidence:0.3.0:vector"
 
 // Vector is a schema-validated semantic fixture with checked comparison metadata.
 // Its expected report stays private and is never passed to an Executor.

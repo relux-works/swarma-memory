@@ -2,6 +2,8 @@ package e2e_test
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -68,7 +70,7 @@ func projectedItems(t *testing.T, spaces []readSpace, space string) []map[string
 	result := []map[string]json.RawMessage{}
 	for _, s := range spaces {
 		for _, raw := range s.Views {
-			v := object(t, raw, "type", "semantic_profile", "projection_rule", "evidence_policy", "policy", "data_classification", "items", "currentness", "historical", "review_required", "explanation", "cutoffs", "changes")
+			v := object(t, raw, "type", "semantic_profile", "projection_rule", "evidence_policy", "policy", "data_classification", "items", "sources", "currentness", "historical", "review_required", "explanation", "cutoffs", "changes")
 			object(t, v["changes"], "state", "refs")
 			explanation := object(t, v["explanation"], "status", "paths", "reason")
 			for _, path := range array(t, explanation["paths"]) {
@@ -454,16 +456,15 @@ func TestPhaseBAssessAndPromote(t *testing.T) {
 	f.verifyCommits(target)
 }
 
-// Scenario 11 (v1): B sees A's exact session-source ref in recall/explain,
-// and check verifies the atomic signed batch containing that source. Revoking
-// space read access hides all data/refs; A still reads, and regrant restores B.
-// This does not claim per-record filtering or locator/excerpt presentation.
+// Scenario 11: B sees the exact locator, raw-text digest and retained Unicode
+// excerpt from the verified signed batch in recall/explain. Revocation denies
+// all data; A still reads, and regrant restores B. No live resolver is claimed.
 func TestPhaseBSessionSource(t *testing.T) {
 	f := newFixture(t)
 	p := f.project("project:session", "session")
 	id := "record:session-observation"
 	source := recordRef{id + ":source", 1}
-	excerpt := "The session selected a bounded queue.\nPreserve this trailing newline.\n"
+	excerpt := "The session selected a bounded queue: café, Հայերեն.\nPreserve this trailing newline.\n"
 	before := state(f.a, p)
 	refused(t, f.a.start(excerpt, "add", "assertion", "--space", p.id, "--content", "Malformed session control", "--idempotency-key", "deny:session", "--source-session", "runtime:session", "--source-text", "-", "--at", intakeTime).finish(2), "usage")
 	unchanged(t, before, f.a, p)
@@ -489,6 +490,26 @@ func TestPhaseBSessionSource(t *testing.T) {
 			content(t, i, "Session observation")
 			if text(t, i["issuer"]) != f.a.identity || !reflect.DeepEqual(refs(t, i["source_refs"]), []recordRef{source}) {
 				t.Fatal("session assertion lost issuer/source ref")
+			}
+			rows, _ := readSpaces(t, r)
+			if len(rows) != 1 || len(rows[0].Views) != 1 {
+				t.Fatal("expected one source view")
+			}
+			view := object(t, rows[0].Views[0], "type", "semantic_profile", "projection_rule", "evidence_policy", "policy", "data_classification", "items", "sources", "currentness", "historical", "review_required", "explanation", "cutoffs", "changes")
+			entries := array(t, view["sources"])
+			if len(entries) != 1 {
+				t.Fatal("expected exactly one source entry")
+			}
+			entry := object(t, entries[0], "ref", "issuer", "submitter", "representation_ref", "admission_class", "owner", "source_kind", "object", "revision", "digest", "provenance", "origin", "original_issuer", "carrier", "availability", "excerpt")
+			locator := map[string]string{}
+			if err := json.Unmarshal([]byte(text(t, entry["origin"])), &locator); err != nil || !reflect.DeepEqual(locator, map[string]string{"runtime": "runtime", "session": "planning", "message": "message:42"}) {
+				t.Fatal("wrong decoded locator", locator, err)
+			}
+			digest := object(t, entry["digest"], "algorithm", "value")
+			sum := sha256.Sum256([]byte(excerpt))
+			retained := object(t, entry["excerpt"], "state", "text")
+			if ref(t, entry["ref"]) != source || text(t, entry["owner"]) != "runtime:runtime" || text(t, entry["object"]) != "session:planning" || text(t, entry["revision"]) != "message:42" || text(t, entry["availability"]) != "unavailable" || text(t, entry["provenance"]) != "reported" || text(t, digest["algorithm"]) != "sha256-bytes-v1" || text(t, digest["value"]) != hex.EncodeToString(sum[:]) || text(t, retained["state"]) != "present" || text(t, retained["text"]) != excerpt {
+				t.Fatal("source locator, digest or excerpt changed", string(entries[0]))
 			}
 		}
 	}

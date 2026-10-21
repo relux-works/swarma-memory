@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
-BASE='urn:bounded-evidence:0.2.6:'
+BASE='urn:bounded-evidence:0.3.0:'
 ERRORS=[]
 class Invalid(ValueError): pass
 
@@ -249,6 +249,17 @@ def forbidden_true(report,predicate):
     if test=='size_equals':return isinstance(actual,list) and type(wanted) is int and len(actual)==wanted
     raise Invalid('unknown forbidden test')
 
+def check_source_closure(report):
+    """Every view joins exactly the displayed citation set, in numeric order."""
+    if isinstance(report,dict):
+        if report.get('type')=='view':
+            cited=sorted({rkey(r) for item in report['items'] for r in item['source_refs']})
+            actual=[rkey(entry['ref']) for entry in report['sources']]
+            require(actual==cited,'source table closure differs from displayed citations')
+        for value in report.values():check_source_closure(value)
+    elif isinstance(report,list):
+        for value in report:check_source_closure(value)
+
 def check_normalization(v):
     n=v['normalization'];report=v['expected'];paths=n['fresh_handles']
     require(len(paths)==len(set(paths)),'duplicate normalized path')
@@ -299,6 +310,14 @@ def controls(validator,vectors):
             cases.append(label);return
         raise Invalid('control '+label+' was not rejected')
     validator.check(vector,validator.schemas[BASE+'vector']) # Nearby positive control.
+    source_vector=vectors['S43']
+    check_source_closure(source_vector['expected'])
+    plant=copy.deepcopy(source_vector['expected']);plant['result']['sources']=[]
+    rejected('source-table-missing-citation',lambda:check_source_closure(plant),'source table closure')
+    plant=copy.deepcopy(source_vector['expected']);plant['result']['sources'].append(copy.deepcopy(plant['result']['sources'][0]))
+    rejected('source-table-duplicate',lambda:check_source_closure(plant),'source table closure')
+    plant=copy.deepcopy(source_vector['expected']);plant['result']['sources'][0]['ref']['id']='rec:uncited'
+    rejected('source-table-uncited',lambda:check_source_closure(plant),'source table closure')
     v=copy.deepcopy(vector);v['extra']=True
     rejected('unknown-vector-field',lambda:validator.check(v,validator.schemas[BASE+'vector']),'unknown fields')
     v=copy.deepcopy(vector);del v['query']
@@ -460,11 +479,12 @@ def main():
             check_admission_facts(v)
             for pred in v['forbidden']:require(not forbidden_true(v['expected'],pred),'expected output satisfies forbidden predicate '+pred['path'])
             check_normalization(v)
+            check_source_closure(v['expected'])
         except (Invalid,KeyError) as e:ERRORS.append(f'{p.relative_to(ROOT)}: {e}')
     for p,f in fixtures:
         try:validator.check(f,schemas[BASE+'fixture']);check_state(f['initial_state'],documents)
         except (Invalid,KeyError) as e:ERRORS.append(f'{p.relative_to(ROOT)}: {e}')
-    expected_ids={f'S{i:02d}' for i in range(1,43)}|{f'P{i:02d}' for i in range(1,16)}|{f'B{i:02d}' for i in range(1,18)}
+    expected_ids={f'S{i:02d}' for i in range(1,54)}|{f'P{i:02d}' for i in range(1,16)}|{f'B{i:02d}' for i in range(1,18)}
     if set(vectors)!=expected_ids:ERRORS.append('vector inventory mismatch: '+str(sorted(expected_ids^set(vectors))))
     try:check_issuer_local_pairs(vectors)
     except (Invalid,KeyError) as e:ERRORS.append('issuer-local invariance pair: '+str(e))

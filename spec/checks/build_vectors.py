@@ -77,9 +77,9 @@ def audience_item(i,handle):
  for p in ['support','oppose']: z[p]['witness_roots']=[]
  return z
 
-def view(items=(),q=None,current=None,historical=(),review=(),cutoffs=(),explanation=None,changes=None):
+def view(items=(),q=None,current=None,historical=(),review=(),cutoffs=(),explanation=None,changes=None,sources=None):
  q=q or Q()
- return dict(type='view',semantic_profile='0.2.6-draft',projection_rule=q['projection_rule'],evidence_policy=q['evidence_policy'],policy=q['policy'],authorized_snapshot_handle='@view',data_classification='data',items=list(items),currentness=current or ('current' if items else 'none'),historical=sorted([rr(x) for x in historical],key=key),review_required=sorted([rr(x) for x in review],key=key),explanation=explanation or dict(status='complete',paths=[],reason=None),cutoffs=sorted(set(cutoffs)),changes=changes or dict(state='initial',refs=[]))
+ return dict(type='view',semantic_profile='0.3.0-draft',projection_rule=q['projection_rule'],evidence_policy=q['evidence_policy'],policy=q['policy'],authorized_snapshot_handle='@view',data_classification='data',items=list(items),sources=sources,currentness=current or ('current' if items else 'none'),historical=sorted([rr(x) for x in historical],key=key),review_required=sorted([rr(x) for x in review],key=key),explanation=explanation or dict(status='complete',paths=[],reason=None),cutoffs=sorted(set(cutoffs)),changes=changes or dict(state='initial',refs=[]))
 def refused(code): return dict(type='refusal',code=code,retryable=code in ['version_conflict','policy_mismatch','stale_generation','erasure_incomplete','publication_stale','unavailable'])
 def receipt(op,rs=(),outcome=None,custody=(),status=None,handle='@receipt'):
  return dict(type='receipt',operation=op,outcome=outcome or dict(admit='admitted',revise='revised',erase='purged',declassify='declassified',revoke='revoked',revoke_declassification='revoked',restore='fenced',deliver='delivered',control='proceeded',load='proceeded',set_availability='availability_changed')[op],receipt_handle=handle,refs=sorted([rr(x) if 'envelope' in x else x for x in rs],key=key),custody=sorted(custody),erasure_status=status)
@@ -93,7 +93,26 @@ def custody(id,inputs,kind='payload',controlled=True,reachable=True): return dic
 VECTORS=[]
 CLAUSES={}
 
+def source_view(source, availability=None):
+ # Hand-labelled output formatting only: no graph traversal or witness evaluation.
+ e=source['envelope']; b=source['body']; availability=availability or b['availability']
+ v=dict(ref=rr(source), **{k:cp(e[k]) for k in ['issuer','submitter','representation_ref','admission_class']}, **{k:cp(b[k]) for k in ['owner','source_kind','provenance','original_issuer','carrier']}, availability=availability)
+ if availability=='erased': v['excerpt']=dict(state='erased')
+ else:
+  v.update({k:cp(b[k]) for k in ['object','revision','digest','origin']})
+  v['excerpt']=dict(state='none') if b['excerpt'] is None else dict(state='present',text=b['excerpt'])
+ return v
+
+def expected_source_table(output,s):
+ # Old oracle citations explicitly name their initial stored source versions.
+ # Join fields only; changed availability/disposition is hand-labelled below.
+ if output.get('type')!='view' or output.get('sources') is not None:return
+ index={key(rr(r)):r for r in s['records']}
+ cited=setrefs([ref for item in output['items'] for ref in item['source_refs']])
+ output['sources']=[source_view(index[key(ref)]) for ref in cited]
+
 def emit(id,title,s,q,v,clauses,ops=(),results=(),added=(),erased=(),dirty=None,present=None,controls=(),forbid=(),pairs=(),replays=(),profile='semantic'):
+ for output in list(results)+[v]:expected_source_table(output,s)
  exp=dict(operation_results=list(results),result=v,postconditions=dict(record_refs=setrefs(refs(s['records'])+refs(added)),erased_refs=sorted([rr(x) for x in erased],key=key),custody_present=sorted(present if present is not None else [x['id'] for x in s['runtime']['custody'] if x['present']]),dirty=sorted([rr(x) if 'envelope' in x else x for x in (dirty if dirty is not None else s['runtime']['dirty'])],key=key),control_observations=list(controls),external_effects=[]))
  fresh=[]; equal=[]; groups=[]; slot=0
  def assign(o,path):
@@ -164,7 +183,7 @@ a=A('a');b=A('b');src=Source();e=E('sig',a,check='signature',sources=[src],execu
 emit('S11','Exact assessment pins cannot be copied to another candidate',s,q,view([item(b)]),['K-REC-2','K-REC-3'],forbid=[forbidden('/result/items/0/support/witness')])
 # S12: a current-required root is blocked by erased source availability.
 a=A();src=Source(availability='erased');e=E('ep',a,sources=[src]);s=state([a,src,e]);q=Q(targets=[a])
-emit('S12','Erased current-required source yields an explicit gap',s,q,view([item(a,sources=[src],support=polar(complete=False,source_state='prior_assessment_only'),source_state='prior_assessment_only')],cutoffs=['source_unavailable']),['K-EVAL-5','K-ERASE-1','K-TIME-1'],forbid=[forbidden('/result/items/0/oppose/witness'),forbidden('/result/items/0/excerpt','exists',None)])
+emit('S12','Erased current-required source yields an explicit gap',s,q,view([item(a,sources=[src],support=polar(complete=False,source_state='prior_assessment_only'),source_state='prior_assessment_only')],cutoffs=['source_unavailable'],sources=[source_view(src)]),['K-EVAL-5','K-ERASE-1','K-TIME-1'],forbid=[forbidden('/result/items/0/oppose/witness'),forbidden('/result/sources/0/excerpt/text','exists',None)])
 # S13: hidden opposition added after a public capture does not alter the projection.
 a=A();ep=E('ep',a);hidden=E('hidden',a,pol='oppose',private=True);s=state([a,ep],review=[hidden]);q0=Q(targets=[a]);q=Q(targets=[a],cut=101);v=view([item(a,['origin:ep'])])
 emit('S13','Hidden opposing evidence is excluded before evaluation',s,q,cp(v),['K-AUTH-1','K-NI-1','K-NI-2','K-VEC-2'],ops=[capture(q0),admit([hidden])],results=[cp(v),receipt('admit',[hidden])],added=[hidden],pairs=[('/operation_results/0','/result')],forbid=[forbidden('/result/items/0/oppose/witness')])
@@ -293,7 +312,7 @@ emit('S42','Carrier and submitter changes do not change protected H1 event order
 a=A();src=Source('grounds');src['body']['excerpt']='Four grounds: g1, g2, g3, g4. Only g1, g2 and g3 were registered.';src['body']['retention_admission']=R('retention:grounds');es=[E('g'+str(n),a,sources=[src],origin='origin:grounds') for n in range(1,4)];s=state([a,src]+es);q=Q(targets=[a])
 covered=A('covered','explicitly scoped coverage');cover=E('coverage',check='source_binding',subject=rr(covered),executor='deterministic');s=state([a,src,covered,cover]+es);s['policy']['coverage']=[dict(assertion=rr(covered),declaration=rr(cover))];qc=Q(targets=[covered]);ic=item(covered)
 for polarity in ['support','oppose']:ic[polarity]['corpus_coverage']=dict(kind='declared',ref=rr(cover))
-emit('S30','Complete registered evaluation leaves source corpus coverage unknown',s,q,view([item(a,['origin:grounds'],sources=[src])]),['K-EVAL-3','K-REC-1','K-DISC-3'],ops=[capture(qc)],results=[view([ic],qc)],forbid=[forbidden('/result/items/0/support/corpus_coverage/kind',value='declared')])
+emit('S30','Complete registered evaluation leaves source corpus coverage unknown',s,q,view([item(a,['origin:grounds'],sources=[src])],sources=[source_view(src)]),['K-EVAL-3','K-REC-1','K-DISC-3'],ops=[capture(qc)],results=[view([ic],qc)],forbid=[forbidden('/result/items/0/support/corpus_coverage/kind',value='declared')])
 # S31: compact is exactly the same evidence contract as full.
 base=next(x for x in VECTORS if x['id']=='S03');s=cp(base['initial_state']);q=cp(base['query']);q['render']='compact';v=cp(base['expected']['result'])
 emit('S31','Compact rendering preserves conflicted-premise quality',s,q,v,['K-EVAL-4','K-EVAL-7'],forbid=[forbidden('/result/items/0/support/premise_quality',value='clean_path')])
@@ -557,7 +576,7 @@ emit('B11','A physically delayed derivative writer cannot cross an erasure fence
 base=next(x for x in VECTORS if x['id']=='S14');a=cp(base['operations'][0]['proposals'][0]);a['envelope'].update(submitter=H,recorded=dict(sequence=101,at=T),admission_class='machine_observation')
 emit('B12','Duplicate import replays one receipt and changed intent conflicts',cp(base['initial_state']),cp(base['query']),cp(base['expected']['result']),['K-API-1','K-JSON-2'],ops=cp(base['operations']),results=cp(base['expected']['operation_results']),added=[a],replays=[(0,1)],forbid=cp(base['forbidden']))
 a=A();src=Source(availability='unavailable');ep=E('ep',a,sources=[src]);s=state([a,src,ep]);q=Q()
-emit('B13','Unavailable source leaves an incomplete knowledge result',s,q,view([item(a,sources=[src],support=polar(complete=False,source_state='prior_assessment_only'),source_state='prior_assessment_only')],cutoffs=['source_unavailable']),['K-EVAL-5','K-EVAL-3'],forbid=[forbidden('/result/items/0/oppose/witness')])
+emit('B13','Unavailable source leaves an incomplete knowledge result',s,q,view([item(a,sources=[src],support=polar(complete=False,source_state='prior_assessment_only'),source_state='prior_assessment_only')],cutoffs=['source_unavailable'],sources=[source_view(src)]),['K-EVAL-5','K-EVAL-3'],forbid=[forbidden('/result/items/0/oppose/witness')])
 for id,origin,title in [('B14','S04','A surviving sufficient alternative preserves support'),('B15','S06','A dependency cap cannot masquerade as complete absence')]:
  base=next(x for x in VECTORS if x['id']==origin)
  emit(id,title,cp(base['initial_state']),cp(base['query']),cp(base['expected']['result']),['K-EVAL-1','K-EVAL-2','K-API-3'],forbid=cp(base['forbidden']))
@@ -567,4 +586,73 @@ emit('B16','External stop park and revocation proceed while memory is unavailabl
 # B17: requested execution is data for a separate executor, not a memory action.
 a=A();src=Source('candidate',kind='artifact');s=state([a,src]);q=Q();op=dict(op='request_check',actor=H,at=T,evidence=rr(src),check_kind='test_result')
 emit('B17','Requesting a fresh test launches no execution',s,q,view([item(a)]),['K-BOUND-1','K-REC-3','K-API-2'],ops=[op],results=[refused('execution_required')],profile='deployment',forbid=[forbidden('/postconditions/external_effects','contains','process:started')])
+# S43-S53: source payload presentation, independently labelled from the contract.
+# Documentary citations never supply an evaluative root.
+def session_source(id='session',private=False,availability='unavailable'):
+ src=Source(id,kind='artifact',private=private,availability=availability)
+ excerpt='A retained observation: café, Հայերեն.\nSecond line.\n'
+ src['body'].update(owner='runtime:example',object='session:planning',revision='message:42',digest=dict(algorithm='sha256-bytes-v1',value=hashlib.sha256(excerpt.encode()).hexdigest()),provenance='reported',origin='{"message":"42","runtime":"example","session":"planning"}',excerpt=excerpt,retention_admission=R('retention:session'))
+ return src
+
+a=A(); b=A('b','beta'); src=session_source(); ja=J('basis-a',a,[src],role='documentary_basis'); jb=J('basis-b',b,[src],role='documentary_basis')
+s=state([a,b,src,ja,jb]); q=Q()
+ivs=[item(x,sources=[src],source_state='prior_assessment_only') for x in [a,b]]
+emit('S43','Two assertions share one byte-exact retained source without a witness',s,q,view(ivs,sources=[source_view(src)]),['K-SRC-1','K-EVAL-5','K-DISC-3'],forbid=[forbidden('/result/sources','size_equals',2),forbidden('/result/items/0/support/witness'),forbidden('/result/items/1/support/witness')])
+
+src=session_source(availability='resolvable'); j=J('basis',a,[src],role='documentary_basis'); rev=Rev('session-deleted',src,relation='availability'); rev['body']['availability']='unavailable'
+s=state([a,src,j],review=[rev]); q0=Q(); q=Q(cut=101,kind='changes'); q['since']=0
+before=view([item(a,sources=[src])],sources=[source_view(src)])
+after=view([item(a,sources=[src],source_state='prior_assessment_only')],q,changes=dict(state='changed',refs=[rr(a)]),sources=[source_view(src,'unavailable')])
+emit('S44','An unavailable revision preserves the excerpt and changes the citing item',s,q,after,['K-SRC-1','K-EVAL-5','K-EVAL-9','K-SNAP-1'],ops=[capture(q0),revise(rev)],results=[before,receipt('revise',[rev])],added=[rev],forbid=[forbidden('/result/sources/0/excerpt/state',value='none'),forbidden('/result/items/0/support/witness')])
+
+# The earlier operation result stays full; fresh current and historical reads
+# see the erased variant. A fence-only companion is S52.
+src=session_source(); j=J('basis',a,[src],role='documentary_basis'); s=state([a,src,j]); s['runtime']['committed_cuts']=[10,100]
+q0=Q(); qold=Q(cut=10); q=Q()
+full=view([item(a,sources=[src],source_state='prior_assessment_only')],sources=[source_view(src)])
+erased=view([item(a,sources=[src],source_state='prior_assessment_only')],sources=[source_view(src,'erased')])
+emit('S45','Erasure redacts current and historical source bytes while an earlier capture stays full',s,q,cp(erased),['K-SRC-1','K-ERASE-1','K-SNAP-1'],ops=[capture(q0),erase([src]),capture(qold)],results=[cp(full),receipt('erase',[src],status='purged_within_boundary'),cp(erased)],erased=[src],pairs=[('/operation_results/2','/result')],forbid=[forbidden('/result/sources/0/excerpt/text','exists',None),forbidden('/operation_results/2/sources/0/object','exists',None),forbidden('/result/sources/0/origin','exists',None)])
+
+# Public before/after pairs for each hidden append, availability revision and
+# erasure; private-reader positive controls observe each transition in changes.
+src=session_source(private=True,availability='resolvable'); j=J('private-basis',a,[src],role='documentary_basis',private=True); rev=Rev('private-unavailable',src,relation='availability',private=True); rev['body']['availability']='unavailable'
+s=state([a],review=[src,j,rev]); pub=Q(); private=Q(aud=PRIV)
+def cq(cut,since,aud=PUB):
+ q=Q(cut=cut,kind='changes',aud=aud);q['since']=since;return q
+public_views=[view([item(a)],changes=dict(state='no_change',refs=[]),sources=[]) for _ in range(4)]
+private_views=[view([item(a,sources=[src],source_state=st)],changes=dict(state='changed',refs=[rr(a)]),sources=[source_view(src,av)]) for st,av in [('resolvable_now','resolvable'),('prior_assessment_only','unavailable'),('prior_assessment_only','erased')]]
+ops=[capture(pub),capture(private),capture(cq(100,0)),admit([src,j],aud=PRIV),capture(cq(102,0)),capture(cq(102,1,PRIV)),revise(rev),capture(cq(103,0)),capture(cq(103,5,PRIV)),erase([src]),capture(cq(103,0)),capture(cq(103,8,PRIV))]
+ops[6]['context']['retention_context']['audience']=PRIV
+results=[view([item(a)],sources=[]),view([item(a)],sources=[]),public_views[0],receipt('admit',[src,j]),public_views[1],private_views[0],receipt('revise',[rev]),public_views[2],private_views[1],receipt('erase',[src],status='purged_within_boundary'),public_views[3],private_views[2]]
+emit('S46','Hidden source append revision and erasure preserve public changes with private controls',s,cq(103,0),cp(public_views[3]),['K-SRC-1','K-NI-1','K-AUTH-1','K-EVAL-9','K-VEC-2'],ops=ops,results=results,added=[src,j,rev],erased=[src],pairs=[('/operation_results/0','/operation_results/1'),('/operation_results/2','/operation_results/4'),('/operation_results/4','/operation_results/7'),('/operation_results/7','/operation_results/10'),('/operation_results/10','/result')],forbid=[forbidden('/result/sources/0','exists',None),forbidden('/result/items/0/source_refs/0','exists',None)])
+
+# A visible source is not independently enumerable through a hidden citation.
+src=session_source(availability='resolvable'); j=J('hidden-basis',a,[src],role='documentary_basis',private=True);s=state([a,src,j]);q=Q()
+emit('S47','A visible source cited only through a hidden justification stays absent',s,q,view([item(a)],sources=[]),['K-SRC-1','K-NI-1','K-AUTH-1','K-VEC-2'],ops=[capture(Q(aud=PRIV))],results=[view([item(a,sources=[src])],sources=[source_view(src)])],forbid=[forbidden('/result/sources/0','exists',None),forbidden('/result/items/0/source_refs/0','exists',None)])
+
+src=session_source(private=True);j=J('basis',a,[src],role='documentary_basis',private=True);s=state([a,src,j]);qh=Q(targets=[src]);qm=Q(targets=[R('missing-source')]);qp=Q(aud=PRIV,targets=[a])
+emit('S48','A query targeting a hidden source matches a nonexistent id',s,qh,view([],qh,sources=[]),['K-SRC-1','K-NI-1','K-AUTH-1','K-VEC-2'],ops=[capture(qm),capture(qp)],results=[view([],qm,sources=[]),view([item(a,sources=[src],source_state='prior_assessment_only')],qp,sources=[source_view(src)])],pairs=[('/operation_results/0','/result')],forbid=[forbidden('/result/sources/0','exists',None)])
+
+src=session_source();j=J('basis',a,[src],role='documentary_basis');rule=Rule('projection:public',family='audience_projection',aud=PUB,purpose=READ);s=state([a,src,j],rules=[Rule(),rule]);s['policy']['handles']=[dict(subject=H,space=SPACE,audience=PUB,handle='subj:public')];q=Q(rule='projection:public')
+i=item(a,sources=[src],source_state='prior_assessment_only')
+emit('S49','Audience projection omits public source payloads and references',s,q,view([audience_item(i,'subj:public')],q,sources=[]),['K-SRC-1','K-DISC-2','K-AUTH-1'],ops=[capture(Q())],results=[view([i],sources=[source_view(src)])],forbid=[forbidden('/result/sources/0','exists',None),forbidden('/result/items/0/source_refs/0','exists',None)])
+
+s=state([a,src,j]);q=Q(bounds={**BOUNDS,'source_resolutions':0});v=view([item(a,sources=[src],source_state='prior_assessment_only')],sources=[source_view(src)])
+emit('S50','Source payload construction spends no source-resolution budget',s,q,cp(v),['K-SRC-1','K-EVAL-2','K-EVAL-5'],ops=[capture(Q())],results=[cp(v)],pairs=[('/operation_results/0','/result')],forbid=[forbidden('/result/cutoffs','contains','source_limit')])
+
+src=session_source();missing=cp(src);missing['body']['retention_admission']=None;unknown=cp(src);unknown['body']['digest']['algorithm']='unknown-digest'
+s=state([a],review=[src]);q=Q(cut=101)
+# Use raw admission for the structurally invalid algorithm so the vector itself
+# still obeys its closed operation schema.
+raw=json.dumps(dict(proposals=[proposal(unknown)]),ensure_ascii=False,separators=(',',':'))
+raw_op=dict(op='admit_raw',context=ctx(),idempotency_key='key:unknown-digest',raw_json=raw,expected_generation=0)
+emit('S51','Excerpt retention and digest algorithm refusals precede a valid source control',s,q,view([item(a)],sources=[]),['K-SRC-1','K-REF-1','K-JSON-1','K-API-1'],ops=[admit([missing]),raw_op,admit([src],key='key:valid-source')],results=[refused('invalid_reference'),refused('invalid_shape'),receipt('admit',[src])],added=[src],forbid=[forbidden('/operation_results/0/type',value='receipt'),forbidden('/operation_results/1/type',value='receipt'),forbidden('/result/sources/0','exists',None)])
+
+src=session_source();j=J('basis',a,[src],role='documentary_basis');s=state([a,src,j]);s['runtime']['committed_cuts']=[10,100];s['runtime']['fences']=[rr(src)];s['runtime']['erasure_generation']=1
+v=view([item(a,sources=[src],source_state='prior_assessment_only')],sources=[source_view(src,'erased')])
+emit('S52','A fence alone redacts source bytes at current and historical cuts',s,Q(),cp(v),['K-SRC-1','K-ERASE-1'],ops=[capture(Q(cut=10))],results=[cp(v)],pairs=[('/operation_results/0','/result')],forbid=[forbidden('/result/sources/0/excerpt/text','exists',None),forbidden('/operation_results/0/sources/0/digest','exists',None)])
+
+src=session_source();e=E('checked',a,sources=[src]);s=state([a,src,e]);q=Q();i=item(a,sources=[src],support=polar(complete=False,source_state='prior_assessment_only'),source_state='prior_assessment_only')
+emit('S53','A retained excerpt cannot satisfy a current-required root',s,q,view([i],cutoffs=['source_unavailable'],sources=[source_view(src)]),['K-SRC-1','K-EVAL-5','K-REC-3'],forbid=[forbidden('/result/items/0/support/witness'),forbidden('/result/items/0/support/source_state',value='resolvable_now')])
+
 print(f'Wrote {len(VECTORS)} vectors: {sum(v["profile"]=="semantic" for v in VECTORS)} semantic, {sum(v["profile"]=="deployment" for v in VECTORS)} deployment; one decision fixture.')

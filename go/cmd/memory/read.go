@@ -225,6 +225,23 @@ func readCLI(ctx context.Context, h home, c localConfig, a arguments) (any, erro
 				found = true
 			}
 			view["items"] = items
+			// Recall's text filter is a second selection boundary: retain the
+			// kernel entries cited by its displayed items, in kernel order.
+			cited := map[string]bool{}
+			for _, rawItem := range items {
+				for _, ref := range agentprofile.Array(agentprofile.Object(rawItem)["source_refs"]) {
+					key, _ := json.Marshal(ref)
+					cited[string(key)] = true
+				}
+			}
+			sources := []any{}
+			for _, raw := range agentprofile.Array(view["sources"]) {
+				key, _ := json.Marshal(agentprofile.Object(raw)["ref"])
+				if cited[string(key)] {
+					sources = append(sources, raw)
+				}
+			}
+			view["sources"] = sources
 			delete(view, "authorized_snapshot_handle")
 			// Empty recall/explain scopes are omitted so hidden records cannot leak
 			// their subjects, schema combinations or scope counts through CLI data.

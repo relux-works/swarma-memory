@@ -744,7 +744,7 @@
       },
       {
         "type": "view",
-        "semantic_profile": "0.2.6-draft",
+        "semantic_profile": "0.3.0-draft",
         "projection_rule": {
           "id": "projection:observer",
           "version": 1
@@ -830,6 +830,7 @@
             }
           }
         ],
+        "sources": [],
         "currentness": "current",
         "historical": [],
         "review_required": [],
@@ -847,7 +848,7 @@
     ],
     "result": {
       "type": "view",
-      "semantic_profile": "0.2.6-draft",
+      "semantic_profile": "0.3.0-draft",
       "projection_rule": {
         "id": "projection:main",
         "version": 1
@@ -929,6 +930,7 @@
           }
         }
       ],
+      "sources": [],
       "currentness": "current",
       "historical": [],
       "review_required": [],

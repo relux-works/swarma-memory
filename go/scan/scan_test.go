@@ -169,6 +169,8 @@ func TestExemptions(t *testing.T) {
 		{"body-output-digest", map[string]any{"body": map[string]any{"declassification": map[string]any{"output_digest": digest}}}},
 		{"bare-declassification", map[string]any{"declassification": map[string]any{"output_digest": digest}}},
 		{"source-digest", map[string]any{"body": map[string]any{"digest": map[string]any{"algorithm": "sha256-cjson-v1", "value": digest}}}},
+		{"bytes-source-digest", map[string]any{"body": map[string]any{"digest": map[string]any{"algorithm": "sha256-bytes-v1", "value": digest}}}},
+		{"bare-bytes-source-digest", map[string]any{"digest": map[string]any{"algorithm": "sha256-bytes-v1", "value": digest}}},
 		{"bare-source-digest", map[string]any{"digest": map[string]any{"algorithm": "sha256-cjson-v1", "value": digest}}},
 		{"locator", map[string]any{"locator": "sha256:" + digest}},
 		{"source-object", map[string]any{"body": map[string]any{"object": "sha256:" + digest}}},
@@ -304,7 +306,7 @@ func TestPointersAndDeterminism(t *testing.T) {
 // not proof that arbitrary non-sensitive input will be accepted.
 func TestCorpusFalsePositives(t *testing.T) {
 	files, err := filepath.Glob("../../spec/kernel/vectors/semantic/*.json")
-	if err != nil || len(files) != 66 {
+	if err != nil || len(files) != 77 {
 		t.Fatal("semantic corpus absent or changed")
 	}
 	semanticFiles := len(files)

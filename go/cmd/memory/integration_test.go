@@ -288,7 +288,7 @@ func TestJSONHarnessAndUsage(t *testing.T) {
 			t.Fatal(f)
 		}
 		m := agentprofile.Object(v)
-		if code == 0 && !strings.Contains(out.String(), "66/66 semantic vectors pass") || code == 2 && errorCodeOf(m) != "conformance_failed" {
+		if code == 0 && !strings.Contains(out.String(), "77/77 semantic vectors pass") || code == 2 && errorCodeOf(m) != "conformance_failed" {
 			t.Fatal(m)
 		}
 	}

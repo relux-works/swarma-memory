@@ -27,8 +27,8 @@ func suite(t *testing.T) []Vector {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(vs) != 66 {
-		t.Fatalf("got %d vectors; want 66", len(vs))
+	if len(vs) != 77 {
+		t.Fatalf("got %d vectors; want 77", len(vs))
 	}
 	return vs
 }
@@ -64,7 +64,7 @@ func wanted(t *testing.T, v Vector, r Report, rule, pointer string) {
 	}
 }
 
-// TestOracle proves all 66 expected reports with valid generated handles pass
+// TestOracle proves all 77 expected reports with valid generated handles pass
 // through the runner, and execution-only inputs cannot mutate fixture data.
 func TestOracle(t *testing.T) {
 	vs := suite(t)
@@ -89,7 +89,7 @@ func TestOracle(t *testing.T) {
 			}
 		})
 	}
-	t.Logf("oracle: %d/66 pass", len(verdicts))
+	t.Logf("oracle: %d/77 pass", len(verdicts))
 }
 
 // TestMutationControls plants each applicable failure in every vector. Exact
@@ -227,11 +227,16 @@ func TestMutationControls(t *testing.T) {
 			}
 			// Use the first observable pair. Pointer/rule witnesses for the corpus are
 			// asserted below, including handle and forbidden constraints retained on reorder.
+			normalizedBase := clone(map[string]any(base)).(map[string]any)
+			for _, raw := range v.document["normalization"].(map[string]any)["fresh_handles"].([]any) {
+				replace(normalizedBase, raw.(string), freshMarker{})
+			}
+			normalizedOps := normalizedBase["operation_results"].([]any)
 			ops := base["operation_results"].([]any)
 		outer:
 			for i := 0; i < len(ops); i++ {
 				for j := i + 1; j < len(ops); j++ {
-					if reflect.DeepEqual(ops[i], ops[j]) {
+					if reflect.DeepEqual(normalizedOps[i], normalizedOps[j]) {
 						continue
 					}
 					t.Run("reorder", func(t *testing.T) {
@@ -253,7 +258,7 @@ func TestMutationControls(t *testing.T) {
 			}
 		})
 	}
-	expectedCounts := map[string]int{"leaf": 66, "removed": 66, "added": 66, "reorder": 28, "equal_handles": 61, "distinct_handles": 35, "fresh_handles": 66, "forbidden": 160, "inventory_missing": 77, "inventory_unsorted": 59}
+	expectedCounts := map[string]int{"leaf": 77, "removed": 77, "added": 77, "reorder": 33, "equal_handles": 72, "distinct_handles": 44, "fresh_handles": 77, "forbidden": 183, "inventory_missing": 90, "inventory_unsorted": 70}
 	if !reflect.DeepEqual(counts, expectedCounts) {
 		t.Fatalf("mutation applicability changed: %v; want %v", counts, expectedCounts)
 	}
@@ -355,7 +360,7 @@ func TestKernelWrites(t *testing.T) {
 		}
 	}
 	counts := CountParts(verdicts)
-	for kind, want := range map[string]Agreement{"admit": {45, 45}, "admit_raw": {2, 2}, "revise": {26, 26}, "load": {1, 1}} {
+	for kind, want := range map[string]Agreement{"admit": {48, 48}, "admit_raw": {3, 3}, "revise": {28, 28}, "load": {1, 1}} {
 		if counts[kind] != want {
 			t.Errorf("%s: %+v", kind, counts[kind])
 		}
@@ -453,6 +458,11 @@ func TestHarnessErrors(t *testing.T) {
 // These corpus witnesses name the first normative violation of the selected
 // swap: a forbidden value, missing declared handle, or typed field difference.
 var reorderWitnesses = map[string][2]string{
+	"S44": {"fresh_handles", "/operation_results/0/authorized_snapshot_handle"},
+	"S45": {"fresh_handles", "/operation_results/0/authorized_snapshot_handle"},
+	"S46": {"equivalent_outputs", "/operation_results/1/changes/state"},
+	"S48": {"fresh_handles", "/operation_results/1/items/0/support/authorized_snapshot_handle"},
+	"S51": {"equality", "/operation_results/0/code"},
 	"B01": {"fresh_handles", "/operation_results/4/authorized_snapshot_handle"},
 	"B02": {"fresh_handles", "/operation_results/1/receipt_handle"},
 	"B07": {"fresh_handles", "/operation_results/0/authorized_snapshot_handle"},

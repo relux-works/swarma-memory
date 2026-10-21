@@ -587,7 +587,7 @@
     "operation_results": [],
     "result": {
       "type": "view",
-      "semantic_profile": "0.2.6-draft",
+      "semantic_profile": "0.3.0-draft",
       "projection_rule": {
         "id": "projection:main",
         "version": 1
@@ -671,6 +671,31 @@
             "dependency_coverage": "registered_only",
             "witness_roots": [],
             "independent_root_count": 0
+          }
+        }
+      ],
+      "sources": [
+        {
+          "ref": {
+            "id": "rec:s",
+            "version": 1
+          },
+          "issuer": "subj:h1",
+          "submitter": "subj:h1",
+          "representation_ref": null,
+          "admission_class": "machine_observation",
+          "owner": "system:documents",
+          "source_kind": "document",
+          "provenance": "canonical",
+          "original_issuer": "subj:h1",
+          "carrier": null,
+          "availability": "unavailable",
+          "object": "object:s",
+          "revision": "revision:1",
+          "digest": null,
+          "origin": "origin:s",
+          "excerpt": {
+            "state": "none"
           }
         }
       ],

@@ -1,4 +1,4 @@
-# Bounded evidence memory 0.2.6-draft
+# Bounded evidence memory 0.3.0-draft
 
 This document and the closed schemas and vectors are one contract. MUST, MUST NOT,
 REQUIRED, SHALL, SHALL NOT, SHOULD and MAY have their RFC 2119 meanings. A heading
@@ -437,7 +437,52 @@ tainted. All remaining cases, including no witness, give `not_fully_checked`.
 Opposite checks used for quality do not create evidence for the conclusion or
 spend its existence counters. Their uncertainty MUST remain visible in quality.
 
+### K-SRC-1 — Cited source presentation
+
+Every View MUST carry `sources`, a closed SourceView table containing exactly
+once each member of the union of displayed items' `source_refs`, ordered by id
+and numeric version. Eligible uncited sources MUST NOT be listed; there is no
+source enumeration operation. Existing item citations remain unchanged.
+
+A live entry carries `ref`, `issuer`, `submitter`, `representation_ref`,
+`admission_class`, `owner`, `source_kind`, `object`, `revision`, `digest`,
+`provenance`, `origin`, `original_issuer`, `carrier`, effective `availability`
+(`resolvable` or `unavailable`), and `excerpt`. An excerpt is exactly
+`{state: "present", text}` for retained text (including empty text), otherwise
+`{state: "none"}`. Text MUST preserve exact UTF-8 bytes, including newlines.
+
+An erased entry carries only `ref`, `issuer`, `submitter`, `representation_ref`,
+`admission_class`, `owner`, `source_kind`, `provenance`, `original_issuer`, `carrier`,
+`availability: "erased"` and `excerpt: {state: "erased"}`. It MUST NOT carry
+`object`, `revision`, `digest` or `origin`. Every listed field is required and
+unknown fields are refused. `retention_admission`, `recorded`, `lineage` and
+`disclosure` remain protected bindings and MUST NOT appear in either variant.
+
+Effective availability uses the same computation as evaluation, at the query
+cut: a current fence or erasure (K-ERASE-1), stored `erased`, or latest
+query-eligible availability revision with `erased` yields `erased`; otherwise
+stored/latest query-eligible `unavailable` or an admitted `source_access` fact
+marking the source unresolvable yields `unavailable`; otherwise `resolvable`.
+Revisions the caller cannot see are ignored. `unavailable` MUST NOT suppress a
+retained excerpt. Excerpt presentation MUST NOT satisfy a `current` source
+requirement, raise `source_state`, or create a witness.
+
+The table MUST use the same authorized citation graph, after audience redaction.
+A hidden source produces no ref, entry, placeholder, marker, count, cutoff or
+source-specific error. There is no `withheld` wire state. Building this table
+spends no logical budget and changes no evaluation, cutoff or completeness.
+Audience projections carry `sources: []`. Captures freeze the complete table
+along with items; later delivery still rechecks current rights (K-SNAP-1).
+An item in `changes` is changed when any source entry it cites changed; hidden
+changes remain invisible.
+
+`sha256-bytes-v1` means SHA-256 of the exact UTF-8 bytes with no framing; it is
+separate from `sha256-cjson-v1` and does not imply whole-origin coverage.
+
 ### K-EVAL-5 — Source state and availability
+
+Source entries use K-SRC-1 effective availability; retained excerpts are
+presentation only and never repair a current-required evaluation.
 
 For a root with `source_requirement: current`, every named source MUST currently
 resolve under policy. Failure disables that root and marks the channel incomplete
@@ -528,6 +573,9 @@ private-authorized control remains dirty/incomplete.
 
 ### K-EVAL-9 — Output order and currentness
 
+The source table is sorted by (id, numeric version). Changes compare the entries
+cited by each displayed item as well as the item itself (K-SRC-1).
+
 Audience items are sorted by the protected internal reference before redaction.
 Items, historical references, review references, source references, incompatibility
 references and cutoffs MUST be deduplicated and sorted. `historical` lists visible
@@ -549,7 +597,7 @@ For recall/explain the changes object is always initial with empty references.
 ### K-SNAP-1 — Frozen history and current applicability
 
 A captured view is immutable history bound to its protected cut, source
-frontiers, policy pins and selected item versions. Later knowledge or freshness
+frontiers, policy pins, selected item versions and source table. Later knowledge or freshness
 changes MUST NOT rewrite those bytes. Renderers MUST identify the item as being
 at that snapshot's cut, never as an assertion about "now"; where numeric cuts
 are protected, use its authorized snapshot handle and the historical label,
@@ -612,6 +660,8 @@ lineage never waives authority for a known input. Logical support edges alone
 do not create content inputs, and no right is invented for unknown inputs.
 
 ### K-DISC-2 — Declassification
+
+Audience projections MUST carry `sources: []`, including when a source is public.
 
 The caller needs declassify, admit and retain rights. `declassify.assessments`
 contains a nonempty array of proposed owner assessments, followed atomically by
@@ -690,6 +740,9 @@ contact, and introduction behavior belongs to the domain, never implied by a
 shared subject or statement about relationship status.
 
 ### K-NI-1 — Semantic non-interference
+
+Source payloads and source-dependent changes obey K-SRC-1: hidden append,
+availability revision and erasure MUST leave public results unchanged.
 
 Holding the authorized projection, policy, admitted logical envelope and explicitly
 public availability constant, hidden appends, revisions, erasures, candidates and
@@ -836,6 +889,9 @@ This draft supplies no resumable evaluation cursor; a retry at the same protecte
 snapshot and larger bounds is the resumption mechanism.
 
 ### K-ERASE-1 — Custody closure and fence
+
+Authorized cited source headers use K-SRC-1 erased entries, at current and
+historical cuts; no locator, digest, origin or excerpt bytes may survive there.
 
 Erase MUST first durably fence targets and their transitive content-lineage
 closure, increment disposition generation, and close access and derivative commits.

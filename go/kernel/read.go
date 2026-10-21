@@ -150,7 +150,7 @@ func (s *State) readSelected(q map[string]any, prepared *[]any) (map[string]any,
 	if mintRefusal != nil {
 		return nil, mintRefusal
 	}
-	view := map[string]any{"type": "view", "semantic_profile": "0.2.6-draft", "projection_rule": copyJSON(q["projection_rule"]), "evidence_policy": copyJSON(q["evidence_policy"]), "policy": copyJSON(q["policy"]), "authorized_snapshot_handle": handle, "data_classification": "data", "items": []any{}, "currentness": "none", "historical": []any{}, "review_required": []any{}, "explanation": map[string]any{"status": "complete", "paths": []any{}, "reason": nil}, "cutoffs": []any{}, "changes": map[string]any{"state": "initial", "refs": []any{}}}
+	view := map[string]any{"type": "view", "semantic_profile": "0.3.0-draft", "projection_rule": copyJSON(q["projection_rule"]), "evidence_policy": copyJSON(q["evidence_policy"]), "policy": copyJSON(q["policy"]), "authorized_snapshot_handle": handle, "data_classification": "data", "items": []any{}, "sources": []any{}, "currentness": "none", "historical": []any{}, "review_required": []any{}, "explanation": map[string]any{"status": "complete", "paths": []any{}, "reason": nil}, "cutoffs": []any{}, "changes": map[string]any{"state": "initial", "refs": []any{}}}
 	view["historical"] = historical
 	review := g.reviewRequired(selected)
 	view["review_required"] = review
@@ -200,6 +200,7 @@ func (s *State) readSelected(q map[string]any, prepared *[]any) (map[string]any,
 			}
 		}
 	}
+	view["sources"] = g.sourceViews(arr(view["items"]))
 	view["cutoffs"] = set(cutoffs)
 	if q["kind"] == "explain" {
 		paths := set(allpaths)
@@ -237,11 +238,11 @@ func (s *State) readSelected(q map[string]any, prepared *[]any) (map[string]any,
 			state = "changed"
 			old := map[string]any{}
 			for _, v := range arr(prior.view["items"]) {
-				old[refKey(obj(v)["ref"])] = comparableItem(obj(v))
+				old[refKey(obj(v)["ref"])] = comparableSourcedItem(obj(v), prior.view)
 			}
 			for _, v := range arr(view["items"]) {
 				m := obj(v)
-				if m["ref"] != nil && !equalJSON(comparableItem(m), old[refKey(m["ref"])]) {
+				if m["ref"] != nil && !equalJSON(comparableSourcedItem(m, view), old[refKey(m["ref"])]) {
 					refs = append(refs, m["ref"])
 				}
 			}
@@ -336,29 +337,85 @@ func (g *readGraph) withdrawn(r any) bool {
 	}
 	return false
 }
-func (g *readGraph) sourceAvailable(source any) bool {
-	if source == nil || g.fenced[refKey(ref(source))] {
-		return false
+
+// sourceAvailability is shared by resolution and presentation. It consumes no
+// logical budget and considers only query-eligible revisions at the cut.
+func (g *readGraph) sourceAvailability(source any) string {
+	if source == nil || g.fenced[refKey(ref(source))] || body(source)["availability"] == "erased" {
+		return "erased"
 	}
-	available := body(source)["availability"] == "resolvable"
-	// Revision effects are ordered by their admitted sequence, not input order.
+	availability := body(source)["availability"].(string)
 	seq := int64(-1)
 	for _, r := range g.records {
 		if env(r)["kind"] == "revision" && g.allowed(r) && body(r)["relation"] == "availability" && equalJSON(body(r)["target"], ref(source)) {
 			n := obj(env(r)["recorded"])["sequence"].(int64)
 			if n > seq {
 				seq = n
-				available = body(r)["availability"] == "resolvable"
+				availability = body(r)["availability"].(string)
 			}
 		}
+	}
+	if availability == "erased" {
+		return availability
 	}
 	for _, raw := range arr(g.s.policy()["source_access"]) {
 		m := obj(raw)
 		if equalJSON(m["source"], ref(source)) && m["resolvable"] == false {
-			available = false
+			availability = "unavailable"
 		}
 	}
-	return available
+	return availability
+}
+func (g *readGraph) sourceAvailable(source any) bool {
+	return g.sourceAvailability(source) == "resolvable"
+}
+
+// sourceViews joins only sources already cited through the authorized graph,
+// after audience redaction. It cannot enumerate uncited or hidden sources.
+func (g *readGraph) sourceViews(items []any) []any {
+	refs := []any{}
+	for _, raw := range items {
+		refs = append(refs, arr(obj(raw)["source_refs"])...)
+	}
+	refs = set(refs)
+	sort.Slice(refs, func(i, j int) bool { return lessRef(refs[i], refs[j]) })
+	out := []any{}
+	for _, ref := range refs {
+		source := g.index[refKey(ref)]
+		entry := map[string]any{"ref": copyJSON(ref)}
+		for _, k := range []string{"issuer", "submitter", "representation_ref", "admission_class"} {
+			entry[k] = copyJSON(env(source)[k])
+		}
+		for _, k := range []string{"owner", "source_kind", "provenance", "original_issuer", "carrier"} {
+			entry[k] = copyJSON(body(source)[k])
+		}
+		availability := g.sourceAvailability(source)
+		entry["availability"] = availability
+		excerpt := map[string]any{"state": "erased"}
+		if availability != "erased" {
+			for _, k := range []string{"object", "revision", "digest", "origin"} {
+				entry[k] = copyJSON(body(source)[k])
+			}
+			excerpt["state"] = "none"
+			if body(source)["excerpt"] != nil {
+				excerpt["state"] = "present"
+				excerpt["text"] = body(source)["excerpt"]
+			}
+		}
+		entry["excerpt"] = excerpt
+		out = append(out, entry)
+	}
+	return out
+}
+
+func comparableSourcedItem(item, view map[string]any) map[string]any {
+	sources := []any{}
+	for _, raw := range arr(view["sources"]) {
+		if contains(item["source_refs"], obj(raw)["ref"]) {
+			sources = append(sources, raw)
+		}
+	}
+	return map[string]any{"item": comparableItem(item), "sources": sources}
 }
 func (g *readGraph) assessmentEligible(r any) bool {
 	if !g.live(r) || env(r)["kind"] != "assessment" {

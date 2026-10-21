@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:bounded-evidence:0.2.6:source",
+  "$id": "urn:bounded-evidence:0.3.0:source",
   "type": "object",
   "properties": {
     "envelope": {
@@ -334,7 +334,10 @@
               "properties": {
                 "algorithm": {
                   "type": "string",
-                  "const": "sha256-cjson-v1"
+                  "enum": [
+                    "sha256-cjson-v1",
+                    "sha256-bytes-v1"
+                  ]
                 },
                 "value": {
                   "type": "string"

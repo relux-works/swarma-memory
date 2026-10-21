@@ -57,18 +57,18 @@ erase and restore are implemented in the same pure state model.
 Run `go -C go run ./cmd/memory conformance` from the repository root. The command
 reports every whole-vector verdict, exact operation agreement by type and all
 six postcondition inventories. Whole-vector comparison remains unchanged and
-reports 66/66 with stage 1 complete.
+reports 77/77, including the K-SRC-1 source presentation cases.
 
 | Admission result | Matched | Corpus total |
 | --- | ---: | ---: |
-| `admit` | 45 | 45 |
-| `admit_raw` | 2 | 2 |
-| `revise` | 26 | 26 |
-| All admission operations | 73 | 73 |
+| `admit` | 48 | 48 |
+| `admit_raw` | 3 | 3 |
+| `revise` | 28 | 28 |
+| All admission operations | 79 | 79 |
 | `load` stimulus | 1 | 1 |
 
 There are no prerequisite exclusions: P11:13/P11:14 exercise retain revocation,
-and S26:1 exercises generation rejection after erase. All 73 are required by the
+and S26:1 exercises generation rejection after erase. All 79 are required by the
 operation ratchet. Declassification is measured separately (2/2).
 
 `conformance.CompareParts` compares exact typed operation results and inventories.
@@ -84,16 +84,16 @@ unknown, duplicate and regressed requirements. Newly passing entries are printed
 Tests additionally require every matching admission result and newly passing
 whole vector to be persisted.
 
-Current inventory matches, measured over all 66 complete vector executions:
+Current inventory matches, measured over all 77 complete vector executions:
 
 | Inventory | Matched |
 | --- | ---: |
-| `record_refs` | 66/66 |
-| `erased_refs` | 66/66 |
-| `custody_present` | 66/66 |
-| `dirty` | 66/66 |
-| `control_observations` | 66/66 |
-| `external_effects` | 66/66 |
+| `record_refs` | 77/77 |
+| `erased_refs` | 77/77 |
+| `custody_present` | 77/77 |
+| `dirty` | 77/77 |
+| `control_observations` | 77/77 |
+| `external_effects` | 77/77 |
 
 These are complete semantic execution results. Custody dispositions model the
 closed fixtures; physical deletion and restore isolation need a protected adapter.

@@ -125,7 +125,7 @@ func (r *Repository) ChangesSince(ctx context.Context, query map[string]any, sin
 	if !r.policy.readable(principal) {
 		return nil, fail("not_authorized")
 	}
-	if refusal := r.config.Schemas.Validate(query, "urn:bounded-evidence:0.2.6:query"); refusal != nil {
+	if refusal := r.config.Schemas.Validate(query, "urn:bounded-evidence:0.3.0:query"); refusal != nil {
 		return nil, fail(string(refusal.Code))
 	}
 	if !objectID(since) {

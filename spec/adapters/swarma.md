@@ -1,4 +1,4 @@
-# Swarma adapter contract — 0.2.7-draft
+# Swarma adapter contract — 0.3.0-draft
 
 This contract binds the portable kernel to the Swarma platform. It does not change
 any platform module. The kernel remains portable and owns only its
@@ -103,6 +103,17 @@ journals. A request for fresh evidence returns execution_required data to the
 existing authorized executor. Advisory changes do not trigger work. Stop, park,
 revocation, recovery and acceptance remain independent of memory availability.
 A business operation may require fresh evidence without blocking those controls.
+
+For new session citations written with `--source-session runtime:session:message`,
+the adapter binds `owner: runtime:<runtime>`, `object: session:<id>`,
+`revision: message:<id>` or `index:<n>`, `provenance: reported`, and
+`availability: unavailable`. Canonical locator JSON is the root `origin` for the
+message (K-DISC-3). `digest.algorithm: sha256-bytes-v1` covers the exact UTF-8
+**retained text, not necessarily the whole message**, without framing. A deleted
+session leaves an independently admitted retained excerpt present. Kernel
+K-SRC-1 supplies the authorized, citation-closed `sources` table; the adapter MUST
+NOT reconstruct hidden source payloads from storage. Legacy locator/hash fields
+remain valid and render as stored. This grants no live resolver or authority.
 
 Publication is outside memory. A publisher uses an admitted audience_projection,
 assigns its own publication id/revision and keeps the view link protected. It

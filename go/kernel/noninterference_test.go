@@ -113,10 +113,10 @@ func TestCorpusHiddenRecordNoninterference(t *testing.T) {
 		}
 		check(obj(vector["query"]))
 	}
-	if len(files) != 66 || pairs == 0 || refusals < pairs {
+	if len(files) != 77 || pairs == 0 || refusals < pairs {
 		t.Fatal("property did not exercise corpus hidden records and refusals", len(files), pairs, refusals)
 	}
-	t.Logf("66 vectors; %d hidden-record removal pairs; %d unchanged refusals; %d removals change authorized assertion dependencies (outside NI-1)", pairs, refusals, releasedDependencies)
+	t.Logf("77 vectors; %d hidden-record removal pairs; %d unchanged refusals; %d removals change authorized assertion dependencies (outside NI-1)", pairs, refusals, releasedDependencies)
 }
 
 // withoutHidden removes referential dependents to keep both snapshots valid;

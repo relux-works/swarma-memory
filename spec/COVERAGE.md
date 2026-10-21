@@ -1,6 +1,6 @@
 # Coverage
 
-Every conformance vector and the normative clauses of `kernel/semantics.md` it exercises. All 52 normative clauses are exercised by at least one vector. A listed clause does not claim exhaustive testing of every sentence of that clause.
+Every conformance vector and the normative clauses of `kernel/semantics.md` it exercises. All 53 normative clauses are exercised by at least one vector. A listed clause does not claim exhaustive testing of every sentence of that clause.
 
 | Vector id | Profile | Normative clauses in kernel/semantics.md | What it checks |
 | --- | --- | --- | --- |
@@ -78,3 +78,15 @@ Every conformance vector and the normative clauses of `kernel/semantics.md` it e
 | B15 | semantic | K-EVAL-1, K-EVAL-2, K-API-3 | A dependency cap cannot masquerade as complete absence |
 | B16 | deployment | K-BOUND-1, K-BOUND-2 | External stop park and revocation proceed while memory is unavailable |
 | B17 | deployment | K-BOUND-1, K-REC-3, K-API-2 | Requesting a fresh test launches no execution |
+
+| S43 | semantic | K-SRC-1, K-EVAL-5, K-DISC-3 | Two assertions share one byte-exact retained source without a witness |
+| S44 | semantic | K-SRC-1, K-EVAL-5, K-EVAL-9, K-SNAP-1 | An unavailable revision preserves the excerpt and changes the citing item |
+| S45 | semantic | K-SRC-1, K-ERASE-1, K-SNAP-1 | Erasure redacts current and historical source bytes while an earlier capture stays full |
+| S46 | semantic | K-SRC-1, K-NI-1, K-AUTH-1, K-EVAL-9, K-VEC-2 | Hidden source append revision and erasure preserve public changes with private controls |
+| S47 | semantic | K-SRC-1, K-NI-1, K-AUTH-1, K-VEC-2 | A visible source cited only through a hidden justification stays absent |
+| S48 | semantic | K-SRC-1, K-NI-1, K-AUTH-1, K-VEC-2 | A query targeting a hidden source matches a nonexistent id |
+| S49 | semantic | K-SRC-1, K-DISC-2, K-AUTH-1 | Audience projection omits public source payloads and references |
+| S50 | semantic | K-SRC-1, K-EVAL-2, K-EVAL-5 | Source payload construction spends no source-resolution budget |
+| S51 | semantic | K-SRC-1, K-REF-1, K-JSON-1, K-API-1 | Excerpt retention and digest algorithm refusals precede a valid source control |
+| S52 | semantic | K-SRC-1, K-ERASE-1 | A fence alone redacts source bytes at current and historical cuts |
+| S53 | semantic | K-SRC-1, K-EVAL-5, K-REC-3 | A retained excerpt cannot satisfy a current-required root |

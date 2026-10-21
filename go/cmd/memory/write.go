@@ -304,7 +304,10 @@ func writeCLI(ctx context.Context, h home, c localConfig, a arguments) (any, err
 				if refusal != nil {
 					return nil, refusal
 				}
-				body = sourceBody(k.Identity(), in.session["digest"].(string), in.session["message"].(string))
+				body = sourceBody(k.Identity(), "session:"+in.session["session"].(string), sessionRevision(in.session["message"].(string)))
+				body["owner"] = "runtime:" + in.session["runtime"].(string)
+				body["provenance"] = "reported"
+				body["digest"] = map[string]any{"algorithm": "sha256-bytes-v1", "value": strings.TrimPrefix(in.session["digest"].(string), "sha256:")}
 				body["origin"] = string(locator)
 				body["excerpt"] = in.text
 				body["retention_admission"] = agentprofile.Ref("retention:"+id, 1)
@@ -611,4 +614,20 @@ func promotionSource(r *space.Repository, k *localkey.Key, a arguments) (map[str
 		}
 	}
 	return nil, cliError{"record_not_found", 3}
+}
+
+// sessionRevision preserves an explicit locator kind. Bare decimal positions
+// are indexes; other runtime-provided IDs are messages. Origin retains the input.
+func sessionRevision(message string) string {
+	if strings.HasPrefix(message, "message:") || strings.HasPrefix(message, "index:") {
+		return message
+	}
+	decimal := message != ""
+	for _, c := range message {
+		decimal = decimal && c >= '0' && c <= '9'
+	}
+	if decimal {
+		return "index:" + message
+	}
+	return "message:" + message
 }

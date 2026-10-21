@@ -69,10 +69,10 @@ Phase B adds revision, concurrency and source semantics to complete the gate.
 | 8 | `TestPhaseBDecisionRevisionAndChanges` | Distinct issuer B cannot replace A; missing/stale caller preconditions publish nothing; A's token-bound replacement is uniquely current for B |
 | 9 | `TestPhaseBAssessAndPromote` | Writer grant controls targeted assessment; source reader and target writer grants independently control promotion; the derivative has the promoting issuer and a local source citation |
 | 10 | `TestPhaseBDecisionRevisionAndChanges` | A cursor captured at scenario 6 yields exactly replacement version 2 and the later assertion; a current cursor yields zero changed refs; malformed cursors refuse |
-| 11 (v1) | `TestPhaseBSessionSource` | B sees A's exact source ref in recall/explain; check verifies the atomic signed source batch; revoking read access hides all refs, A continues reading, and regrant restores B |
+| 11 | `TestPhaseBSessionSource` | B sees the exact runtime/session/message, raw-text digest, multiline Unicode excerpt and unavailable state in recall/explain; revoke hides all data, A continues reading, regrant restores B |
 
-The v1 source boundary and fuller locator expectation are recorded in the
-[open package question](#open-package-question-session-source-presentation).
+The source presentation contract is recorded in
+[session source presentation](#session-source-presentation).
 
 A decision in scenario 6 is a documentary assertion about a decision. The trusted
 CLI profile does not supply external authority receipts, so this test does not
@@ -96,35 +96,22 @@ Changes compares authorized projections, not raw Git writes: the replaced old
 version and auxiliary intake/revision/source records are not extra current change
 refs. Unchanged views may still contain items, with `no_change` and empty refs.
 
-### Open package question: session source presentation
+### Session source presentation
 
-The v1 [normative view](../../spec/kernel/schemas/view.schema.json) exposes
-`source_refs`; source records are not read items. Scenario 11 therefore asserts
-A's exact source ref on B's recall/explain item and a clean verification of the
-signed atomic assertion/source/basis batch. Its negative control revokes B's
-space reader grant: B gets `not_authorized` with null data and no source ref,
-while A continues reading. Regrant restores B's access. The write CLI has no
-per-record disclosure input, so this control does not claim selective hiding of
-a source while its assertion remains readable.
-
-The fuller expectation remains open: **B should be able to see the retained
-session excerpt with its exact runtime/session/message locator**, subject to
-source disclosure rules. The current view has no source-body field. Deciding
-which normative package/view may present those fields requires an owner decision;
-this test-only gate does not extend the package contract. See also the
-[integration questions](../../UNRESOLVED_QUESTIONS.md) and
-[architecture open questions](../../docs/architecture.md#15-open-questions) about
-source presentation and lifetime. No failing or skipped locator expectation is
-part of the v1 tests.
-
-Run the v1 source-ref/access scenario with:
+Package 0.3.0 K-SRC-1 supplies the view's citation-closed `sources` table. Scenario
+11 checks the exact locator components, raw retained-text digest, multiline
+Unicode excerpt including its trailing newline, and `availability: unavailable`
+in both recall and explain. It verifies the signed atomic assertion/source/basis
+batch. Revoking B's space reader grant yields `not_authorized`, null data and no
+source ref; A keeps reading. Regrant restores the complete source payload.
 
 ```sh
-go test -count=1 -run '^TestPhaseBSessionSource$' -v ./e2e
+go -C go test -count=1 -run '^TestPhaseBSessionSource$' -v ./e2e
 ```
 
-The write under test uses `--source-session runtime:planning:message:42` and
-`--source-text -`, retaining a multiline excerpt. A successful write and a verified
-source citation establish signed retained data; they do not establish live
-session resolution, excerpt/locator visibility in this read schema, source truth,
-or independent authority.
+The write uses `--source-session runtime:planning:message:42` and `--source-text -`.
+The digest covers the retained excerpt, not necessarily the entire message.
+The CLI has no per-record disclosure input: this e2e control proves space access
+revocation. Kernel S46–S49 independently cover hidden source/citation changes and
+audience redaction. No live resolver, source truth or independent authority is
+claimed.

@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-const packageSchema = "urn:bounded-evidence:0.2.6:"
+const packageSchema = "urn:bounded-evidence:0.3.0:"
 
 // State owns an admitted snapshot. Reads and writes serialize validation and
 // computation under one lock; callers never receive mutable state aliases.

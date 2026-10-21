@@ -74,7 +74,8 @@ EXCERPT
 ```
 
 This records an attributed observation of a decision; it grants no decision
-authority. In v1, readers see source refs, not the retained excerpt.
+authority. Readers see authorized source locators, availability and retained excerpts in the
+view's `sources` table. An unavailable session may still have a retained excerpt.
 
 ### Revise only the version you read
 

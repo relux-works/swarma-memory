@@ -208,7 +208,7 @@ func TestWriteSessionAndBodyInput(t *testing.T) {
 	}
 	body := agentprofile.Object(agentprofile.Object(agentprofile.Object(v)["record"])["body"])
 	digest := sha256.Sum256([]byte(text))
-	if body["excerpt"] != text || body["object"] != "sha256:"+hex.EncodeToString(digest[:]) || body["digest"] != nil || body["retention_admission"] == nil {
+	if body["excerpt"] != text || body["owner"] != "runtime:runtime" || body["object"] != "session:session" || body["revision"] != "message:part" || body["provenance"] != "reported" || !reflect.DeepEqual(body["digest"], map[string]any{"algorithm": "sha256-bytes-v1", "value": hex.EncodeToString(digest[:])}) || body["retention_admission"] == nil {
 		t.Fatal("excerpt or digest changed", body)
 	}
 	locator, refusal := kernel.DecodeJSON([]byte(body["origin"].(string)))
@@ -217,6 +217,15 @@ func TestWriteSessionAndBodyInput(t *testing.T) {
 	}
 	bodyJSON := `{"statement_kind":"fact","slot":"[]","content":[{"field":"value","value":"full body"}],"authority_receipt":null}`
 	h.input(h.owner, bodyJSON, 0, "add", "assertion", "--idempotency-key", "body:one", "--body", "-")
+	filtered, _ := h.invoke(h.owner, 0, "recall", "full body", "--space", "space:test")
+	for _, space := range agentprofile.Array(agentprofile.Object(filtered["data"])["spaces"]) {
+		for _, view := range agentprofile.Array(agentprofile.Object(space)["views"]) {
+			if len(agentprofile.Array(agentprofile.Object(view)["items"])) != 1 || len(agentprofile.Array(agentprofile.Object(view)["sources"])) != 0 {
+				t.Fatal("filtered recall leaked an uncited source", view)
+			}
+		}
+	}
+
 	before := h.writeState(h.owner)
 	m, _, _ = h.input(h.owner, "{}", 2, "add", "assertion", "--idempotency-key", "bad:stdin", "--body", "-", "--source-session", "runtime:session:message", "--source-text", "-")
 	if errorCodeOf(m) != "usage" {
@@ -733,5 +742,14 @@ func TestWriteTargetPreconditionAfterNFF(t *testing.T) {
 			}
 			h.writeState(h.owner)
 		})
+	}
+}
+
+// Explicit locator kinds survive and only bare decimal positions become indexes.
+func TestSessionRevision(t *testing.T) {
+	for input, want := range map[string]string{"42": "index:42", "message:42": "message:42", "index:42": "index:42", "id-part": "message:id-part", "id:part": "message:id:part"} {
+		if got := sessionRevision(input); got != want {
+			t.Fatalf("%q: %q, want %q", input, got, want)
+		}
 	}
 }
