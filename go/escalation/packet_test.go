@@ -89,6 +89,10 @@ func TestAmbiguousCurrentPacket(t *testing.T) {
 // reporter, cursor or policy. Distinct routes share one report-wide key.
 func TestReportedKeyAndRoutes(t *testing.T) {
 	a, b := LocatedRef{"space:a", Ref{ID: "x", Version: 1}}, LocatedRef{"space:b", Ref{ID: "y", Version: 2}}
+	// Fixed independent canonical-JSON/SHA256 oracle, not another formatter run.
+	if Key("reported", []LocatedRef{b, a}) != "sha256:5ac81b3bba9440247fd0b0450ec8951c96eea3aae26c495d1a06cd53dcd4dd3f" || Key("incompatible", []LocatedRef{a, b}) == Key("reported", []LocatedRef{a, b}) {
+		t.Fatal("canonical key or kind isolation changed")
+	}
 	if Key("reported", []LocatedRef{a, b}) != Key("reported", []LocatedRef{b, a, a}) || Key("reported", []LocatedRef{a}) == Key("reported", []LocatedRef{a, b}) {
 		t.Fatal("key set semantics")
 	}

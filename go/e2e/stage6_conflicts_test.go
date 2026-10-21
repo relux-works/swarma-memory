@@ -77,6 +77,14 @@ func TestStage6ConflictEscalation(t *testing.T) {
 	}
 	first := stage6Conflict(t, stage6Packet(t, check(w), true))
 	stage6Named(t, first, f.owner.identity)
+	if text(t, first["kind"]) != "evidence_conflict" {
+		t.Fatal("wrong evidence conflict kind")
+	}
+	recalled := stage6Conflict(t, stage6Packet(t, w.run(7, "recall", "*", "--space", p.id, "--subject", "topic:queue", "--schema", "schema:assumption", "--require-current", "--at", queryTime), true))
+	if string(recalled["conflict_key"]) != string(first["conflict_key"]) {
+		t.Fatal("exact recall and explain packets disagree")
+	}
+	w.run(0, "recall", "*", "--space", p.id, "--subject", "topic:queue:child", "--schema", "schema:assumption", "--require-current", "--at", queryTime)
 	evidence := object(t, first["evidence"], "support", "oppose", "incompatible_with")
 	if !reflect.DeepEqual(refs(t, evidence["support"]), []recordRef{{"assessment:support", 1}}) || !reflect.DeepEqual(refs(t, evidence["oppose"]), []recordRef{{"assessment:oppose", 1}}) {
 		t.Fatal("wrong authorized evidence", evidence)
@@ -165,7 +173,16 @@ func TestStage6ConflictEscalation(t *testing.T) {
 	// The issuer's canonical local sequence replacement resolves this dependency;
 	// the older attributed record and assessments are not overwritten.
 	f.owner.run(0, "revise", "record:D", "--space", p.id, "--relation", "replace", "--content", "Decision statement: use queue B", "--expected-version", "1", "--idempotency-key", "decision:two", "--at", intakeTime)
+	before = f.owner.git(p.remote, "rev-parse", "main")
 	step(0)
+	if f.owner.git(p.remote, "rev-parse", "main") == before {
+		t.Fatal("resumed step did not publish a commit")
+	}
+	published := item(t, f.owner.run(0, "explain", "record:dependent", "--space", p.id, "--at", queryTime), p.id, "record:dependent", 1)
+	if text(t, published["issuer"]) != w.identity {
+		t.Fatal("remote dependent write has wrong issuer")
+	}
+	content(t, published, "Dependent work")
 	if _, e := os.Stat(effect); e != nil {
 		t.Fatal("resolved step did not run", e)
 	}
