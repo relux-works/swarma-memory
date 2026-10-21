@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/relux-works/swarma-memory/go/kernel"
+	"github.com/relux-works/swarma-memory/go/sign"
 	"github.com/relux-works/swarma-memory/go/space"
 )
 
@@ -38,20 +39,29 @@ func resolverCLI(ctx context.Context, h home, c localConfig, a arguments) (any, 
 	if e != nil {
 		return nil, e
 	}
-	// Show is owner-only too; routing metadata in read packets remains authorized
-	// by the dependency read, rather than by this administrative command.
+	// Authenticate every administrative action, including show, against this
+	// verified policy. A self-declared owner name alone conveys no authority.
+	policy := r.VerifiedPolicy().Policy()
 	owner := false
-	for _, id := range r.VerifiedPolicy().Policy().Owners {
+	for _, id := range policy.Owners {
 		owner = owner || id == k.Identity()
 	}
 	if !owner {
 		return nil, cliError{"unauthorized_owner", 3}
 	}
+	registered := false
+	for _, entry := range policy.Keys {
+		registration := entry.Registration
+		registered = registered || registration.Identity == k.Identity() && registration.Key == k.ID()
+	}
+	if !registered {
+		return nil, sign.Fail(sign.UnregisteredKey, "signature.key")
+	}
 	if action == "show" {
 		if len(a.flags) != 1 {
 			return nil, cliError{"usage", 2}
 		}
-		return map[string]any{"resolvers": r.VerifiedPolicy().Policy().Resolvers, "warnings": r.VerifiedPolicy().Policy().ResolverWarnings()}, nil
+		return map[string]any{"resolvers": policy.Resolvers, "warnings": policy.ResolverWarnings()}, nil
 	}
 	area, e := a.required("area")
 	if e != nil {
