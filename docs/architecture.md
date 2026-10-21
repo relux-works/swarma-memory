@@ -217,10 +217,12 @@ The same idempotency key with the same content returns the existing receipt; the
 When an agent records something that happened in a session, the record holds the piece itself: the statement, or an admitted non-sensitive excerpt. Its source reference is a session locator:
 
 ```json
-{ "runtime": "claude-code", "session": "<session id>", "message": "<message id or index>", "digest": "sha256:<digest of the retained text>" }
+{ "runtime": "claude-code", "session": "<session id>", "message": "<message id or index>" }
 ```
 
-The digest covers the retained UTF-8 text, not necessarily the whole message.
+The locator contains only runtime, session and message, so excerpts from the
+same message share one origin. The separate source `digest` covers the retained
+UTF-8 text, not necessarily the whole message.
 New source bindings use `owner: runtime:<runtime>`, `object: session:<id>`,
 `revision: message:<id>` or `index:<n>` and `digest.algorithm: sha256-bytes-v1`.
 The canonical locator JSON stays in `origin`; provenance is `reported` and

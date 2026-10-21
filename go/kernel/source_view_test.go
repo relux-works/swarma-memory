@@ -110,6 +110,16 @@ func TestSourceViewClosedVariants(t *testing.T) {
 	for _, id := range []string{"S43", "S52"} {
 		snapshot, q, _ := readFixture(t, id)
 		view := readSuccess(t, stateForTest(t, snapshot), q)
+		var source any
+		for _, record := range arr(snapshot["records"]) {
+			if env(record)["kind"] == "source" {
+				source = record
+				break
+			}
+		}
+		if source == nil {
+			t.Fatal("fixture missing source", id)
+		}
 		for name := range obj(arr(view["sources"])[0]) {
 			candidate := copyJSON(view).(map[string]any)
 			delete(obj(arr(candidate["sources"])[0]), name)
@@ -117,9 +127,18 @@ func TestSourceViewClosedVariants(t *testing.T) {
 				t.Fatal("missing source field accepted", id, name)
 			}
 		}
-		for _, name := range []string{"retention_admission", "recorded", "lineage", "disclosure", "unknown"} {
+		// Use stored, well-typed values so type errors cannot mask a schema
+		// accidentally admitting a protected field.
+		protected := map[string]any{
+			"retention_admission": body(source)["retention_admission"],
+			"recorded":            env(source)["recorded"],
+			"lineage":             env(source)["lineage"],
+			"disclosure":          env(source)["disclosure"],
+			"unknown":             "forbidden",
+		}
+		for name, value := range protected {
 			candidate := copyJSON(view).(map[string]any)
-			obj(arr(candidate["sources"])[0])[name] = nil
+			obj(arr(candidate["sources"])[0])[name] = value
 			if schemas.Validate(candidate, packageSchema+"view") == nil {
 				t.Fatal("unknown/protected field accepted", id, name)
 			}
@@ -132,7 +151,7 @@ func TestSourceViewClosedVariants(t *testing.T) {
 		if id == "S52" {
 			for _, name := range []string{"object", "revision", "digest", "origin"} {
 				candidate := copyJSON(view).(map[string]any)
-				obj(arr(candidate["sources"])[0])[name] = "forbidden"
+				obj(arr(candidate["sources"])[0])[name] = body(source)[name]
 				if schemas.Validate(candidate, packageSchema+"view") == nil {
 					t.Fatal("erased field accepted", name)
 				}
