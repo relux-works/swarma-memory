@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/relux-works/swarma-memory/go/agentprofile"
+	"github.com/relux-works/swarma-memory/go/escalation"
 	"github.com/relux-works/swarma-memory/go/space"
 )
 
@@ -58,15 +59,31 @@ func encodeCursor(m map[string]string) string {
 }
 
 func readCLI(ctx context.Context, h home, c localConfig, a arguments) (any, error) {
+	return readDependencies(ctx, h, c, a, nil)
+}
+
+func readDependencies(ctx context.Context, h home, c localConfig, a arguments, reported []dependencyRef) (any, error) {
 	cmd := a.pos[0]
-	if e := a.allow("space", "rule", "require-current", "since", "at", "version"); e != nil {
+	if e := a.allow("space", "rule", "require-current", "since", "at", "version", "subject", "schema", "schema-version", "task", "step"); e != nil {
 		return nil, e
 	}
 	if cmd == "changes" && len(a.pos) != 1 || cmd != "changes" && len(a.pos) != 2 {
 		return nil, cliError{"usage", 2}
 	}
-	if cmd != "changes" && a.flags["since"] != "" || cmd != "recall" && a.flags["require-current"] != "" {
+	if cmd != "changes" && a.flags["since"] != "" || cmd != "recall" && cmd != "explain" && a.flags["require-current"] != "" {
 		return nil, cliError{"usage", 2}
+	}
+	if a.flags["schema-version"] != "" && a.flags["schema"] == "" || a.flags["require-current"] == "" && (a.flags["task"] != "" || a.flags["step"] != "") {
+		return nil, cliError{"usage", 2}
+	}
+	schemaVersion, e := numberFlag(a, "schema-version", 1, 1)
+	if e != nil {
+		return nil, e
+	}
+	packet := escalation.New(c.Identity, optionalFlag(a, "task"), optionalFlag(a, "step"))
+	requested := map[dependencyRef]bool{}
+	for _, r := range reported {
+		requested[r] = false
 	}
 	version := int64(0)
 	if raw, ok := a.flags["version"]; ok {
@@ -108,6 +125,15 @@ func readCLI(ctx context.Context, h home, c localConfig, a arguments) (any, erro
 	requireFailure := false
 	var syncError error
 	for _, s := range spaces {
+		if reported != nil {
+			needed := false
+			for _, ref := range reported {
+				needed = needed || ref.Space == s.ID
+			}
+			if !needed {
+				continue
+			}
+		}
 		r, e := openSpace(ctx, s)
 		if e != nil {
 			if e.Error() != "history_rewritten" || r == nil || r.VerifiedPolicy() == nil {
@@ -172,8 +198,14 @@ func readCLI(ctx context.Context, h home, c localConfig, a arguments) (any, erro
 		views := []any{}
 		for _, scope := range keys {
 			v := scopes[scope]
+			if a.flags["subject"] != "" && v.subject != a.flags["subject"] {
+				continue
+			}
+			if a.flags["schema"] != "" && (agentprofile.Object(v.schema)["id"] != a.flags["schema"] || agentprofile.Object(v.schema)["version"] != schemaVersion) {
+				continue
+			}
 			targets := []any{}
-			if cmd == "explain" {
+			if cmd == "explain" && reported == nil {
 				id := a.pos[1]
 				for _, raw := range agentprofile.Array(snapshot["records"]) {
 					env := agentprofile.Object(agentprofile.Object(raw)["envelope"])
@@ -183,6 +215,13 @@ func readCLI(ctx context.Context, h home, c localConfig, a arguments) (any, erro
 				}
 				if len(targets) == 0 {
 					continue
+				}
+			}
+			if reported != nil {
+				for _, ref := range reported {
+					if ref.Space == s.ID {
+						targets = append(targets, agentprofile.Ref(ref.ID, ref.Version))
+					}
 				}
 			}
 			audience := "aud:private"
@@ -206,6 +245,9 @@ func readCLI(ctx context.Context, h home, c localConfig, a arguments) (any, erro
 			items := []any{}
 			for _, raw := range agentprofile.Array(view["items"]) {
 				item := agentprofile.Object(raw)
+				if cmd == "explain" && a.flags["require-current"] != "" && version == 0 && reported == nil && item["currentness"] == "historical" {
+					continue
+				}
 				if cmd == "recall" && a.pos[1] != "*" {
 					b, _ := json.Marshal(item["content"])
 					if !strings.Contains(strings.ToLower(string(b)), strings.ToLower(a.pos[1])) {
@@ -218,8 +260,12 @@ func readCLI(ctx context.Context, h home, c localConfig, a arguments) (any, erro
 				for _, polarity := range []string{"support", "oppose"} {
 					delete(agentprofile.Object(item[polarity]), "authorized_snapshot_handle")
 				}
-				if item["currentness"] == "ambiguous_current" || agentprofile.Object(item["support"])["witness"] == "present" && agentprofile.Object(item["oppose"])["witness"] == "present" {
+				if len(escalation.Kinds(item)) > 0 {
 					requireFailure = true
+				}
+				if reported != nil {
+					ref := agentprofile.Object(item["ref"])
+					requested[dependencyRef{s.ID, ref["id"].(string), ref["version"].(int64)}] = true
 				}
 				items = append(items, item)
 				found = true
@@ -242,6 +288,28 @@ func readCLI(ctx context.Context, h home, c localConfig, a arguments) (any, erro
 				}
 			}
 			view["sources"] = sources
+			if a.flags["require-current"] != "" || reported != nil {
+				explain := view
+				if cmd != "explain" {
+					exact := copyValue(q).(map[string]any)
+					exact["kind"] = "explain"
+					refs := []any{}
+					for _, raw := range items {
+						refs = append(refs, agentprofile.Object(raw)["ref"])
+					}
+					agentprofile.Object(exact["scope"])["targets"] = refs
+					if len(refs) > 0 {
+						explain, e = r.Read(exact)
+						if e != nil {
+							return nil, e
+						}
+					} else {
+						explain = map[string]any{"items": []any{}}
+					}
+				}
+				sr := agentprofile.Object(v.schema)
+				packet.Conflicts = append(packet.Conflicts, escalation.FromView(explain, escalation.Ref{ID: sr["id"].(string), Version: sr["version"].(int64)}, r.VerifiedPolicy().Policy(), r.VerifiedPolicy().Digest(), r.Cursor(), agentprofile.Array(snapshot["records"]), reported != nil)...)
+			}
 			delete(view, "authorized_snapshot_handle")
 			// Empty recall/explain scopes are omitted so hidden records cannot leak
 			// their subjects, schema combinations or scope counts through CLI data.
@@ -252,6 +320,21 @@ func readCLI(ctx context.Context, h home, c localConfig, a arguments) (any, erro
 		outputs = append(outputs, map[string]any{"id": s.ID, "cursor": r.Cursor(), "views": views, "diagnostics": r.Diagnostics()})
 	}
 	data := map[string]any{"cursor": encodeCursor(cursors), "spaces": outputs}
+	if reported != nil {
+		if syncError != nil {
+			return nil, syncError
+		}
+		for _, seen := range requested {
+			if !seen {
+				return nil, cliError{"record_not_found", 3}
+			}
+		}
+		packet.Normalize(true)
+		if f := escalation.Validate(packet); f != nil {
+			return nil, f
+		}
+		return packet, cliError{"currentness_required", 7}
+	}
 	if readable == 0 && len(spaces) > 0 {
 		return nil, cliError{"not_authorized", 3}
 	}
@@ -262,6 +345,11 @@ func readCLI(ctx context.Context, h home, c localConfig, a arguments) (any, erro
 		return data, syncError
 	}
 	if a.flags["require-current"] != "" && requireFailure {
+		packet.Normalize(false)
+		if f := escalation.Validate(packet); f != nil {
+			return nil, f
+		}
+		data["escalation"] = packet
 		return data, cliError{"currentness_required", 7}
 	}
 	return data, nil

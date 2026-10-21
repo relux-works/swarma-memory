@@ -26,6 +26,7 @@ func schemas() *kernel.Schemas {
 // Policy is the signed space.json payload. Metadata fields make transitions and
 // author identity explicit; the history adapter supplies its in-force position.
 type Policy struct {
+	Format    string               `json:"format,omitempty"`
 	SpaceID   string               `json:"space_id"`
 	Kind      string               `json:"kind"`
 	Version   int64                `json:"version"`
@@ -56,8 +57,9 @@ type Limits struct {
 	MaxFieldBytes  int64 `json:"max_field_bytes"`
 }
 type Resolver struct {
-	Area       string   `json:"area"`
-	Identities []string `json:"identities"`
+	Match      *ResolverMatch `json:"match,omitempty"`
+	Area       string         `json:"area"`
+	Identities []string       `json:"identities"`
 }
 type Retention struct {
 	OnOwnerRetire string `json:"on_owner_retire"`
@@ -102,6 +104,12 @@ type PolicySigner interface {
 	SignRegistration(CanonicalRegistration) (sign.Signature, error)
 }
 
+func schemaURI(name string) string {
+	if name == "policy-v2" {
+		return "urn:bounded-evidence:space:2:policy"
+	}
+	return "urn:bounded-evidence:space:1:" + name
+}
 func canonicalStruct(value any, schema string) ([]byte, error) {
 	if !validText(reflect.ValueOf(value)) {
 		return nil, sign.Fail(sign.InvalidJSON, "document")
@@ -114,7 +122,7 @@ func canonicalStruct(value any, schema string) ([]byte, error) {
 	if r != nil {
 		return nil, sign.Fail(sign.InvalidJSON, "document")
 	}
-	if r := schemas().Validate(decoded, "urn:bounded-evidence:space:1:"+schema); r != nil {
+	if r := schemas().Validate(decoded, schemaURI(schema)); r != nil {
 		return nil, sign.Fail(sign.InvalidShape, "document")
 	}
 	canonical, r := kernel.CanonicalJSON(decoded)
@@ -163,7 +171,13 @@ func NewCanonicalPolicy(p Policy) (CanonicalPolicy, error) {
 			return CanonicalPolicy{}, sign.Fail(sign.UnsignedRegistration, "keys.signature")
 		}
 	}
-	b, err := canonicalStruct(p, "policy")
+	schema := "policy"
+	if p.Format == PolicyFormatV2 {
+		schema = "policy-v2"
+	} else if p.Format != "" {
+		return CanonicalPolicy{}, sign.Fail(sign.InvalidShape, "policy.format")
+	}
+	b, err := canonicalStruct(p, schema)
 	if err != nil {
 		return CanonicalPolicy{}, err
 	}
@@ -231,6 +245,11 @@ func NewCanonicalPolicy(p Policy) (CanonicalPolicy, error) {
 			return CanonicalPolicy{}, sign.Fail(sign.InvalidPolicy, "resolvers")
 		}
 	}
+	if p.Format == PolicyFormatV2 {
+		if err := validateResolvers(p); err != nil {
+			return CanonicalPolicy{}, err
+		}
+	}
 	return CanonicalPolicy{string(b), p.Author}, nil
 }
 func uniqueText(a []string, nonempty bool) bool {
@@ -284,7 +303,11 @@ func ParsePolicy(data []byte) (SignedPolicy, error) {
 	if purpose, ok := sigmap["purpose"].(string); ok && purpose != sign.PolicyPurpose {
 		return SignedPolicy{}, sign.Fail(sign.PurposeMismatch, "signature.purpose")
 	}
-	if r := schemas().Validate(value, "urn:bounded-evidence:space:1:signed-policy"); r != nil {
+	schema := "urn:bounded-evidence:space:1:signed-policy"
+	if p["format"] == PolicyFormatV2 {
+		schema = "urn:bounded-evidence:space:2:signed-policy"
+	}
+	if r := schemas().Validate(value, schema); r != nil {
 		return SignedPolicy{}, sign.Fail(sign.InvalidShape, "space.json")
 	}
 	var out SignedPolicy

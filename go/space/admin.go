@@ -59,6 +59,7 @@ func (r *Repository) UpdatePolicy(ctx context.Context, author string, signer Pol
 	p.Previous = &previous
 	p.Version++
 	p.Author = author
+	UpgradeResolverPolicy(&p)
 	if e := change(&p); e != nil {
 		return "", e
 	}

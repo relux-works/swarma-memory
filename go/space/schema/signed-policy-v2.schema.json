@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:space:2:signed-policy",
+  "type": "object",
+  "properties": {
+    "policy": {
+      "$ref": "urn:bounded-evidence:space:2:policy"
+    },
+    "signature": {
+      "type": "object",
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "const": "swarma-memory-policy/1"
+        },
+        "key": {
+          "type": "string"
+        },
+        "alg": {
+          "type": "string",
+          "const": "ed25519"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "purpose",
+        "key",
+        "alg",
+        "value"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "policy",
+    "signature"
+  ],
+  "additionalProperties": false
+}

@@ -367,3 +367,37 @@ Promotion across namespace anchors refuses `cross_owner_promotion` in v1.
 The two-owner stage-5 integration gate, delegated publishers, key-bearing identity
 entries, expiry, federation and a shared cross-owner directory remain outside this
 adapter feature.
+
+## Resolver policy v2 and read-only escalation
+
+Current owner-created policy payloads use `format: "swarma-memory-policy/2"`
+([payload schema](../go/space/schema/policy-v2.schema.json)). The signature's
+framing purpose stays `swarma-memory-policy/1`; the signed discriminator selects
+the new payload schema. Legacy payloads omit `format` and their signature bytes
+are never rewritten. Only a new owner-signed transition upgrades them.
+
+Each `resolvers` entry is closed `{area,match:{schemas,subjects},identities}`.
+Area labels are unique and carry no classification semantics. Match lists and
+identity lists are sorted/unique; schema refs must be accepted by the policy.
+A route matches exact schema AND exact subject, with an empty list meaning any.
+One both-empty catch-all is allowed. Non-catch-all overlaps, and a second
+catch-all, refuse signing and verification with `resolver_overlap`. Listed
+identities need registered keys and explicit reader/writer grants in the same
+policy and qualified namespace (`resolver_unqualified` otherwise). Failed edits
+leave the prior verified policy in force; routing grants no extra authority.
+Owner-only `policy resolvers set|remove|show` administer these entries.
+
+Legacy entries with no match are read as one catch-all union of identities;
+area prose is ignored. `spaces show` returns `resolver_warnings` for legacy
+unqualified recipients. A new transition upgrades that union to one `legacy`
+catch-all and must fix any unqualified recipients before it can be signed.
+No match routes to the space's owners with basis `default_owners`.
+
+`conflicts`, and `explain`/`recall --require-current`, use the current verified
+policy at each item's own Git cursor. Packets contain only authorized refs and
+metadata, no content/excerpts/prose. Hidden and missing reported refs both refuse
+without a partial packet. Cross-space reported contradictions keep distinct
+(space, route) blocks with a shared key over the full ref set; detected conflicts
+have independent keys over their own exact refs. Memory only performs normal Git
+sync and returns data; it has no board client, notification or other network
+path. See [CLI routing and resume rules](cli.md#exact-conflict-checks-and-resolver-policy).

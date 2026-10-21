@@ -125,7 +125,7 @@ A record file is never rewritten: a change is a new version or a revision record
 
 ### 5.3 Policy file
 
-`space.json` is a signed document. Fields of the first version:
+`space.json` is a signed document. The current payload schema is `swarma-memory-policy/2`; legacy payloads remain verifiable without rewriting their signed bytes. Fields:
 
 | Field | Meaning |
 | --- | --- |
@@ -137,7 +137,7 @@ A record file is never rewritten: a change is a new version or a revision record
 | `schemas` | Domain schemas and versions accepted in this space |
 | `ceiling` | Sensitivity ceiling; `non-sensitive` for every git space |
 | `limits` | Record and field size limits |
-| `resolvers` | Who resolves conflicts, per area of the space |
+| `resolvers` | Unique area labels, exact schema/subject match lists and qualified resolver identities; one catch-all, otherwise owner fallback |
 | `retention` | What happens to the space when its owner retires or is revoked |
 
 A policy change is a new signed version of `space.json` committed by an owner. Readers verify that each policy version is signed by an owner listed in the previous version, so the history of a space's policy is itself verifiable.
@@ -312,16 +312,46 @@ Memory sends no notifications by itself.
 
 ## 10. Conflicts and escalation
 
-The kernel distinguishes three outcomes: a refused write (`version_conflict`), a projection with no established order between current candidates (`ambiguous_current`), and an evidence conflict (admissible support and opposition for one assertion).
+A refused competing write (`version_conflict`) is distinct from a read conflict.
+An exact dependency blocks on `ambiguous_current`, on support and oppose witnesses
+both being `present`, or on a current assertion with `incompatible_with` refs.
+Use `explain ID --require-current`, or `recall '*' --subject S --schema X
+--require-current`. Substring recall can match unrelated work.
 
-When the work in progress depends on a decision that is ambiguous or in evidence conflict:
+1. Exit 7 stops only the dependent step. Use its `data.escalation`, or
+   `memory conflicts --space S --id ID --task T --step STEP`.
+2. The closed `swarma-memory-escalation/1` packet contains references and
+   enumerations, verified commit/policy coordinates and routing metadata. It is
+   classified as data, with no content, excerpts or explanatory prose. Hidden
+   state does not change its key or recipients.
+3. Routing uses exact schema AND subject matches in the item's verified space
+   policy, then its catch-all, then owners (`default_owners`). `area` is only a
+   label. Resolver identities need a registered key and explicit reader/writer
+   grants in that same policy and namespace. Overlapping named matches refuse
+   signing and verification; a refused edit leaves prior routing in force.
+4. The caller marks its own board task blocked and attaches the packet as data,
+   or returns it to its orchestrator. The orchestrator reuses one open resolver
+   task per `conflict_key`, assigning the union of that key's recipients.
+   Cross-owner recipients remain information; filing stays on the caller's own
+   owner's board. Memory has no board client or notification path.
+5. Resume only after a fresh exact dependency check exits 0. Board closure alone
+   is insufficient. Self-resolution requires being both issuer and named
+   resolver; routing itself grants no write or decision authority.
 
-1. `memory recall` flags the item; the CLI exits with a distinct code when the caller asked with `--require-current`.
-2. The skill requires the agent to stop the dependent step.
-3. The agent or its orchestrator raises an escalation through the platform's path (a Swarm Keeper escalation or a board task) addressed to the resolvers named in the space policy for that area.
-4. The resolvers record a new decision with their receipt; it supersedes the conflicting ones under the normal order rules, and work continues.
+An issuer can replace, correct or withdraw its own record, or withdraw its own
+assessment. A non-issuer resolver records its own ruling in its own sequence;
+the caller explicitly repoints to that authorized ruling and rechecks it. The
+original conflicted record remains visible and attributed. Canonical receipts
+from the deciding authority are required to settle `ambiguous_current`. The Git
+profile has no authority events, so ambiguity is covered by test-profile unit
+snapshots and kernel vectors only. Resolvers can record decisions **with their
+receipt only once receipts are integrated**; this CLI does not integrate them.
 
-Conflicts that the current work does not depend on stay visible and block nothing. Memory itself never escalates, wakes a session or changes a task.
+`conflicts --ref SPACE:ID:VERSION ...` reports caller-identified contradictions
+without asserting semantic equivalence across owners. It produces one block
+per (space, route), all sharing a key over the full ref set. Detected conflicts
+have independent keys over each conflict's exact ref set. Memory only syncs,
+verifies and returns data; unrelated work continues and content never instructs.
 
 ## 11. CLI
 
@@ -329,7 +359,10 @@ Conflicts that the current work does not depend on stay visible and block nothin
 | --- | --- |
 | `memory sync [--space S]` | Fetch, verify, advance cursors |
 | `memory recall <query> [--rule R] [--require-current]` | Current state on a topic, with sources and qualifications |
-| `memory explain <record>` | The support graph behind a record version |
+| `memory explain <record> [--require-current]` | The support graph behind a record version |
+| `memory conflicts --space S --id ID [--task T --step STEP]` | Closed escalation packet for an exact dependency |
+| `memory conflicts --ref SPACE:ID:VERSION ...` | Caller-reported contradiction, routed per space and route |
+| `memory policy resolvers set\|remove\|show --space S ...` | Owner-only resolver administration |
 | `memory changes [--since CURSOR]` | Memory's own changes since a cursor |
 | `memory add <kind> ...` | Write a new record |
 | `memory revise <record> --relation replace\|withdraw\|correct\|challenge` | Write a revision |

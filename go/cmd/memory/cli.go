@@ -109,6 +109,7 @@ func emit(out, errout io.Writer, jsonMode bool, command string, data any, e erro
 type arguments struct {
 	pos   []string
 	flags map[string]string
+	refs  []string
 	json  bool
 	home  string
 }
@@ -140,6 +141,15 @@ func parse(args []string) (arguments, error) {
 		}
 		if strings.HasPrefix(s, "--") {
 			name := strings.TrimPrefix(s, "--")
+			if name == "ref" {
+				if i+1 == len(args) || strings.HasPrefix(args[i+1], "--") {
+					return a, cliError{"usage", 2}
+				}
+				i++
+				a.refs = append(a.refs, args[i])
+				a.flags[name] = "true"
+				continue
+			}
 			if _, ok := a.flags[name]; ok {
 				return a, cliError{"usage", 2}
 			}
@@ -260,7 +270,7 @@ func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
 		}
 		return keyData(k), nil
 	}
-	if cmd != "directory" && cmd != "keys" && cmd != "spaces" && cmd != "policy" && cmd != "sync" && cmd != "check" && cmd != "recall" && cmd != "explain" && cmd != "changes" && cmd != "add" && cmd != "revise" && cmd != "assess" && cmd != "promote" {
+	if cmd != "conflicts" && cmd != "directory" && cmd != "keys" && cmd != "spaces" && cmd != "policy" && cmd != "sync" && cmd != "check" && cmd != "recall" && cmd != "explain" && cmd != "changes" && cmd != "add" && cmd != "revise" && cmd != "assess" && cmd != "promote" {
 		return nil, cliError{"usage", 2}
 	}
 	c, e := h.load()
@@ -322,6 +332,9 @@ func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
 			return summary(s, r), nil
 		}
 	case "policy":
+		if len(a.pos) >= 2 && a.pos[1] == "resolvers" {
+			return resolverCLI(ctx, h, c, a)
+		}
 		if len(a.pos) == 2 && (a.pos[1] == "grant" || a.pos[1] == "revoke") {
 			return administer(ctx, h, c, a, a.pos[1])
 		}
@@ -356,6 +369,8 @@ func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
 		return map[string]any{"spaces": items}, nil
 	case "add", "revise", "assess", "promote":
 		return writeCLI(ctx, h, c, a)
+	case "conflicts":
+		return conflictsCLI(ctx, h, c, a)
 	case "recall", "explain", "changes":
 		return readCLI(ctx, h, c, a)
 	}
@@ -404,7 +419,11 @@ func openSpace(ctx context.Context, s localSpace) (*space.Repository, error) {
 	return r, nil
 }
 func summary(s localSpace, r *space.Repository) any {
-	return map[string]any{"id": s.ID, "policy": r.VerifiedPolicy().Policy(), "policy_digest": r.VerifiedPolicy().Digest(), "cursor": r.Cursor(), "diagnostic_count": len(r.Diagnostics()), "diagnostics": r.Diagnostics()}
+	out := map[string]any{"id": s.ID, "policy": r.VerifiedPolicy().Policy(), "policy_digest": r.VerifiedPolicy().Digest(), "cursor": r.Cursor(), "diagnostic_count": len(r.Diagnostics()), "diagnostics": r.Diagnostics()}
+	if warnings := r.VerifiedPolicy().Policy().ResolverWarnings(); len(warnings) > 0 {
+		out["resolver_warnings"] = warnings
+	}
+	return out
 }
 
 // gitCall always passes the process environment unchanged. It redacts transport
@@ -545,7 +564,7 @@ func genesisPolicy(id, kind string, k *localkey.Key) (space.SignedPolicy, error)
 		copied := ref
 		writerRefs = append(writerRefs, &copied)
 	}
-	p := space.Policy{SpaceID: id, Kind: kind, Version: 1, Author: k.Identity(), Owners: []string{k.Identity()}, Readers: []space.Reader{{Identity: k.Identity(), Spaces: []string{}}}, Writers: []space.Writer{{Identity: k.Identity(), AdmissionClasses: []string{"machine_observation", "self_declaration", "semantic_inference"}, Schemas: writerRefs, Kinds: []string{"assertion", "source", "justification", "assessment", "revision"}}}, Keys: []space.SignedRegistration{{Registration: space.Registration{Identity: k.Identity(), Key: k.ID(), Alg: "ed25519", PublicKey: base64.StdEncoding.EncodeToString(k.PublicKey())}}}, Schemas: refs, Ceiling: "non-sensitive", Limits: space.Limits{MaxRecordBytes: 1000000, MaxFieldBytes: 65536}, Resolvers: []space.Resolver{}, Retention: space.Retention{OnOwnerRetire: "retain", OnOwnerRevoke: "deny"}}
+	p := space.Policy{Format: space.PolicyFormatV2, SpaceID: id, Kind: kind, Version: 1, Author: k.Identity(), Owners: []string{k.Identity()}, Readers: []space.Reader{{Identity: k.Identity(), Spaces: []string{}}}, Writers: []space.Writer{{Identity: k.Identity(), AdmissionClasses: []string{"machine_observation", "self_declaration", "semantic_inference"}, Schemas: writerRefs, Kinds: []string{"assertion", "source", "justification", "assessment", "revision"}}}, Keys: []space.SignedRegistration{{Registration: space.Registration{Identity: k.Identity(), Key: k.ID(), Alg: "ed25519", PublicKey: base64.StdEncoding.EncodeToString(k.PublicKey())}}}, Schemas: refs, Ceiling: "non-sensitive", Limits: space.Limits{MaxRecordBytes: 1000000, MaxFieldBytes: 65536}, Resolvers: []space.Resolver{}, Retention: space.Retention{OnOwnerRetire: "retain", OnOwnerRevoke: "deny"}}
 	return space.EndorsePolicy(p, k)
 }
 func administer(ctx context.Context, h home, c localConfig, a arguments, action string) (any, error) {

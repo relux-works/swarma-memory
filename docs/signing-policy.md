@@ -80,8 +80,15 @@ policy purpose. The payload retains all architecture §5.3 fields:
 | `schemas` | Exact domain `{id, version}` references |
 | `ceiling` | Exactly `non-sensitive` for git spaces |
 | `limits` | Positive `max_record_bytes`, `max_field_bytes` |
-| `resolvers` | Entries with `area` and nonempty unique `identities` |
+| `resolvers` | V2 entries with unique `area`, closed `match:{schemas,subjects}` and sorted nonempty unique `identities`; see [routing rules](cli.md#exact-conflict-checks-and-resolver-policy) |
 | `retention` | `on_owner_retire`, `on_owner_revoke`, each `retain` or `deny` |
+
+Current payloads include `format: "swarma-memory-policy/2"`; the signature
+purpose remains `swarma-memory-policy/1`. Legacy payloads omit the discriminator
+and resolver match fields; their canonical signature bytes remain unchanged.
+New owner transitions upgrade legacy entries to one catch-all union. V2 validates
+exact-match overlap and registered reader/writer resolver qualification at both
+signing and verification.
 
 The payload additionally has `version` (positive integer), `previous` (prior
 policy digest or null) and `author` (the signing owner identity). Empty arrays
@@ -150,8 +157,9 @@ It also checks configured byte limits and rejects explicit or populated
 domain-declared sensitive fields. Record size counts canonical record bytes;
 field size counts canonical body string leaves and complete `content[].value`
 values, including arrays. These checks do not scan for undeclared secrets.
-The git adapter enforces readers in addition to kernel grants. Resolvers and owner
-retirement/revocation actions remain authenticated metadata for later stages.
+The git adapter enforces readers in addition to kernel grants. Resolver metadata
+routes read-only escalation packets and grants no authority; owner
+retirement/revocation actions remain metadata for later integration.
 
 `space.NewSnapshot(template, []space.RecordAtPolicy, schemas, mint)` verifies every
 record under its explicitly bound verified policy, then calls `kernel.NewState`.

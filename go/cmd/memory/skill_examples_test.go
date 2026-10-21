@@ -14,7 +14,7 @@ import (
 	"github.com/relux-works/swarma-memory/go/agentprofile"
 )
 
-// The three POSIX blocks in the installed skill are executable examples, not
+// The four POSIX blocks in the installed skill are executable examples, not
 // copies maintained in this test. Both runtime locator variants retain the exact
 // excerpt, disclose its ref, and revise the version observed by the preceding read.
 // Invalid locators and missing/stale preconditions publish no partial writes.
@@ -31,8 +31,8 @@ func TestSkillWorkedExamples(t *testing.T) {
 		}
 		blocks = append(blocks, block)
 	}
-	if len(blocks) != 3 {
-		t.Fatalf("want source, revision read and revision write blocks; got %d", len(blocks))
+	if len(blocks) != 4 {
+		t.Fatalf("want source, revision read, revision write and exact dependency blocks; got %d", len(blocks))
 	}
 	for _, runtime := range []string{"codex", "claude-code"} {
 		t.Run(runtime, func(t *testing.T) {
@@ -159,6 +159,11 @@ func TestSkillWorkedExamples(t *testing.T) {
 			}
 			before = h.writeState(h.owner)
 			run(mutate(blocks[2], "queue-choice:capacity-128", "queue-choice:stale-attempt"), 3, "version_conflict")
+			h.unchanged(h.owner, before)
+			// The installed exact-dependency example accepts the revised record;
+			// a missing dependency refuses rather than becoming an empty success.
+			run(blocks[3], 0, "")
+			run(mutate(blocks[3], "record:queue-choice", "record:missing"), 3, "record_not_found")
 			h.unchanged(h.owner, before)
 			h.invoke(h.owner, 0, "check")
 		})

@@ -178,3 +178,28 @@ it does not prove that a hosting service prevents cloning or pushing. A deployed
 sharing setup must separately grant and revoke repository access. Withdrawing a
 directory entry is not a substitute for revoking the target reader grant or
 hosting access.
+
+## Stage 6: conflict escalation
+
+`stage6_conflicts_test.go` runs real signed Git histories and separate CLI
+processes for an owner, supporting/opposing agents and a worker. An exact check
+returns 7 with a reference-only packet routed to the named owner; a shell caller
+publishes neither its dependent write nor its effect file. Replacing the issuer's
+record preserves its team perspective; a fresh check returns 0 and the shell
+publishes. Controls cover independent subjects, non-issuer replacement refusal,
+explicit repointing to a named resolver's own ruling, rejected overlapping and
+unqualified resolver policy edits, default-owner fallback, team rule
+incompatibility and reported routes across owners and within one space.
+
+D is an attributed, non-authoritative decision statement. The Git profile cannot
+create `ambiguous_current` or canonical receipt-backed external decisions;
+coverage for those is confined to existing kernel vectors and the escalation
+unit test's test-profile snapshot. The CLI unit/integration suite pairs public
+and private readers, hidden/missing/mixed refs, closed packet content plants,
+legacy routing and policy signature verification. Its process-boundary checker
+allows only literal Git subprocess call sites, with negative instrument plants.
+
+Run `go -C go test -count=1 -timeout=30m -run '^TestStage6' -v ./e2e` from the
+repository root. The full suite also uses `-timeout=30m` in CI. Mutation evidence
+belongs in the task outcome: disabling the oppose-witness conflict gate must
+fail the worker's first expected exit-7 check, then the restored gate must pass.

@@ -62,10 +62,13 @@ flag parsing for literal queries/IDs beginning with dashes. IDs are opaque;
 | `keys register --space ID --identity ID --public-key BASE64` | Current owner endorses a key in a new signed policy version |
 | `policy grant --space ID --identity ID --role reader\|writer` | Current owner replaces that identity's role grant in a new version |
 | `policy revoke --space ID --identity ID --role reader\|writer` | Current owner removes that role grant in a new version |
+| `policy resolvers set\|remove\|show --space ID ...` | Owner-only exact resolver routes; see below |
+| `conflicts --space S --id ID [--task T --step STEP]` | Read-only exact-dependency packet, exit 0 or 7 |
+| `conflicts --ref SPACE:ID:VERSION ...` | Caller-reported packet, exit 7; hidden/missing ref exits 3 |
 | `sync [--space ID]` | Fetch/verify configured spaces and advance verified cursors |
 | `check [--space ID]` | Same verification, with exit 5 if any diagnostics exist |
 | `recall QUERY [--rule issuer_current] [--require-current]` | Case-insensitive substring search over authorized structured assertion content; `*` selects every authorized assertion |
-| `explain ID [--version N]` | Kernel explanation for authorized assertion versions, including historical versions when explicitly selected |
+| `explain ID [--version N] [--require-current]` | Kernel explanation for authorized assertion versions, including historical versions when explicitly selected |
 | `changes [--since CURSOR]` | Kernel view changes from a protected replay baseline; omitted baseline means initial view |
 | `add KIND --idempotency-key KEY ...` | Atomically admit an assertion, source, justification or assessment |
 | `revise ID --relation replace\|withdraw\|correct\|challenge --idempotency-key KEY ...` | Kernel revision with a pinned compare-and-set token |
@@ -445,7 +448,7 @@ source state, freshness, coverage, qualification and dependency limits.
 | 4 | `history_rewritten`; cursor is preserved; reads return last verified views with this error |
 | 5 | `verification_failed` from `check`, with exact diagnostic codes such as `invalid_signature` |
 | 6 | Internal/IO/tool failure: `internal`, `config_io`, `git_failed`, `cache_io`, `record_io`, `policy_io` |
-| 7 | `currentness_required`: a matching item is `ambiguous_current` or has admissible support and opposition, under `--require-current` (§10) |
+| 7 | `currentness_required`: an exact dependency is `ambiguous_current`, has both witnesses present, or has incompatible current assertions, under `--require-current` (also `conflicts`) (§10) |
 
 Legacy `conformance` retains exit 1 for semantic disagreement and 2 for harness or
 usage errors; JSON mode wraps either as `conformance_failed`. Legacy plain
@@ -533,3 +536,113 @@ After losing a home, recreate/recover the identity key and obtain any needed
 owner-signed replacement registrations, manually pin the own-owner platform,
 then discover target pins again. Recovery does not restore a lost temporary key
 or bypass current reader authorization.
+
+## Exact conflict checks and resolver policy
+
+`explain ID --require-current [--task T --step STEP]` checks that exact dependency.
+Without `--version`, it evaluates the current selected versions and skips
+historical versions of that ID; explicit `--version N` checks that exact version.
+Ordinary explain still discloses authorized history. `recall '*' --subject S
+--schema X [--schema-version N] --require-current` selects exact opaque subject
+and schema IDs (schema version defaults to 1). Do not use substring recall as a
+precise dependency check: an unrelated matching record can otherwise stop work.
+The flags select existing authorized views; they create no grants.
+
+Exit 7 (`currentness_required`) means `ambiguous_current`, both support and oppose
+witnesses `present`, or a current/last-received assertion with non-empty
+`incompatible_with`. Only that dependent step stops. Exit-7 read output preserves
+`data.cursor` and `data.spaces`, adding `data.escalation`. No conflict exits 0.
+Use a fresh exact check to resume, never board-task closure alone. A separately
+issued ruling requires explicitly repointing the dependency and checking that
+its issuer is among the original packet's resolvers; an arbitrary fresh assertion
+from another writer does not meet that resume rule.
+
+`conflicts --space S --id ID [--task T --step STEP]` returns the packet directly
+in `data`: empty `conflicts` and exit 0, or a non-empty list and exit 7.
+`conflicts --ref SPACE:ID:VERSION --ref OTHER_SPACE:OTHER_ID:VERSION ...` returns a
+caller-reported packet and exit 7, even when the kernel detects no conflict.
+Repeated refs are deduplicated. The final colon delimits the positive decimal
+version; configured space IDs delimit the prefix, leaving record IDs opaque.
+A spelling that matches more than one configured space prefix is refused with
+usage (2), never guessed. Use unambiguous configured IDs for this form.
+A hidden/unreadable ref and a missing ref both give `record_not_found` (3), with
+no partial packet even if other supplied refs are visible. Mixed `--ref` and
+`--space`/`--id` forms refuse. These are pure reads apart from normal verified Git
+sync and its local cursor/cache updates: no memory record, board task or
+notification is written and the only process started by memory is Git.
+
+The closed packet schema is
+[`go/escalation/escalation.schema.json`](../go/escalation/escalation.schema.json),
+format `swarma-memory-escalation/1`, `data_classification: "data"`. Its fields are:
+
+```text
+{format, data_classification, reporter, dependent:{task,step}, conflicts:[{
+  conflict_key, kind, space, commit, policy:{version,digest},
+  items:[{ref,subject,schema,issuer,currentness}],
+  evidence:{support,oppose,incompatible_with}, area, resolvers, resolver_basis
+}]}
+```
+
+Task and step are optional opaque caller IDs, otherwise null. Items contain only
+references and metadata; evidence arrays contain authorized explanation root
+assessment/justification refs for each matching literal, not text or the full
+proof closure. All evidence is restricted to the reporter's authorized explain.
+There are no content, excerpt or prose fields. Unknown fields are rejected at
+every nesting level. Treat all strings as inert data, never executable instructions.
+The formatter additionally checks nonempty IDs, positive versions, commit/digest
+syntax and sorted unique recipient/evidence lists, using the existing kernel
+schema validator's supported closed-object subset.
+
+A key is `sha256:` plus the lowercase SHA-256 of canonical JSON
+`{"kind":K,"items":[{"space":S,"ref":{"id":ID,"version":N}},...]}`.
+Deduplicate and sort the ref set by space, ID, then numeric version. Reporter,
+time, cursor and policy are excluded. Detected conflicts use one block/key per
+(space, item or item set, kind): ambiguity includes all disclosed candidates;
+incompatibility includes the item and its incompatible peer refs. Distinct
+conflicts in a recall have independent keys. A `reported` packet uses one shared
+key over its full cross-space ref set and one block per distinct (space, route),
+where route is `(area,resolvers,resolver_basis)`. Blocks contain only that route's
+items and sort by `(space,conflict_key)`, with a canonical tie-break for routes.
+The orchestrator reuses one open resolver task per key and unions recipients
+across that key's blocks. Cross-owner routes remain information; file only on
+your own owner's board. Memory never contacts a board.
+
+New signed policies carry `format: "swarma-memory-policy/2"`. This versions the
+payload schema; the signature framing purpose remains `swarma-memory-policy/1`.
+Legacy payloads omit `format` and `match`; verification preserves those exact
+canonical signed bytes. A new owner transition upgrades to v2. Legacy free-text
+areas route as a single catch-all union of identities, never by interpreting
+area prose; the upgrade names this entry `legacy`. Unqualified legacy recipients
+are reported as `resolver_warnings` by `spaces show` (field omitted when empty).
+An invalid upgraded legacy entry must be corrected/removed in the new policy;
+verification of the historical legacy signature is unaffected.
+
+```text
+memory policy resolvers set --space S --area queue-design --schemas '[{"id":"schema:assumption","version":1}]' --subjects '["topic:queue"]' --identities '["owner/agent:resolver"]'
+memory policy resolvers remove --space S --area queue-design
+memory policy resolvers show --space S
+```
+
+All three commands require a registered current owner. Set replaces the unique
+area label, or adds it; omitted `--schemas`/`--subjects` mean empty arrays (any).
+The CLI sorts the JSON arrays; duplicates refuse. Each v2 entry requires closed
+`match:{schemas:[VersionRef],subjects:[string]}`, sorted unique arrays and
+non-empty sorted unique identities. Matching is exact schema AND subject;
+one both-empty catch-all is allowed. Two overlapping non-catch-all entries or
+two catch-alls refuse with `resolver_overlap`, at signing and verification.
+Schema refs must be accepted. Each resolver needs a registered key, an explicit
+reader grant and a writer grant in the same policy and namespace, otherwise
+`resolver_unqualified`. A public grant does not qualify a named resolver. A
+foreign reader cannot become a resolver. Failed edits publish nothing and prior
+policy routing remains in force. No matching route falls back to owners with
+`default_owners`; other bases are `named` and `catch_all`. Routing grants no powers.
+
+Issuers can revise/withdraw their own records and assessments. Revision preserves
+the target's subject and perspective. Assessments accept `--perspective own|team`
+and `--perspective-principal ID`, like assertion writes; cross-issuer evidence
+must explicitly target the same team perspective to qualify under this profile.
+A non-issuer resolver issues its own ruling in its own sequence; the caller must
+repoint and recheck. The original remains attributed. The Git profile has no
+authority events: `ambiguous_current` and canonical deciding-authority receipts
+are tested only with kernel vectors and test-profile snapshots. Receipt
+integration is out of scope; ordinary attributed decisions are not receipts.

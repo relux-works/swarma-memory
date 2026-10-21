@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bounded-evidence:escalation:1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "swarma-memory-escalation/1"
+    },
+    "data_classification": {
+      "const": "data"
+    },
+    "reporter": {
+      "type": "string"
+    },
+    "dependent": {
+      "type": "object",
+      "properties": {
+        "task": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "step": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "task",
+        "step"
+      ],
+      "additionalProperties": false
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "conflict_key": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "ambiguous_current",
+              "evidence_conflict",
+              "incompatible",
+              "reported"
+            ]
+          },
+          "space": {
+            "type": "string"
+          },
+          "commit": {
+            "type": "string"
+          },
+          "policy": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "integer"
+              },
+              "digest": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "version",
+              "digest"
+            ],
+            "additionalProperties": false
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                },
+                "subject": {
+                  "type": "string"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                },
+                "issuer": {
+                  "type": "string"
+                },
+                "currentness": {
+                  "enum": [
+                    "current",
+                    "historical",
+                    "last_received",
+                    "ambiguous_current"
+                  ]
+                }
+              },
+              "required": [
+                "ref",
+                "subject",
+                "schema",
+                "issuer",
+                "currentness"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "support": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "oppose": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "incompatible_with": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "support",
+              "oppose",
+              "incompatible_with"
+            ],
+            "additionalProperties": false
+          },
+          "area": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolvers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "resolver_basis": {
+            "enum": [
+              "named",
+              "catch_all",
+              "default_owners"
+            ]
+          }
+        },
+        "required": [
+          "conflict_key",
+          "kind",
+          "space",
+          "commit",
+          "policy",
+          "items",
+          "evidence",
+          "area",
+          "resolvers",
+          "resolver_basis"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "format",
+    "data_classification",
+    "reporter",
+    "dependent",
+    "conflicts"
+  ],
+  "additionalProperties": false
+}

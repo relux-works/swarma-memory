@@ -34,7 +34,7 @@ go -C go build -o ../bin/memory ./cmd/memory
 ./bin/memory version
 ./bin/memory conformance # exits 0: 77/77 semantic vectors pass
 go -C go vet ./...
-go -C go test ./...
+go -C go test -timeout=30m ./...
 python3 spec/checks/validate.py
 ```
 
@@ -112,11 +112,12 @@ Every excerpt is fully `[REDACTED]`. Findings for unsafe object keys and their d
 
 | Tool | Purpose and entry point | Output |
 | --- | --- | --- |
-| Go 1.25+ | `go -C go build -o ../bin/memory ./cmd/memory`, `go -C go vet ./...`, `go -C go test ./...` | Binary in ignored `bin/`; diagnostics in terminal |
+| Go 1.25+ | `go -C go build -o ../bin/memory ./cmd/memory`, `go -C go vet ./...`, `go -C go test -timeout=30m ./...` | Binary in ignored `bin/`; diagnostics in terminal |
 | Write scan tests | `go -C go test -v ./scan` | Detector controls and corpus finding counts in terminal |
 | Memory CLI | `bin/memory --home DIR keys init --identity ID`; [read/write/admin command reference](docs/cli.md); `go -C go run ./cmd/memory conformance [vectors-dir]` | Private config/key, clones/caches in the selected home; data-only JSON or prefixed compact output |
 | CLI integration tests / SSH signing | `go -C go test ./cmd/memory`, `go -C go test -race ./space ./cmd/...`; tests invoke `ssh-keygen` with ephemeral keys and isolated Git configuration | One subprocess binary per package, temporary homes and local signed bare repositories under `TMPDIR` |
 | Git | `space.Clone`, `Repository.Sync` and `Repository.Write` use `git clone`, `fetch`, `rev-list`, `ls-tree`, `cat-file`, signed `commit` and `push`; exercise with `go -C go test -race ./space` | Caller-selected space clone and external index; isolated repositories in tests |
+| Conflict escalation | `memory explain ID --require-current`, `memory conflicts --space S --id ID`, `memory policy resolvers set\|remove\|show --space S ...`; `go -C go test -count=1 -timeout=30m -run TestStage6 ./e2e` | Closed data-only packets in command output; isolated signed Git fixtures under `TMPDIR`; see [CLI](docs/cli.md#exact-conflict-checks-and-resolver-policy) |
 | Platform directory | `memory directory advertise/publish/list/show/withdraw`, `memory spaces add/update ID --from-directory PLATFORM`; `go -C go test ./cmd/memory ./space -run TestDirectory` | Signed advertisement files, immutable platform entries, private verified clones/caches and data-only diagnostics; see [CLI](docs/cli.md#directory-discovery-and-owner-qualification) |
 | Git-space gates | `go -C go test -race ./space` | Isolated temporary bare repositories/clones and external test indexes under the Go test temp directory; verdicts in terminal |
 | Trust-layer tests | `go -C go test ./space ./sign/...` (ephemeral keys only) | Diagnostics in terminal; temporary key files under the Go test temp directory |
