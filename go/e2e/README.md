@@ -1,6 +1,6 @@
 # CLI end-to-end gate
 
-From the `go/` module directory, run `go test -count=1 -v ./e2e` or `go test -race ./e2e`. CI runs this package
+From the `go/` module directory, run `go test -count=1 -timeout=30m -v ./e2e` or `go test -timeout=30m -race ./e2e`. CI runs this package
 in a separate blocking step as well as through `go test ./...`.
 
 The harness builds `memory` once per package run. It imports only the Go standard
@@ -25,7 +25,7 @@ host environment settings are not forwarded.
 
 | Tool | Entry points used by the gate | Artifacts |
 | --- | --- | --- |
-| Go | `go build -buildvcs=false -o BINARY ../cmd/memory`; `go test -count=1 -v ./e2e`; `go test -race ./e2e` | Once-built temporary binary; test verdicts on stdout |
+| Go | `go build -buildvcs=false -o BINARY ../cmd/memory`; `go test -count=1 -timeout=30m -v ./e2e`; `go test -timeout=30m -race ./e2e` | Once-built temporary binary; test verdicts on stdout |
 | Git | `git init --bare --initial-branch=main`, `git commit -S`, `git push`, `git log --format=%G?`, `git update-ref` | Disposable repositories and signed commits under test temp roots |
 | OpenSSH | `ssh-keygen -q -t ed25519 -N '' -f KEY` | Separate ephemeral commit keys and public allowed-signers fixture |
 

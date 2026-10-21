@@ -181,9 +181,9 @@ func TestReportedRefSelection(t *testing.T) {
 	}
 }
 
-// A reported packet cannot mask anti-rollback failure as a fresh exit-7 report;
+// Neither packet form can mask anti-rollback failure or return record prose;
 // restoring the exact accepted head makes the same visible dependency reportable.
-func TestReportedConflictPreservesRewriteRefusal(t *testing.T) {
+func TestConflictsPreserveRewriteRefusal(t *testing.T) {
 	h := newCLI(t)
 	h.appendRecord("record:dependency", "Dependency")
 	h.invoke(h.owner, 7, "conflicts", "--ref", "space:test:record:dependency:1")
@@ -192,6 +192,10 @@ func TestReportedConflictPreservesRewriteRefusal(t *testing.T) {
 	r, _ := h.invoke(h.owner, 4, "conflicts", "--ref", "space:test:record:dependency:1")
 	if errorCodeOf(r) != "history_rewritten" || r["data"] != nil {
 		t.Fatal(r)
+	}
+	exact, _ := h.invoke(h.owner, 4, "conflicts", "--space", "space:test", "--id", "record:dependency")
+	if errorCodeOf(exact) != "history_rewritten" || exact["data"] != nil {
+		t.Fatal("exact error leaked explain payload", exact)
 	}
 	h.git(h.remote, "update-ref", "refs/heads/main", head, h.genesis)
 	h.invoke(h.owner, 7, "conflicts", "--ref", "space:test:record:dependency:1")

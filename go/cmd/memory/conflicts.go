@@ -77,7 +77,9 @@ func conflictsCLI(ctx context.Context, h home, c localConfig, a arguments) (any,
 		if code == "not_authorized" || code == "unknown_space" {
 			return nil, cliError{"record_not_found", 3}
 		}
-		return data, e
+		// This command emits only packets, never the ordinary explain payload
+		// (which may include record prose), even on an anti-rollback error.
+		return nil, e
 	}
 	return escalation.New(c.Identity, optionalFlag(a, "task"), optionalFlag(a, "step")), nil
 }
