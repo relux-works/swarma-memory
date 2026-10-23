@@ -14,7 +14,8 @@ identity key live under `$XDG_CONFIG_HOME/swarma-memory` (default
 `$XDG_STATE_HOME/swarma-memory` (default `$HOME/.local/state/swarma-memory`).
 The home must be outside Git working/bare repositories and metadata directories, including symlink aliases.
 
-`config.json` has exactly `identity`, `key_file`, and `spaces`; its closed
+`config.json` has `identity`, `spaces`, and exactly one key source: `key_file`
+or `signer`; its closed
 [schema](../go/cmd/memory/config.schema.json) is enforced on load. Each space has
 exactly `id`, `remote`, `branch`, `clone_path`, `cache_path`, `genesis_digest` and
 `kind` (`agent`, `project`, `platform`), plus optional `directory_space` recording
@@ -24,8 +25,9 @@ redirect through symlinks. The explicit key path must match `localkey.json` in
 the config home. There is no local authority or grants field; additional fields
 refuse with `invalid_configuration`.
 
-The home/config directories use 0700; config and key files use 0600. Config writes
-use a private temporary file, fsync and rename. Existing config/key files are
+The home/config directories use 0700; config and key files use 0600. Config updates
+use a private temporary file, fsync and rename; initialization uses an exclusive
+link of the completed file, so an existing config cannot be replaced. Existing config/key files are
 never overwritten by `keys init`. Generated/saved keys must fit the loader's
 4096-byte encoded JSON bound, including identity escaping and UTF-8; unsupported
 identities refuse `invalid_key` before publishing key/config state. Config has a
@@ -38,6 +40,64 @@ encoding. A process owns its home exclusively; concurrent
 processes must use separate homes, just as independent library instances must use
 separate clones and caches. Remote publication still uses non-fast-forward gates.
 
+### Explicit SSH agent
+
+An agent-backed home replaces `key_file` with this closed object:
+
+```json
+{"kind":"ssh-agent","socket":"/absolute/path/to/agent.sock","public_key":"<canonical base64 of 32 raw Ed25519 public bytes>"}
+```
+
+For example:
+
+```sh
+memory --home /private/memory-owner keys init --identity agent:owner \
+  --ssh-agent /absolute/path/to/memory-agent.sock \
+  --public-key 'ssh-ed25519 AAAA... dedicated-memory-key'
+# Or pass --public-key @/absolute/path/to/memory.pub
+memory --home /private/memory-owner keys show
+```
+
+The public input is one OpenSSH Ed25519 line, with optional comment; `@FILE`
+reads a bounded public file. `keys register --public-key` continues to take raw
+32-byte base64, as returned by `keys show`. Initialization checks the configured
+agent's identity list for exactly one matching key and writes config only, with
+no `localkey.json`. Both key sources, neither source, extra fields, relative
+socket paths or malformed config public bytes refuse `invalid_configuration`.
+Older binaries reject `signer` configs through their closed schema; they must
+be upgraded before using this home.
+
+Only the configured absolute Unix socket is contacted. `SSH_AUTH_SOCK` is never
+consulted, and there is no alternate socket or transport fallback. `keys show`
+is an offline public-config inspection; it does not require agent availability.
+Each signing attempt rechecks key presence, then signs with flags zero, using a
+new connection for each operation. The whole attempt has a 120-second deadline
+for human approval. Library callers can choose a positive `time.Duration` with
+`sshagent.New`; zero selects 120 seconds, negative durations refuse. The CLI uses
+the default. Agent frames, including the four-byte length header and request metadata,
+are limited to 256 KiB;
+larger signing inputs refuse before contacting the agent.
+
+All listed identities must be well-formed Ed25519 keys. Unrelated Ed25519 keys
+are permitted, duplicate matching entries and unsupported key types refuse.
+Use a [dedicated memory key](signing-policy.md#ssh-agent-backend-and-key-rotation).
+The identity key backend is separate from Git transport and Git commit signing;
+Git still uses its explicitly configured signing mechanism.
+
+Signing refusals exit 3 before publication, return no partial signature, preserve
+config and policy files and leave no partial commits. Dirty clones are refused
+without overwriting their edits. Repairing/unlocking the same agent permits a
+valid retry; the tool does not automatically repeat approval requests.
+
+| Code | Meaning |
+| --- | --- |
+| `signer_unavailable` | Missing/refused socket, incomplete transport or approval deadline |
+| `signer_refused` | Agent FAILURE response |
+| `signer_key_missing` | Configured key is not listed |
+| `invalid_signature` | Wrong signature/key in the local cryptographic self-check, malformed signature frame, or oversized request |
+| `invalid_key` | Malformed/non-Ed25519 public key, identity list or signature type |
+
+
 ## Commands
 
 Every command accepts `--json`; examples omit it for brevity. `--` terminates
@@ -47,7 +107,8 @@ flag parsing for literal queries/IDs beginning with dashes. IDs are opaque;
 | Command | Arguments and behavior |
 | --- | --- |
 | `keys init --identity ID` | Create one temporary local Ed25519 key and config |
-| `keys show` | Public identity, key ID, algorithm and base64 public key; no private material |
+| `keys init --identity ID --ssh-agent SOCKET --public-key LINE_OR_@FILE` | Check the explicit agent key and create config without a key file |
+| `keys show` | Public identity, key ID, algorithm, base64 public key and `backend`; agent homes also report `socket` |
 | `spaces list` | Sorted configured spaces |
 | `spaces add ID --remote URL --genesis DIGEST [--branch main] [--kind project]` | Clone, verify the externally obtained genesis pin, then save configuration |
 | `spaces init ID --remote URL [--branch main] [--kind project]` | Clone an empty remote, sign owner registrations and genesis policy, commit with `-S`, verify and push; return the genesis digest for distribution |
@@ -127,7 +188,7 @@ availability and retained excerpt lines. Sources are never separately enumerable
 
 ## Write commands
 
-Writes use the same home, local signer, trusted profile and verified policy as
+Writes use the same home, configured signer, trusted profile and verified policy as
 reads. They call `space.Repository.Write`: sync, build once, kernel admission,
 scan, record/transaction signatures, `git commit -S`, signature verification and
 ordinary push. The fixed bound is **two additional push attempts** (three total).
@@ -407,7 +468,7 @@ The closed `data` variants are:
 | Commands | Exact data keys |
 | --- | --- |
 | `version` | `version` |
-| `keys init/show` | `identity`, `key_id`, `algorithm`, `public_key` |
+| `keys init/show` | `identity`, `key_id`, `algorithm`, `public_key`, `backend` (`localfile` or `ssh-agent`); only agent homes add `socket` |
 | `spaces list` | `spaces` (closed config-space entries defined above) |
 | `spaces add/init/show` | `id`, `policy`, `policy_digest`, `cursor`, `diagnostic_count`, `diagnostics` |
 | `keys register`, `policy grant/revoke` | `commit`, `space` (the preceding summary shape) |

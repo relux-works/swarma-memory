@@ -13,7 +13,7 @@ private-file persistence. Tests generate their own ephemeral keys only.
 `sign.NewCanonicalRecord(value, schemas, domains)` checks the closed stored-record
 schema, positive versions and exact assertion domain content through the kernel.
 The immutable result returns detached bytes/values; its zero value cannot be
-signed. The local signer refuses a submitter different from its own identity with
+signed. Both signing backends refuse a submitter different from its own identity with
 `submitter_mismatch`. Issuer and subject remain distinct roles and confer no
 signing identity. The signature includes every stored envelope field, including
 submitter, admission class and recorded position. Admission/stamping happens
@@ -108,7 +108,7 @@ when the policy itself has a valid signature. Keys must match their derived IDs;
 duplicate IDs, including use across identities, are rejected. Each policy owner
 must have a registered key. Writers without a registered key cannot verify.
 `NewCanonicalRegistration` and `NewCanonicalPolicy` create immutable full signing
-requests; `space.PolicySigner` exposes the typed methods implemented by localkey.
+requests; `space.PolicySigner` exposes the typed methods implemented by both backends.
 These methods also require the signing identity to equal the payload's author.
 
 ## Policy history and trust anchor
@@ -201,6 +201,50 @@ The caller must provide private trusted parent directories and filesystem
 behavior; the `io/fs` adapter is not a hostile-filesystem sandbox or a key holder.
 Temporary keys still have the architecture's prompt-injection/home-loss risks.
 No test reads host keys, SSH agents or credentials.
+
+## SSH-agent backend and key rotation
+
+`go/sign/sshagent` implements the same six typed signer interfaces as localkey;
+they share canonical author/purpose checks. It holds only public configuration
+and signs the complete `sign.Frame(purpose, canonical)` through an explicit Unix
+socket. The [RFC 9987 agent protocol](https://www.rfc-editor.org/rfc/rfc9987.html)
+uses messages 11/12 (identities), 13/14 (signing, flags 0) and 5 (FAILURE).
+Frames (including the four-byte length header) are bounded to 256 KiB before allocation; parsers require complete SSH
+strings and consume the exact payload, including nested signature blobs.
+The [RFC 8709 Ed25519 encoding](https://www.rfc-editor.org/rfc/rfc8709.html)
+contains the algorithm string and the 64 raw signature bytes. The backend
+performs `ed25519.Verify` against the configured raw public key before returning
+any signature. The stored signature, key ID, purposes and verifier are unchanged.
+No private material passes into memory, and normal key formatting is redacted.
+See [CLI configuration and errors](cli.md#explicit-ssh-agent).
+
+**Use a dedicated memory identity key**, separate from SSH login and Git signing.
+Domain separation prevents a memory signature being retagged as another memory
+purpose. It does not stop a compromised client of an unrestricted SSH agent from
+asking for arbitrary other bytes. Agent approval/access policy and key separation
+remain necessary; an explicit endpoint and local self-check do not authenticate
+the agent process or constrain other clients of that process. Neither tests nor
+runtime discover or read host keys or ambient sockets.
+
+To rotate an existing space without changing its trust anchor:
+
+1. Initialize a separate agent home with the **same owner identity** and the new
+   dedicated public key using `keys init --ssh-agent ... --public-key ...`.
+2. Read its raw `public_key` from `keys show`. From the current file-key owner
+   home, run `keys register --space SPACE --identity OWNER --public-key BASE64`.
+   This commits an endorsement of the agent key by the preceding owner key.
+3. From the agent home, run `spaces add SPACE --remote URL --genesis ORIGINAL_PIN`
+   with the original genesis digest. Verify before making changes.
+4. Make the next policy change from that home, for example `policy grant`.
+   The new key signs the next version; existing readers retain the same genesis
+   and verify historical file-key and subsequent agent-key signatures.
+
+There is **no key removal command** yet: the previous key remains registered.
+Rotation adds a key; it does not revoke the old key or retire an owner. P-256 and
+key removal are separate open tasks. Do not edit signed history to simulate them.
+Tests include a Unix fake agent and a bounded foreground `ssh-agent -D` with
+an ephemeral key. Cleanup reaps its exact PID and closes every owned listener;
+no test uses the user's `SSH_AUTH_SOCK`, `~/.ssh` or host signing agent.
 
 ## Architecture choices and validation
 

@@ -15,6 +15,7 @@ import (
 
 	"github.com/relux-works/swarma-memory/go/kernel"
 	"github.com/relux-works/swarma-memory/go/sign"
+	"github.com/relux-works/swarma-memory/go/sign/internal/authored"
 	"github.com/relux-works/swarma-memory/go/space"
 )
 
@@ -61,31 +62,13 @@ func (k *Key) PublicKey() []byte {
 }
 func (k *Key) ID() string { return sign.KeyID(k.PublicKey()) }
 func (k *Key) Sign(record sign.CanonicalRecord) (sign.Signature, error) {
-	if record.Submitter() == "" {
-		return sign.Signature{}, sign.Fail(sign.InvalidRecord, "record")
-	}
-	if record.Submitter() != k.Identity() {
-		return sign.Signature{}, sign.Fail(sign.SubmitterMismatch, "record.envelope.submitter")
-	}
-	return k.sign(sign.RecordPurpose, record.Bytes())
+	return (authored.Signer{Identity: k.Identity(), SignBytes: k.sign}).Sign(record)
 }
 func (k *Key) SignPolicy(p space.CanonicalPolicy) (sign.Signature, error) {
-	if p.Author() == "" {
-		return sign.Signature{}, sign.Fail(sign.InvalidPolicy, "policy")
-	}
-	if p.Author() != k.Identity() {
-		return sign.Signature{}, sign.Fail(sign.SubmitterMismatch, "policy.author")
-	}
-	return k.sign(sign.PolicyPurpose, p.Bytes())
+	return (authored.Signer{Identity: k.Identity(), SignBytes: k.sign}).SignPolicy(p)
 }
 func (k *Key) SignRegistration(r space.CanonicalRegistration) (sign.Signature, error) {
-	if r.Author() == "" {
-		return sign.Signature{}, sign.Fail(sign.InvalidRegistration, "registration")
-	}
-	if r.Author() != k.Identity() {
-		return sign.Signature{}, sign.Fail(sign.SubmitterMismatch, "registration.author")
-	}
-	return k.sign(sign.RegistrationPurpose, r.Bytes())
+	return (authored.Signer{Identity: k.Identity(), SignBytes: k.sign}).SignRegistration(r)
 }
 func (k *Key) sign(purpose string, canonical []byte) (sign.Signature, error) {
 	if k == nil || len(k.private) != ed25519.PrivateKeySize {
@@ -203,24 +186,15 @@ func Load(source fs.FS, name string) (*Key, error) {
 
 // SignWrite signs the complete validated transaction only for its authenticated actor.
 func (k *Key) SignWrite(write sign.CanonicalWrite) (sign.Signature, error) {
-	if k == nil || write.Actor() != k.identity || len(write.Bytes()) == 0 {
-		return sign.Signature{}, sign.Fail(sign.SubmitterMismatch, "write.operation.context.actor")
-	}
-	return k.sign(sign.WritePurpose, write.Bytes())
+	return (authored.Signer{Identity: k.Identity(), SignBytes: k.sign}).SignWrite(write)
 }
 
 // SignAdvertisement signs a validated advertisement authored by this identity.
 func (k *Key) SignAdvertisement(p space.CanonicalAdvertisement) (sign.Signature, error) {
-	if k == nil || p.Author() != k.identity || len(p.Bytes()) == 0 {
-		return sign.Signature{}, sign.Fail(sign.SubmitterMismatch, "advertisement.author")
-	}
-	return k.sign(sign.AdvertisementPurpose, p.Bytes())
+	return (authored.Signer{Identity: k.Identity(), SignBytes: k.sign}).SignAdvertisement(p)
 }
 
 // SignDirectory signs a validated publication authored by this identity.
 func (k *Key) SignDirectory(p space.CanonicalDirectory) (sign.Signature, error) {
-	if k == nil || p.Author() != k.identity || len(p.Bytes()) == 0 {
-		return sign.Signature{}, sign.Fail(sign.SubmitterMismatch, "entry.author")
-	}
-	return k.sign(sign.DirectoryPurpose, p.Bytes())
+	return (authored.Signer{Identity: k.Identity(), SignBytes: k.sign}).SignDirectory(p)
 }

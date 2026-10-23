@@ -69,7 +69,8 @@ func TestConflictDisclosurePairs(t *testing.T) {
 	}
 }
 
-func processBoundary(source string) bool {
+func processBoundary(source string) bool { return processBoundaryUnix(source, false) }
+func processBoundaryUnix(source string, allowUnix bool) bool {
 	f, e := parser.ParseFile(token.NewFileSet(), "boundary.go", source, 0)
 	if e != nil {
 		return false
@@ -82,12 +83,39 @@ func processBoundary(source string) bool {
 			name = i.Name.Name
 		}
 		aliases[name] = path
-		if strings.HasPrefix(path, "net") && path != "net/url" || path == "syscall" || path == "unsafe" || path == "plugin" || path == "C" || path == "os/exec" && (name == "." || name == "_") {
+		if strings.HasPrefix(path, "net") && path != "net/url" && !(allowUnix && path == "net" && name != "." && name != "_") || path == "syscall" || path == "unsafe" || path == "plugin" || path == "C" || path == "os/exec" && (name == "." || name == "_") {
 			return false
 		}
 	}
 	valid := true
 	ast.Inspect(f, func(n ast.Node) bool {
+		if selector, ok := n.(*ast.SelectorExpr); ok && allowUnix {
+			if name, ok := selector.X.(*ast.Ident); ok && aliases[name.Name] == "net" && selector.Sel.Name != "Dialer" {
+				valid = false
+			}
+			// Dial method values are not permitted: every dial must be a checked call.
+			if strings.HasPrefix(selector.Sel.Name, "Dial") && selector.Sel.Name != "Dialer" {
+				checked := false
+				ast.Inspect(f, func(parent ast.Node) bool {
+					if c, ok := parent.(*ast.CallExpr); ok && c.Fun == selector {
+						at := 0
+						if selector.Sel.Name == "DialContext" {
+							at = 1
+						}
+						if selector.Sel.Name == "Dial" || selector.Sel.Name == "DialContext" {
+							if len(c.Args) > at {
+								literal, ok := c.Args[at].(*ast.BasicLit)
+								checked = ok && literal.Kind == token.STRING && literal.Value == `"unix"`
+							}
+						}
+					}
+					return true
+				})
+				if !checked {
+					valid = false
+				}
+			}
+		}
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
 			return true
@@ -126,8 +154,9 @@ func processBoundary(source string) bool {
 	return valid
 }
 
-// All production Go call sites can start only literal git commands and import
-// no network/board client. Checker plants prove an aliased task-board command,
+// Production call sites start only literal git commands. Only sshagent.go may
+// import net, with literal Unix dials; TCP/HTTP and board clients remain refused.
+// Checker plants prove an aliased task-board command,
 // variable program and network import are refused; this is a static call-site
 // guarantee, not a claim about git's configured transport/signature subprocesses.
 func TestMemoryProcessBoundary(t *testing.T) {
@@ -138,6 +167,20 @@ func TestMemoryProcessBoundary(t *testing.T) {
 	}
 	if !processBoundary(`package p;import "os/exec";func f(){exec.Command("git")}`) {
 		t.Fatal("git positive refused")
+	}
+	for _, source := range []string{
+		`package p; import "net";func f(){d:=net.Dialer{};d.DialContext(nil,"tcp","localhost:80")}`,
+		`package p; import "net";func f(p string){d:=net.Dialer{};d.Dial(p,"x")}`,
+		`package p; import "net";func f(){net.Listen("unix","x")}`,
+		`package p; import "net";func f(){d:=net.Dialer{};f:=d.DialContext;_ = f}`,
+		`package p; import . "net"`, `package p; import "net/http"`,
+	} {
+		if processBoundaryUnix(source, true) {
+			t.Fatal("non-Unix plant accepted")
+		}
+	}
+	if !processBoundaryUnix(`package p;import "net";func f(){d:=net.Dialer{};d.DialContext(nil,"unix","explicit")}`, true) {
+		t.Fatal("explicit Unix positive refused")
 	}
 	e := filepath.WalkDir("../..", func(path string, d os.DirEntry, e error) error {
 		if e != nil {
@@ -151,7 +194,8 @@ func TestMemoryProcessBoundary(t *testing.T) {
 			if e != nil {
 				return e
 			}
-			if !processBoundary(string(b)) {
+			allowUnix := filepath.ToSlash(path) == "../../sign/sshagent/sshagent.go"
+			if !processBoundaryUnix(string(b), allowUnix) {
 				t.Errorf("process boundary: %s", path)
 			}
 		}

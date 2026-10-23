@@ -44,6 +44,9 @@ const (
 	KeyIO                Code = "key_io"
 	InvalidKey           Code = "invalid_key"
 	KeyPermissions       Code = "key_permissions"
+	SignerUnavailable    Code = "signer_unavailable"
+	SignerRefused        Code = "signer_refused"
+	SignerKeyMissing     Code = "signer_key_missing"
 )
 
 // Diagnostic carries transport/trust failures separately from kernel refusals.

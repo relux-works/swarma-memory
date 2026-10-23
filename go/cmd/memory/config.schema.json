@@ -55,12 +55,46 @@
         ],
         "additionalProperties": false
       }
+    },
+    "signer": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "ssh-agent"
+          ]
+        },
+        "socket": {
+          "type": "string"
+        },
+        "public_key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "socket",
+        "public_key"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
     "identity",
-    "key_file",
     "spaces"
   ],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "required": [
+        "key_file"
+      ]
+    },
+    {
+      "required": [
+        "signer"
+      ]
+    }
+  ]
 }

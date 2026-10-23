@@ -15,7 +15,6 @@ import (
 	"github.com/relux-works/swarma-memory/go/agentprofile"
 	"github.com/relux-works/swarma-memory/go/kernel"
 	"github.com/relux-works/swarma-memory/go/scan"
-	"github.com/relux-works/swarma-memory/go/sign/localkey"
 	"github.com/relux-works/swarma-memory/go/space"
 )
 
@@ -591,7 +590,7 @@ func (in writeInput) assessment(snapshot map[string]any, spaceID, actor, id stri
 	return map[string]any{"envelope": env, "body": body}, nil
 }
 
-func promotionSource(r *space.Repository, k *localkey.Key, a arguments) (map[string]any, error) {
+func promotionSource(r *space.Repository, k identityKey, a arguments) (map[string]any, error) {
 	principal, ok := readPrincipal(r.VerifiedPolicy().Policy(), k.Identity(), k.ID())
 	if !ok {
 		return nil, cliError{"not_authorized", 3}

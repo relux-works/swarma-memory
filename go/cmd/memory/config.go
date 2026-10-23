@@ -4,21 +4,32 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"embed"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/relux-works/swarma-memory/go/kernel"
+	"github.com/relux-works/swarma-memory/go/sign"
 	"github.com/relux-works/swarma-memory/go/sign/localkey"
+	"github.com/relux-works/swarma-memory/go/sign/sshagent"
+	"github.com/relux-works/swarma-memory/go/space"
 )
 
+type agentConfig struct {
+	Kind      string `json:"kind"`
+	Socket    string `json:"socket"`
+	PublicKey string `json:"public_key"`
+}
 type localConfig struct {
+	Signer   *agentConfig `json:"signer,omitempty"`
 	Identity string       `json:"identity"`
-	KeyFile  string       `json:"key_file"`
+	KeyFile  string       `json:"key_file,omitempty"`
 	Spaces   []localSpace `json:"spaces"`
 }
 type localSpace struct {
@@ -163,9 +174,17 @@ func (h home) decodeConfig(b []byte) (localConfig, error) {
 	if e := d.Decode(&c); e != nil {
 		return c, cliError{"invalid_configuration", 3}
 	}
-	if c.Identity == "" || c.KeyFile != h.keyfile() || c.Spaces == nil {
+	if c.Identity == "" || c.Spaces == nil || (c.Signer == nil && c.KeyFile != h.keyfile()) || (c.Signer != nil && c.KeyFile != "") {
 		return c, cliError{"invalid_configuration", 3}
 	}
+	if c.Signer != nil {
+		a := c.Signer
+		pub, e := base64.StdEncoding.Strict().DecodeString(a.PublicKey)
+		if a.Kind != "ssh-agent" || !filepath.IsAbs(a.Socket) || strings.ContainsRune(a.Socket, 0) || e != nil || len(pub) != 32 || base64.StdEncoding.EncodeToString(pub) != a.PublicKey {
+			return c, cliError{"invalid_configuration", 3}
+		}
+	}
+
 	seen := map[string]bool{}
 	for _, s := range c.Spaces {
 		clone, cache := h.paths(s.ID)
@@ -195,7 +214,8 @@ func privateDir(path string) error {
 	}
 	return nil
 }
-func (h home) save(c localConfig) error {
+func (h home) save(c localConfig) error { return h.writeConfig(c, false) }
+func (h home) writeConfig(c localConfig, exclusive bool) error {
 	b, e := h.encodeConfig(c)
 	if e != nil {
 		return e
@@ -216,7 +236,11 @@ func (h home) save(c localConfig) error {
 		e = closeError
 	}
 	if e == nil {
-		e = os.Rename(f.Name(), h.filename())
+		if exclusive {
+			e = os.Link(f.Name(), h.filename())
+		} else {
+			e = os.Rename(f.Name(), h.filename())
+		}
 	}
 	if e != nil {
 		return cliError{"config_io", 6}
@@ -228,6 +252,9 @@ func (h home) save(c localConfig) error {
 // remote state. Reject invalid UTF-8 instead of json.Marshal's lossy replacement.
 func (h home) encodeConfig(c localConfig) ([]byte, error) {
 	texts := []string{c.Identity, c.KeyFile}
+	if c.Signer != nil {
+		texts = append(texts, c.Signer.Kind, c.Signer.Socket, c.Signer.PublicKey)
+	}
 	for _, s := range c.Spaces {
 		texts = append(texts, s.ID, s.Remote, s.Branch, s.ClonePath, s.CachePath, s.GenesisDigest, s.Kind, s.DirectorySpace)
 	}
@@ -250,7 +277,28 @@ func (h home) encodeConfig(c localConfig) ([]byte, error) {
 	}
 	return b, nil
 }
-func (h home) key(c localConfig) (*localkey.Key, error) {
+
+// identityKey is the complete backend contract used by CLI writes.
+type identityKey interface {
+	sign.Signer
+	sign.WriteSigner
+	space.PolicySigner
+	space.AdvertisementSigner
+	space.DirectorySigner
+	Identity() string
+	PublicKey() []byte
+	ID() string
+}
+
+func (h home) key(c localConfig) (identityKey, error) {
+	if c.Signer != nil {
+		pub, e := base64.StdEncoding.Strict().DecodeString(c.Signer.PublicKey)
+		if e != nil {
+			return nil, cliError{"invalid_configuration", 3}
+		}
+		return sshagent.New(c.Identity, c.Signer.Socket, pub, 0)
+	}
+
 	k, e := localkey.Load(os.DirFS(h.config), "localkey.json")
 	if e != nil {
 		return nil, e

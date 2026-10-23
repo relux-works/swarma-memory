@@ -16,7 +16,7 @@ import (
 	"github.com/relux-works/swarma-memory/go/agentprofile"
 	"github.com/relux-works/swarma-memory/go/kernel"
 	"github.com/relux-works/swarma-memory/go/sign"
-	"github.com/relux-works/swarma-memory/go/sign/localkey"
+	"github.com/relux-works/swarma-memory/go/sign/sshagent"
 	"github.com/relux-works/swarma-memory/go/space"
 )
 
@@ -238,37 +238,7 @@ func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
 	}
 	cmd := a.pos[0]
 	if cmd == "keys" && len(a.pos) == 2 && a.pos[1] == "init" {
-		if e := a.allow("identity"); e != nil {
-			return nil, e
-		}
-		identity, e := a.required("identity")
-		if e != nil {
-			return nil, e
-		}
-		if _, e := os.Lstat(h.filename()); !errors.Is(e, os.ErrNotExist) {
-			return nil, cliError{"already_configured", 3}
-		}
-		k, e := localkey.Generate(identity)
-		if e != nil {
-			return nil, e
-		}
-		c := localConfig{identity, h.keyfile(), []localSpace{}}
-		if _, e := h.encodeConfig(c); e != nil {
-			return nil, e
-		}
-		if e := privateDir(h.config); e != nil {
-			return nil, e
-		}
-		if e = k.Save(h.keyfile()); e != nil {
-			return nil, e
-		}
-		if e = h.save(c); e != nil {
-			// Save exclusively created this key; a failed config publication must
-			// not strand it and prevent initialization with valid input on retry.
-			_ = os.Remove(h.keyfile())
-			return nil, e
-		}
-		return keyData(k), nil
+		return initKeys(h, a)
 	}
 	if cmd != "conflicts" && cmd != "directory" && cmd != "keys" && cmd != "spaces" && cmd != "policy" && cmd != "sync" && cmd != "check" && cmd != "recall" && cmd != "explain" && cmd != "changes" && cmd != "add" && cmd != "revise" && cmd != "assess" && cmd != "promote" {
 		return nil, cliError{"usage", 2}
@@ -376,8 +346,13 @@ func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
 	}
 	return nil, cliError{"usage", 2}
 }
-func keyData(k *localkey.Key) any {
-	return map[string]any{"identity": k.Identity(), "key_id": k.ID(), "algorithm": "ed25519", "public_key": base64.StdEncoding.EncodeToString(k.PublicKey())}
+func keyData(k identityKey) any {
+	data := map[string]any{"identity": k.Identity(), "key_id": k.ID(), "algorithm": "ed25519", "public_key": base64.StdEncoding.EncodeToString(k.PublicKey()), "backend": "localfile"}
+	if agent, ok := k.(*sshagent.Key); ok {
+		data["backend"] = "ssh-agent"
+		data["socket"] = agent.Socket()
+	}
+	return data
 }
 func selectSpace(c localConfig, id string) (localSpace, error) {
 	for _, s := range c.Spaces {
@@ -550,7 +525,7 @@ func addSpace(ctx context.Context, h home, c *localConfig, a arguments, initiali
 	*c = next
 	return summary(s, r), nil
 }
-func genesisPolicy(id, kind string, k *localkey.Key) (space.SignedPolicy, error) {
+func genesisPolicy(id, kind string, k identityKey) (space.SignedPolicy, error) {
 	template, _, e := agentprofile.Load()
 	if e != nil {
 		return space.SignedPolicy{}, e
