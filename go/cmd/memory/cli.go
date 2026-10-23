@@ -259,7 +259,7 @@ func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
 			if e != nil {
 				return nil, e
 			}
-			return keyData(k), nil
+			return showKeyData(k), nil
 		}
 		if len(a.pos) == 2 && a.pos[1] == "register" {
 			return administer(ctx, h, c, a, "register")
@@ -346,8 +346,12 @@ func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
 	}
 	return nil, cliError{"usage", 2}
 }
-func keyData(k identityKey) any {
-	data := map[string]any{"identity": k.Identity(), "key_id": k.ID(), "algorithm": "ed25519", "public_key": base64.StdEncoding.EncodeToString(k.PublicKey()), "backend": "localfile"}
+func keyData(k identityKey) map[string]any {
+	return map[string]any{"identity": k.Identity(), "key_id": k.ID(), "algorithm": "ed25519", "public_key": base64.StdEncoding.EncodeToString(k.PublicKey())}
+}
+func showKeyData(k identityKey) any {
+	data := keyData(k)
+	data["backend"] = "localfile"
 	if agent, ok := k.(*sshagent.Key); ok {
 		data["backend"] = "ssh-agent"
 		data["socket"] = agent.Socket()

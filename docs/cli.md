@@ -468,7 +468,8 @@ The closed `data` variants are:
 | Commands | Exact data keys |
 | --- | --- |
 | `version` | `version` |
-| `keys init/show` | `identity`, `key_id`, `algorithm`, `public_key`, `backend` (`localfile` or `ssh-agent`); only agent homes add `socket` |
+| `keys init` | `identity`, `key_id`, `algorithm`, `public_key` (unchanged for localfile homes) |
+| `keys show` | `identity`, `key_id`, `algorithm`, `public_key`, `backend` (`localfile` or `ssh-agent`); only agent homes add `socket` |
 | `spaces list` | `spaces` (closed config-space entries defined above) |
 | `spaces add/init/show` | `id`, `policy`, `policy_digest`, `cursor`, `diagnostic_count`, `diagnostics` |
 | `keys register`, `policy grant/revoke` | `commit`, `space` (the preceding summary shape) |
