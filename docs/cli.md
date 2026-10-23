@@ -78,6 +78,47 @@ the default. Agent frames, including the four-byte length header and request met
 are limited to 256 KiB;
 larger signing inputs refuse before contacting the agent.
 
+Agent config and identity listings are public metadata, never authentication.
+Before using a named principal, the CLI requests one possession proof per command
+process. It generates a fresh 32-byte `crypto/rand` nonce and asks the configured
+agent to sign `sign.Frame(sign.PossessionPurpose, nonce || identity || key_id)`.
+The purpose is `swarma-memory-possession/1`, distinct from every stored-object
+purpose. The CLI verifies against the configured public key, discards the proof,
+and never emits or persists the challenge signature. Success establishes key
+possession only; the current verified policy must still authorize the identity
+and key. Subsequent stored-object signatures retain their existing purposes.
+
+The complete challenge list (after valid arguments/config, before the protected
+operation) is:
+
+| Commands | Possession challenge |
+| --- | --- |
+| `spaces init`; `keys register`; `policy grant`, `policy revoke`; `policy resolvers set`, `remove`, `show` | Always for an agent home |
+| `add`, `revise`, `assess`, `promote`; `directory advertise`, `publish`, `withdraw` | Always for an agent home, including promotion's source read |
+| `recall`, `explain`, `changes`, `conflicts` (both forms, including `--require-current` reads) | When a selected space grants this registered named principal read access |
+| `directory list`, `show`; `spaces add --from-directory`, `spaces update --from-directory` | When the platform read selects a registered named reader |
+| `sync`, `check` | When a discovered space's directory diagnostic reads the platform as a registered named reader |
+| `keys show`; `spaces list`, `show`; `spaces add --remote ... --genesis ...`; `version`; `conformance` | No challenge; these inspect public configuration, verified policy/history or conformance data |
+| `keys init` | No possession challenge; agent init only checks its public identity list |
+
+For read and directory paths, an actual `public` reader grant remains independent
+of agent availability and does not challenge. If the configured identity/key
+selects a named reader, a failed challenge refuses rather than falling back to
+`public`. A command spanning several spaces shares one proof in memory; the next
+command starts with a fresh nonce and approval. There is no session token or
+persistent authentication cache. Public metadata commands can still use Git
+transport; “no challenge” does not imply no Git network traffic. `keys show`
+remains entirely offline. Localfile homes retain their existing behavior.
+
+Missing/unavailable endpoints, FAILURE, absent keys and invalid proofs refuse
+with `signer_unavailable`, `signer_refused`, `signer_key_missing` or
+`invalid_signature` respectively, exit 3 and `data: null`, before protected
+output or publication. Malformed key/type responses during a possession attempt
+are invalid proofs (`invalid_signature`); the ordinary signer/init checks retain
+`invalid_key`. Even optional directory diagnostics cannot suppress a failed
+possession proof. The public policy can be synchronized before grant selection;
+a proof does not encrypt or restrict direct access to a Git clone.
+
 All listed identities must be well-formed Ed25519 keys. Unrelated Ed25519 keys
 are permitted, duplicate matching entries and unsupported key types refuse.
 Use a [dedicated memory key](signing-policy.md#ssh-agent-backend-and-key-rotation).
@@ -146,7 +187,7 @@ logical evaluation time for reproducible queries; otherwise the process clock in
 UTC is used. Recall selects validity at that instant; explain/changes use `any`
 validity to retain historical evidence. Default reads sync every configured
 space, omit unreadable spaces, and refuse `not_authorized` if none is readable.
-Named reader identities require possession of a local key registered for that
+Named reader identities require possession of a key registered for that
 identity in the **current verified policy**. Editing `identity` in config cannot
 impersonate a registered reader. A signed `public` reader grant in a legacy unqualified policy uses the public
 audience and needs no named registration. Named readers use the private audience.

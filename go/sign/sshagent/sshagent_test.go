@@ -419,3 +419,81 @@ func TestExactFrameBoundsAndRawEd25519(t *testing.T) {
 		t.Fatal("oversized request reached agent")
 	}
 }
+
+// Possession uses a fresh 32-byte nonce on each call, bound to the exact identity
+// and key ID. Even retagging the proof cannot make it verify in any stored-object
+// domain; genuine signatures in those domains are the positive controls.
+func TestAgentPossessionFreshnessAndDomains(t *testing.T) {
+	f := newFake(t)
+	k, e := New("agent:proof", f.socket, f.public, time.Second)
+	if e != nil {
+		t.Fatal(e)
+	}
+	for i := 0; i < 2; i++ {
+		if e := k.ProvePossession(); e != nil {
+			t.Fatal(e)
+		}
+	}
+	f.mu.Lock()
+	frames := append([][]byte(nil), f.frames...)
+	f.mu.Unlock()
+	if len(frames) != 2 {
+		t.Fatal("proof count", len(frames))
+	}
+	prefix := []byte("swarma-memory-possession/1\x00")
+	suffix := []byte(k.Identity() + k.ID())
+	for _, frame := range frames {
+		if !bytes.HasPrefix(frame, prefix) || len(frame) != len(prefix)+32+len(suffix) || !bytes.Equal(frame[len(prefix)+32:], suffix) {
+			t.Fatal("challenge framing does not bind nonce, identity and key ID")
+		}
+	}
+	if bytes.Equal(frames[0][len(prefix):len(prefix)+32], frames[1][len(prefix):len(prefix)+32]) {
+		t.Fatal("nonce reused")
+	}
+	payload := frames[0][len(prefix):]
+	raw := ed25519.Sign(f.private, frames[0])
+	proof := sign.Signature{Purpose: sign.PossessionPurpose, Key: k.ID(), Alg: "ed25519", Value: base64.StdEncoding.EncodeToString(raw)}
+	v := sign.Ed25519Verifier{}
+	if e := v.Verify(sign.PossessionPurpose, payload, proof, f.public); e != nil {
+		t.Fatal(e)
+	}
+	for _, purpose := range []string{sign.RecordPurpose, sign.WritePurpose, sign.PolicyPurpose, sign.RegistrationPurpose, sign.AdvertisementPurpose, sign.DirectoryPurpose} {
+		if purpose == sign.PossessionPurpose {
+			t.Fatal("shared purpose")
+		}
+		expectCode(t, v.Verify(purpose, payload, proof, f.public), sign.PurposeMismatch)
+		retagged := proof
+		retagged.Purpose = purpose
+		expectCode(t, v.Verify(purpose, payload, retagged, f.public), sign.InvalidSignature)
+		retagged.Value = base64.StdEncoding.EncodeToString(ed25519.Sign(f.private, append(append([]byte(purpose), 0), payload...)))
+		if e := v.Verify(purpose, payload, retagged, f.public); e != nil {
+			t.Fatal(e)
+		}
+	}
+}
+
+// Public listing alone, malformed proof, refusal and missing-key responses never
+// establish possession. Each repaired endpoint accepts a new fresh challenge.
+func TestAgentPossessionRefusalAndRetry(t *testing.T) {
+	f := newFake(t)
+	k, e := New("agent:proof", f.socket, f.public, time.Second)
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, tc := range []struct {
+		mode string
+		code sign.Code
+	}{
+		{"empty", sign.SignerKeyMissing}, {"sign-failure", sign.SignerRefused},
+		{"wrong", sign.InvalidSignature}, {"bad-signature", sign.InvalidSignature},
+		{"nonkey", sign.InvalidSignature}, {"non-type", sign.InvalidSignature},
+		{"sign-truncated", sign.SignerUnavailable},
+	} {
+		f.set(tc.mode)
+		expectCode(t, k.ProvePossession(), tc.code)
+		f.set("")
+		if e := k.ProvePossession(); e != nil {
+			t.Fatal(tc.mode, e)
+		}
+	}
+}

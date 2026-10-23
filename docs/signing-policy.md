@@ -295,3 +295,16 @@ owner's signed registration attests its identity; v1 cannot identify falsely
 attributed key bytes. Wholly unqualified single-owner legacy policies stay
 unqualified; qualified and legacy identities cannot be mixed. Cross-owner
 promotion refuses `cross_owner_promotion`; no forward-right mechanism exists yet.
+
+## Transient agent possession proof
+
+Agent public configuration and SSH identity lists are not proof of key possession.
+The CLI authenticates named reader and administrator paths with a fresh 32-byte
+cryptographic nonce, signing `nonce || identity || key_id` under the separate
+`swarma-memory-possession/1` purpose. It locally verifies and discards the proof;
+no signature is emitted, stored or reusable for a record, write, policy,
+registration, advertisement or directory entry. One command process shares one
+proof; no authenticated state survives it. Policy registration and grants are
+still required after possession succeeds. Public-reader paths and offline public
+`keys show` need no challenge; see the [exact command list](cli.md) and refusal
+behavior. This is CLI authorization, not encryption of Git contents.

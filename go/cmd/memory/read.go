@@ -14,6 +14,8 @@ import (
 	"github.com/relux-works/swarma-memory/go/space"
 )
 
+// readPrincipal selects a candidate grant; named candidates still require
+// authenticatedReadPrincipal before use. Public grants confer no named identity.
 func readPrincipal(policy space.Policy, identity, keyID string) (string, bool) {
 	registered := false
 	for _, k := range policy.Keys {
@@ -141,7 +143,10 @@ func readDependencies(ctx context.Context, h home, c localConfig, a arguments, r
 			}
 			syncError = e
 		}
-		principal, ok := readPrincipal(r.VerifiedPolicy().Policy(), k.Identity(), k.ID())
+		principal, ok, e := authenticatedReadPrincipal(ctx, r.VerifiedPolicy().Policy(), k)
+		if e != nil {
+			return nil, e
+		}
 		if !ok {
 			continue
 		}

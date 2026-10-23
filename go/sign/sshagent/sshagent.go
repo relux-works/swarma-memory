@@ -6,8 +6,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"io"
 	"net"
 	"path/filepath"
@@ -154,6 +156,27 @@ func parseKey(b []byte) ([]byte, error) {
 }
 func (k *Key) valid() bool {
 	return k != nil && len(k.public) == ed25519.PublicKeySize && k.timeout > 0
+}
+
+// ProvePossession verifies a fresh, purpose-separated challenge against the
+// configured public key. It returns no signature: the proof is transient and
+// conveys key possession only, never policy authority or a publishable object.
+func (k *Key) ProvePossession() error {
+	if !k.valid() {
+		return sign.Fail(sign.InvalidSignature, "signer")
+	}
+	var nonce [32]byte
+	if _, e := rand.Read(nonce[:]); e != nil {
+		return sign.Fail(sign.SignerUnavailable, "signer.challenge")
+	}
+	payload := append(nonce[:len(nonce):len(nonce)], []byte(k.Identity())...)
+	payload = append(payload, []byte(k.ID())...)
+	_, e := k.sign(sign.PossessionPurpose, payload)
+	var diagnostic *sign.Diagnostic
+	if errors.As(e, &diagnostic) && diagnostic.Code == sign.InvalidKey {
+		return sign.Fail(sign.InvalidSignature, "signer.challenge")
+	}
+	return e
 }
 
 // Check requires exactly one matching identity. Unrelated Ed25519 identities

@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	PossessionPurpose    = "swarma-memory-possession/1"
 	AdvertisementPurpose = "swarma-memory-space-advertisement/1"
 	DirectoryPurpose     = "swarma-memory-directory/1"
 	RecordPurpose        = "swarma-memory-record/1"

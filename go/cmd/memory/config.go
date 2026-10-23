@@ -290,6 +290,8 @@ type identityKey interface {
 	ID() string
 }
 
+// key loads public agent metadata only. Call authenticatedKey or
+// authenticatedReadPrincipal before deriving authority from an agent identity.
 func (h home) key(c localConfig) (identityKey, error) {
 	if c.Signer != nil {
 		pub, e := base64.StdEncoding.Strict().DecodeString(c.Signer.PublicKey)

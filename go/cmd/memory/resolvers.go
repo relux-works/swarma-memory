@@ -31,7 +31,7 @@ func resolverCLI(ctx context.Context, h home, c localConfig, a arguments) (any, 
 	if e != nil {
 		return nil, e
 	}
-	k, e := h.key(c)
+	k, e := h.authenticatedKey(ctx, c)
 	if e != nil {
 		return nil, e
 	}

@@ -186,7 +186,7 @@ func writeCLI(ctx context.Context, h home, c localConfig, a arguments) (any, err
 		return nil, cliError{"space_required", 2}
 	}
 	selectedSpace := spaces[0]
-	k, e := h.key(c)
+	k, e := h.authenticatedKey(ctx, c)
 	if e != nil {
 		return nil, e
 	}
@@ -219,7 +219,7 @@ func writeCLI(ctx context.Context, h home, c localConfig, a arguments) (any, err
 		if r.VerifiedPolicy().OwnerNamespace() != targetRepo.VerifiedPolicy().OwnerNamespace() || r.VerifiedPolicy().OwnerNamespace() == "" && r.VerifiedPolicy().Policy().Owners[0] != targetRepo.VerifiedPolicy().Policy().Owners[0] {
 			return nil, cliError{"cross_owner_promotion", 3}
 		}
-		promoted, e = promotionSource(r, k, a)
+		promoted, e = promotionSource(ctx, r, k, a)
 		if e != nil {
 			return nil, e
 		}
@@ -590,8 +590,11 @@ func (in writeInput) assessment(snapshot map[string]any, spaceID, actor, id stri
 	return map[string]any{"envelope": env, "body": body}, nil
 }
 
-func promotionSource(r *space.Repository, k identityKey, a arguments) (map[string]any, error) {
-	principal, ok := readPrincipal(r.VerifiedPolicy().Policy(), k.Identity(), k.ID())
+func promotionSource(ctx context.Context, r *space.Repository, k identityKey, a arguments) (map[string]any, error) {
+	principal, ok, e := authenticatedReadPrincipal(ctx, r.VerifiedPolicy().Policy(), k)
+	if e != nil {
+		return nil, e
+	}
 	if !ok {
 		return nil, cliError{"not_authorized", 3}
 	}

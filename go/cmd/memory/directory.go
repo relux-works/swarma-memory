@@ -58,7 +58,7 @@ func directoryCLI(ctx context.Context, h home, c localConfig, a arguments) (any,
 		if e != nil {
 			return nil, e
 		}
-		k, e := h.key(c)
+		k, e := h.authenticatedKey(ctx, c)
 		if e != nil {
 			return nil, e
 		}
@@ -135,7 +135,7 @@ func directoryCLI(ctx context.Context, h home, c localConfig, a arguments) (any,
 			return nil, e
 		}
 		if action == "list" || action == "show" {
-			principal, e := directoryPrincipal(h, c, r)
+			principal, e := directoryPrincipal(ctx, h, c, r)
 			if e != nil {
 				return nil, e
 			}
@@ -177,7 +177,7 @@ func directoryCLI(ctx context.Context, h home, c localConfig, a arguments) (any,
 		} else if target == "" {
 			return nil, cliError{"usage", 2}
 		}
-		k, e := h.key(c)
+		k, e := h.authenticatedKey(ctx, c)
 		if e != nil {
 			return nil, e
 		}
@@ -213,7 +213,7 @@ func directorySpace(ctx context.Context, h home, c *localConfig, a arguments, up
 	if e != nil {
 		return nil, e
 	}
-	principal, e := directoryPrincipal(h, *c, directory)
+	principal, e := directoryPrincipal(ctx, h, *c, directory)
 	if e != nil {
 		return nil, e
 	}
@@ -355,31 +355,38 @@ func localRepository(s localSpace) (*space.Repository, error) {
 	return space.Open(space.Config{Git: space.Git{Directory: s.ClonePath, Environment: env}, Branch: s.Branch, CacheDirectory: s.CachePath, GenesisDigest: s.GenesisDigest, Template: template, Schemas: schemas, Mint: agentprofile.Mint, Profile: agentprofile.Configure})
 }
 
-func directoryPrincipal(h home, c localConfig, r *space.Repository) (string, error) {
+func directoryPrincipal(ctx context.Context, h home, c localConfig, r *space.Repository) (string, error) {
 	k, e := h.key(c)
 	if e != nil {
 		return "", e
 	}
-	principal, ok := readPrincipal(r.VerifiedPolicy().Policy(), k.Identity(), k.ID())
+	principal, ok, e := authenticatedReadPrincipal(ctx, r.VerifiedPolicy().Policy(), k)
+	if e != nil {
+		return "", e
+	}
 	if !ok {
 		return "", cliError{"not_authorized", 3}
 	}
 	return principal, nil
 }
-func directoryDiagnostic(ctx context.Context, h home, c localConfig, s localSpace) string {
+func directoryDiagnostic(ctx context.Context, h home, c localConfig, s localSpace) (string, error) {
 	if s.DirectorySpace == "" {
-		return ""
+		return "", nil
 	}
 	r, e := ownDirectory(ctx, c, s.DirectorySpace)
 	if e == nil {
 		var principal string
-		principal, e = directoryPrincipal(h, c, r)
+		principal, e = directoryPrincipal(ctx, h, c, r)
 		if e == nil {
 			_, e = r.LookupDirectory(principal, s.ID)
 		}
 	}
 	if e != nil {
-		return classify(e).Code
+		var proof *possessionFailure
+		if errors.As(e, &proof) {
+			return "", e
+		}
+		return classify(e).Code, nil
 	}
-	return ""
+	return "", nil
 }

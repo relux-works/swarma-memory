@@ -233,6 +233,7 @@ func runCLI(args []string, out, errout io.Writer) int {
 }
 
 func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
+	ctx = context.WithValue(ctx, possessionContextKey{}, &possessionChecks{results: map[agentPrincipal]error{}})
 	if len(a.pos) == 0 {
 		return nil, cliError{"usage", 2}
 	}
@@ -327,7 +328,11 @@ func executeCLI(ctx context.Context, h home, a arguments) (any, error) {
 				return map[string]any{"spaces": items}, e
 			}
 			item := summary(s, r).(map[string]any)
-			if warning := directoryDiagnostic(ctx, h, c, s); warning != "" {
+			warning, e := directoryDiagnostic(ctx, h, c, s)
+			if e != nil {
+				return nil, e
+			}
+			if warning != "" {
 				item["directory_diagnostic"] = warning
 			}
 			items = append(items, item)
@@ -467,7 +472,7 @@ func addSpace(ctx context.Context, h home, c *localConfig, a arguments, initiali
 		if s.GenesisDigest != "" {
 			return nil, cliError{"usage", 2}
 		}
-		k, e := h.key(*c)
+		k, e := h.authenticatedKey(ctx, *c)
 		if e != nil {
 			return nil, e
 		}
@@ -562,7 +567,7 @@ func administer(ctx context.Context, h home, c localConfig, a arguments, action 
 	if e != nil {
 		return nil, e
 	}
-	k, e := h.key(c)
+	k, e := h.authenticatedKey(ctx, c)
 	if e != nil {
 		return nil, e
 	}

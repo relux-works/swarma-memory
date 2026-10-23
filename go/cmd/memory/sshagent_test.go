@@ -282,6 +282,7 @@ func agentOwnerFlow(t *testing.T, h *cliHarness, writerHome string) {
 
 // Each signing refusal leaves remote refs, all/reflog commit counts, index,
 // policy bytes and config untouched; the same command succeeds after repair.
+// Possession normalizes malformed key/type/frame responses to invalid_signature.
 // A dirty clone is refused without overwriting its pre-existing policy bytes.
 func TestSSHAgentCLIRefusalsAndRetry(t *testing.T) {
 	t.Parallel()
@@ -291,8 +292,8 @@ func TestSSHAgentCLIRefusalsAndRetry(t *testing.T) {
 	policy := filepath.Join(s.ClonePath, "space.json")
 	for i, tc := range []struct{ mode, code string }{
 		{"missing", "signer_key_missing"}, {"different", "signer_key_missing"}, {"refused", "signer_refused"},
-		{"policy-refused", "signer_refused"}, {"wrong-key", "invalid_signature"}, {"invalid-type", "invalid_key"}, {"invalid-key", "invalid_key"},
-		{"trailing", "invalid_signature"}, {"truncated", "signer_unavailable"}, {"oversize", "invalid_key"},
+		{"policy-refused", "signer_refused"}, {"wrong-key", "invalid_signature"}, {"invalid-type", "invalid_signature"}, {"invalid-key", "invalid_signature"},
+		{"trailing", "invalid_signature"}, {"truncated", "signer_unavailable"}, {"oversize", "invalid_signature"},
 	} {
 		before := h.writeState(h.owner)
 		original, e := os.ReadFile(policy)
