@@ -306,7 +306,7 @@ func TestPointersAndDeterminism(t *testing.T) {
 // not proof that arbitrary non-sensitive input will be accepted.
 func TestCorpusFalsePositives(t *testing.T) {
 	files, err := filepath.Glob("../../spec/kernel/vectors/semantic/*.json")
-	if err != nil || len(files) != 77 {
+	if err != nil || len(files) != 78 {
 		t.Fatal("semantic corpus absent or changed")
 	}
 	semanticFiles := len(files)
