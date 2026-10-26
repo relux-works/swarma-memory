@@ -122,12 +122,15 @@ func loadWriteInput(a arguments) (writeInput, error) {
 	locator, hasSession := a.flags["source-session"]
 	filename, hasText := a.flags["source-text"]
 	if hasSession != hasText {
-		return in, cliError{"usage", 2}
+		return in, invalidSourceSession{}
 	}
 	if hasSession {
 		parts := strings.SplitN(locator, ":", 3)
+		if runtime, session, message, ok := scan.ParseSessionLocator(locator); ok {
+			parts = []string{runtime, session, message}
+		}
 		if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
-			return in, cliError{"usage", 2}
+			return in, invalidSourceSession{}
 		}
 		b, e := readInputFile(filename)
 		if e != nil {

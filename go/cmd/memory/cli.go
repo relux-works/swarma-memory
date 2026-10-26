@@ -27,6 +27,11 @@ type cliError struct {
 
 func (e cliError) Error() string { return e.code }
 
+type invalidSourceSession struct{}
+
+func (invalidSourceSession) Error() string { return "usage" }
+func (invalidSourceSession) Unwrap() error { return cliError{"usage", 2} }
+
 type missingWriteToken struct{}
 
 func (missingWriteToken) Error() string { return "usage" }
@@ -86,7 +91,10 @@ func emit(out, errout io.Writer, jsonMode bool, command string, data any, e erro
 		r.Error = &w
 		code = w.Exit
 		var missing missingWriteToken
-		if errors.As(e, &missing) {
+		var source invalidSourceSession
+		if errors.As(e, &source) {
+			fmt.Fprintln(errout, "memory: usage: --source-session requires runtime:session:message and --source-text FILE|-")
+		} else if errors.As(e, &missing) {
 			fmt.Fprintln(errout, "memory: usage: --expected-version or --expected-token is required")
 		} else {
 			fmt.Fprintf(errout, "memory: %s\n", w.Code)

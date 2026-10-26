@@ -402,8 +402,13 @@ memory add assertion --space project:example --idempotency-key session:one \
 ```
 
 For `add assertion` and `assess`, `--source-session runtime:session:message` requires
-`--source-text FILE|-`. The first two colons delimit runtime and session; the rest
-is the exact message ID or index. The text is retained byte-for-byte as UTF-8 in
+`--source-text FILE|-`; malformed or unpaired source flags return `usage` (exit 2)
+with a flag-specific stderr hint that does not echo the input. The first two colons normally delimit runtime and session;
+the rest is the exact message ID or index. A recognized Matrix locator instead
+preserves the full `!room:server[:port]` as session and separates the event at the
+final `:$` (including bracketed IPv6 servers). Exact source-locator entropy
+exemptions, unsupported forms and strict free-text handling are described in
+[Write scanner locator rules](scanner.md). The text is retained byte-for-byte as UTF-8 in
 an atomic source record's `body.excerpt`. Its digest is
 `{algorithm: "sha256-bytes-v1", value: "<lowercase SHA-256 hex>"}` over the exact
 UTF-8 retained text, including trailing newlines, with no framing. **This digest

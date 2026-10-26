@@ -59,7 +59,11 @@ Set shell variables `runtime`, `session` and `message` from the actual session:
 
 If coordinates are unavailable, ask the runtime owner; do not invent them or
 search unrelated sessions. The locator is `runtime:session:message`: its first
-two colons delimit runtime/session, and the remainder is the exact message ID/index.
+two colons delimit runtime/session, and the remainder is the exact message ID/index
+except for a recognized Matrix locator, where the full `!room:server[:port]`
+belongs to the session and the final `:$event` separates the event. Full IDs
+belong in locator fields; `--content` and `--source-text` remain strictly scanned.
+See [scanner locator rules](docs/scanner.md) for the closed accepted shapes.
 The quoted heredoc sends the non-sensitive excerpt, including its final newline,
 to `--source-text -` on stdin. No other input may consume stdin in that command.
 
@@ -73,9 +77,9 @@ Decision: use a bounded durable queue
 EXCERPT
 ```
 
-Use a short readable retry key such as `<slug>-1`. UUID-heavy session/message
-coordinates can trigger the idempotency metadata scanner (`entropy_base64`);
-put those coordinates in `--source-session`, not in the key.
+Use a short readable retry key such as `<slug>-1`. Complete UUID keys already pass the
+idempotency metadata scanner; composite coordinates may still trigger entropy
+checks. Put source coordinates in `--source-session`.
 
 This records an attributed observation of a decision; it grants no decision
 authority. Readers see authorized source locators, availability and retained excerpts in the

@@ -44,9 +44,11 @@ func stringDetectors(text string, oversized, exemptEntropy bool) stringScan {
 	if oversized {
 		found[StringSize] = true
 	}
+	// An entropy-exempt locator must not disguise a named token by adjoining
+	// identifier characters; retain conservative substring detection there.
 	for _, rule := range tokenRules {
 		for _, loc := range rule.pattern.FindAllStringIndex(text, -1) {
-			if bounded(text, loc) {
+			if exemptEntropy || bounded(text, loc) {
 				found[rule.detector] = true
 				match := text[loc[0]:loc[1]]
 				secrets = append(secrets, match)
@@ -76,7 +78,7 @@ func stringDetectors(text string, oversized, exemptEntropy bool) stringScan {
 		loc[0] += start
 		loc[1] += start
 		candidate := text[loc[0]:loc[1]]
-		if bounded(text, loc) && validJWT(candidate) {
+		if (exemptEntropy || bounded(text, loc)) && validJWT(candidate) {
 			found[JWT] = true
 			secrets = append(secrets, candidate)
 		}
@@ -188,6 +190,9 @@ func entropy(text string) float64 {
 // strings that merely contain a digest/handle next to other text. Root body
 // paths let callers scan a body independently (as in the corpus check).
 func entropyExempt(text, path string, root any) bool {
+	if sourceLocatorExempt(text, path, root) {
+		return true
+	}
 	switch path {
 	case "/output_digest", "/declassification/output_digest", "/body/declassification/output_digest":
 		return lowerHex(text, 64)
