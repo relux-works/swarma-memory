@@ -177,7 +177,7 @@ func TestSessionLocatorGrammar(t *testing.T) {
 		"matrix:" + room + ":" + event + "x", "matrix:!room:server/path:" + event,
 		"matrix:!room:server:65536:" + event, "matrix:!room:server:+80:" + event,
 		"matrix:!room:bad..server:" + event, "matrix:!room:[not-ip]:" + event, "matrix:!room:[not-ip]:80:" + event,
-		"matrix:!room:[127.0.0.1]:80:" + event,
+		"matrix:!room:[127.0.0.1]:80:" + event, "matrix:!room:[fe80::1%zone]:80:" + event,
 		"matrix:!room:2001:db8::1:" + event, "matrix:!room:server:" + event[:43] + "+",
 		"codex:" + uuid + "x:0", "claude:" + uuid + ":index:-1", "claude:" + uuid + ":index:18446744073709551616",
 		"runtime:session:message", "codex:" + uuid + ":message:arbitrary",

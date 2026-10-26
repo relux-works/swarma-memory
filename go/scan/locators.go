@@ -1,7 +1,7 @@
 package scan
 
 import (
-	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -68,29 +68,32 @@ func matrixRoom(s string) bool {
 	return cut > 1 && urlIdentifier(s[1:cut]) && matrixServer(s[cut+1:])
 }
 
-func matrixServer(s string) bool {
-	host := s
-	if strings.Contains(s, ":") {
-		if strings.HasPrefix(s, "[") && strings.HasSuffix(s, "]") {
-			host = s[1 : len(s)-1]
-		} else {
-			var port string
-			var err error
-			host, port, err = net.SplitHostPort(s)
-			if err != nil || len(port) > 5 || !decimalIndex(port) {
-				return false
-			}
-			n, _ := strconv.Atoi(port)
-			if n < 1 || n > 65535 {
-				return false
-			}
-		}
-		// Colons inside a host require a bracketed IPv6 literal.
-		if strings.Contains(host, ":") {
-			return strings.HasPrefix(s, "[") && net.ParseIP(host) != nil
-		}
+func matrixPort(s string) bool {
+	if len(s) > 5 || !decimalIndex(s) {
+		return false
 	}
-	if strings.HasPrefix(s, "[") || len(host) == 0 || len(host) > 253 {
+	n, _ := strconv.Atoi(s)
+	return n >= 1 && n <= 65535
+}
+
+func matrixServer(s string) bool {
+	if strings.HasPrefix(s, "[") {
+		cut := strings.IndexByte(s, ']')
+		if cut < 0 {
+			return false
+		}
+		address, err := netip.ParseAddr(s[1:cut])
+		if err != nil || !address.Is6() || address.Zone() != "" {
+			return false
+		}
+		suffix := s[cut+1:]
+		return suffix == "" || strings.HasPrefix(suffix, ":") && matrixPort(suffix[1:])
+	}
+	host, port, hasPort := strings.Cut(s, ":")
+	if hasPort && !matrixPort(port) {
+		return false
+	}
+	if len(host) == 0 || len(host) > 253 {
 		return false
 	}
 	for _, label := range strings.Split(host, ".") {

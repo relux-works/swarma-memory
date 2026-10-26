@@ -83,7 +83,7 @@ func processBoundaryUnix(source string, allowUnix bool) bool {
 			name = i.Name.Name
 		}
 		aliases[name] = path
-		if strings.HasPrefix(path, "net") && path != "net/url" && !(allowUnix && path == "net" && name != "." && name != "_") || path == "syscall" || path == "unsafe" || path == "plugin" || path == "C" || path == "os/exec" && (name == "." || name == "_") {
+		if strings.HasPrefix(path, "net") && path != "net/url" && path != "net/netip" && !(allowUnix && path == "net" && name != "." && name != "_") || path == "syscall" || path == "unsafe" || path == "plugin" || path == "C" || path == "os/exec" && (name == "." || name == "_") {
 			return false
 		}
 	}
@@ -156,14 +156,18 @@ func processBoundaryUnix(source string, allowUnix bool) bool {
 
 // Production call sites start only literal git commands. Only sshagent.go may
 // import net, with literal Unix dials; TCP/HTTP and board clients remain refused.
+// net/url and net/netip are data parsers without network I/O, allowed everywhere.
 // Checker plants prove an aliased task-board command,
 // variable program and network import are refused; this is a static call-site
 // guarantee, not a claim about git's configured transport/signature subprocesses.
 func TestMemoryProcessBoundary(t *testing.T) {
-	for _, source := range []string{`package p;import x "os/exec";func f(){x.Command("task-board")}`, `package p;import "os/exec";func f(s string){exec.Command(s)}`, `package p;import "net/http"`, `package p;import . "os/exec";func f(){Command("task-board")}`, `package p;import "plugin"`} {
+	for _, source := range []string{`package p;import x "os/exec";func f(){x.Command("task-board")}`, `package p;import "os/exec";func f(s string){exec.Command(s)}`, `package p;import "net/http"`, `package p;import "net"`, `package p;import "net/rpc"`, `package p;import . "os/exec";func f(){Command("task-board")}`, `package p;import "plugin"`} {
 		if processBoundary(source) {
 			t.Fatal("bad process plant accepted")
 		}
+	}
+	if !processBoundary(`package p;import "net/netip";func f(){netip.ParseAddr("2001:db8::1")}`) {
+		t.Fatal("pure address parser refused")
 	}
 	if !processBoundary(`package p;import "os/exec";func f(){exec.Command("git")}`) {
 		t.Fatal("git positive refused")
