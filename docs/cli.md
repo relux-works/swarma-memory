@@ -314,28 +314,28 @@ itself uses `--id` (or `record:KEY`), version 1, and the target's subject. Its i
 defaults to the local identity (`--issuer` and `--admission-class` are explicit
 inputs, subject to kernel authority).
 
-The parser recognizes `--sources FILE|-`, `--source-session R:S:M` and
-`--source-text FILE|-` for attributed replacement/correction. In this reader-first
-release, a single build-time constant (`attributedReviseEnabled = false`) gates
-emission: any source flag on `replace`/`correct` returns `feature_not_enabled`,
-exit 2, before reading input files or writing. No environment or home setting
-can enable it. New readers already verify old and extended transactions.
-Readers at 763e024 reject the extended operation, so the rollout owner must
-upgrade all readers before enabling writers in the next release.
+`revise` accepts `--sources FILE|-`, `--source-session R:S:M` and
+`--source-text FILE|-` for attributed replacement/correction. Release builds
+enable emission (`attributedReviseEnabled = true`). This single build-time
+constant remains the rollback switch: setting it to false makes source flags on
+`replace`/`correct` return `feature_not_enabled`, exit 2, before reading input
+files or writing. No environment or home setting overrides the constant.
+Readers verify old and extended transactions. Readers at 763e024 reject the
+extended operation; the reader-first upgrade precedes enabled writers.
 
 | Relation | Replacement | Source flags |
 | --- | --- | --- |
-| `replace` | Same assertion ID, next version | Recognized; phase 1 refuses `feature_not_enabled` |
-| `correct` | Same assertion ID, next version | Recognized; phase 1 refuses `feature_not_enabled` |
+| `replace` | Same assertion ID, next version | Attach sources to the replacement assertion |
+| `correct` | Same assertion ID, next version | Attach sources to the replacement assertion |
 | `withdraw` | None | `usage`, exit 2, before any write |
 | `challenge` | None; target remains current | `usage`, exit 2, before any write |
 
-When enabled in the next release, the same `loadWriteInput` pairing, locator,
+The same `loadWriteInput` pairing, locator,
 UTF-8 and single-stdin rules used by `add` apply. Source-bearing replacements
 must be assertions, including when a full `--body` is supplied; other kinds
 refuse `usage`. A session source and documentary basis are admitted with the
 revision and replacement in one CAS-protected transaction. `--sources` refs
-become premises of that basis. The new basis cites only the supplied new
+become premises of that basis. The new basis cites only explicitly supplied
 sources: an old basis targets the exact old assertion version, so history keeps
 it without treating it as evidence for newly supplied content.
 
@@ -456,7 +456,7 @@ receipt. This distinguishes publication identity from current sync position.
 | Code | Exit | Result |
 | --- | ---: | --- |
 | `version_conflict` | 3 | Stale/ambiguous CAS or duplicate output; no accepted write |
-| `feature_not_enabled` | 2 | Attributed revise emission awaits the reader upgrade gate |
+| `feature_not_enabled` | 2 | Build-time rollback switch disabled attributed revise; enabled release builds do not emit this refusal |
 | `idempotency_conflict` | 3 | Same key, different complete intent |
 | `scan_refused` | 3 | `data: {findings: [...]}` with the scanner's fully redacted typed findings |
 | `not_authorized` | 3 | Missing operation/retain grant, or no source reader for promotion |

@@ -46,13 +46,14 @@ The conformance command runs from any working directory using embedded schemas, 
 
 `conformance.Load` accepts an `io/fs.FS` and loaded kernel schemas. Executors receive independent copies of the initial snapshot, operations and query, without the expected report. `Compare` preserves typed JSON, ordered results and exact timestamps, checks forbidden predicates against actual values, and normalizes only declared handles. Oracle acceptance and mutation controls exercise all applicable semantic vectors; they establish comparator behavior, not kernel evaluation or statistical randomness. `go/conformance/passing.txt` lists required passing vector IDs (78 required vectors); `go/conformance/passing-ops.txt` lists all 83 matching admission results plus 14 malformed-revision stimuli. Both ratchets reject regressions, duplicates or unknown entries and report newly passing IDs. The CLI also prints operation and inventory agreement; [write admission](docs/write-admission.md) explains partial-result handle checks; there are no admission exclusions.
 
-Phase 1 of attributed revision upgrades readers to accept atomic revision
-auxiliaries. CLI emission stays gated off (`feature_not_enabled`, exit 2) until
-all readers upgrade; see [CLI rollout and version reporting](docs/cli.md) and
+Attributed revision attaches sources to `replace` and `correct` in one atomic
+write. Readers support the revision auxiliaries introduced in the reader-first
+release; see [CLI rollout and version reporting](docs/cli.md) and
 [package release history](spec/RELEASES.md). `memory --json version` identifies
 the module version and embedded VCS metadata; use `-buildvcs=true` for rollout
-builds. The test-only compiler overlay exercises future emission without adding
-a runtime override. Spec authoring/checks use Python 3; `python3
+builds. A single build-time rollback constant can disable CLI emission with
+`feature_not_enabled`, exit 2; a test-only compiler overlay verifies this path.
+There is no runtime override. Spec authoring/checks use Python 3; `python3
 .scripts/sync-assets.py` refreshes embedded inputs after regenerating the spec.
 Temporary validation logs stay in `.temp/`.
 

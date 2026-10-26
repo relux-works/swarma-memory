@@ -15,9 +15,9 @@ import (
 	"github.com/relux-works/swarma-memory/go/kernel"
 )
 
-// The only emission seam is a compiler overlay of the single build-time constant.
-// No shipped flag, environment variable or home configuration can enable it.
-func enabledAttributionBuild(t *testing.T) string {
+// A compiler overlay exercises rollback of the single build-time constant.
+// No shipped flag, environment variable or home configuration overrides it.
+func disabledAttributionBuild(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	source, e := filepath.Abs("features.go")
@@ -25,7 +25,7 @@ func enabledAttributionBuild(t *testing.T) string {
 		t.Fatal(e)
 	}
 	replacement := filepath.Join(dir, "features.go")
-	if e = os.WriteFile(replacement, []byte("package main\nconst attributedReviseEnabled = true\n"), 0600); e != nil {
+	if e = os.WriteFile(replacement, []byte("package main\nconst attributedReviseEnabled = false\n"), 0600); e != nil {
 		t.Fatal(e)
 	}
 	overlay := filepath.Join(dir, "overlay.json")
@@ -79,9 +79,8 @@ func attributionStored(h *cliHarness, kind, id string, version int64) map[string
 	return agentprofile.Object(agentprofile.Object(v)["record"])
 }
 
-// The binary agrees with the skill's rollout promise. In the reader-first phase,
-// source flags refuse before input or Git mutation; phase 2 needs only the
-// constant and skill update. Ordinary revisions and relation refusals persist.
+// The shipped binary agrees with the skill's rollout promise; ordinary revisions
+// and source-bearing withdrawal/challenge refusals retain their behavior.
 func TestAttributedReviseShippedGate(t *testing.T) {
 	skill, err := os.ReadFile("../../../SKILL.md")
 	if err != nil {
@@ -94,16 +93,6 @@ func TestAttributedReviseShippedGate(t *testing.T) {
 	h := newCLI(t)
 	h.add(h.owner, "record:gated", "old content")
 	before := h.writeState(h.owner)
-	if !attributedReviseEnabled {
-		for _, flags := range [][]string{{"--source-session", "R:S:M", "--source-text", "missing-file"}, {"--sources", "missing-file"}, {"--source-text", "missing-file"}} {
-			args := append([]string{"revise", "record:gated", "--relation", "replace", "--expected-version", "1", "--content", "new content", "--idempotency-key", "gated-1"}, flags...)
-			m, _ := h.invoke(h.owner, 2, args...)
-			if errorCodeOf(m) != "feature_not_enabled" || m["data"] != nil {
-				t.Fatal(m)
-			}
-			h.unchanged(h.owner, before)
-		}
-	}
 	for _, relation := range []string{"withdraw", "challenge"} {
 		m, _ := h.invoke(h.owner, 2, "revise", "record:gated", "--relation", relation, "--expected-version", "1", "--idempotency-key", "gated-1", "--sources", "missing-file")
 		if errorCodeOf(m) != "usage" {
@@ -114,11 +103,33 @@ func TestAttributedReviseShippedGate(t *testing.T) {
 	h.invoke(h.owner, 0, "revise", "record:gated", "--relation", "replace", "--expected-version", "1", "--content", "ordinary revision", "--idempotency-key", "plain-1")
 }
 
-// Each enabled build creates a single signed admission per revision and a fresh
-// version-scoped basis. The default-off reader verifies both old and new wire,
+// Rolling back emission refuses source flags before input or Git mutation;
+// valid plain replacement/correction controls still succeed in that same build.
+func TestAttributedReviseRollback(t *testing.T) {
+	disabled := disabledAttributionBuild(t)
+	h := newCLI(t)
+	h.add(h.owner, "record:rollback", "old content")
+	before := h.writeState(h.owner)
+	for _, relation := range []string{"replace", "correct"} {
+		for _, flags := range [][]string{{"--source-session", "R:S:M", "--source-text", "missing-file"}, {"--sources", "missing-file"}, {"--source-text", "missing-file"}, {"--source-session", "R:S:M", "--source-text", "-"}} {
+			args := append([]string{"revise", "record:rollback", "--relation", relation, "--expected-version", "1", "--content", "new content", "--idempotency-key", "rollback-1"}, flags...)
+			m := attributionInvoke(h, disabled, h.owner, "replacement observation", 2, args...)
+			if errorCodeOf(m) != "feature_not_enabled" || m["data"] != nil {
+				t.Fatal(m)
+			}
+			h.unchanged(h.owner, before)
+		}
+	}
+	for i, relation := range []string{"replace", "correct"} {
+		attributionInvoke(h, disabled, h.owner, "", 0, "revise", "record:rollback", "--relation", relation, "--expected-version", strconv64(int64(i+1)), "--content", "ordinary "+relation, "--idempotency-key", "plain-"+relation)
+	}
+}
+
+// The shipped build creates a single signed admission per revision and a fresh
+// version-scoped basis. A separate scratch reader verifies old and new wire,
 // recalls the latest exact excerpt, and can still explain all three versions.
 func TestAttributedReviseChain(t *testing.T) {
-	enabled := enabledAttributionBuild(t)
+	enabled := binary
 	for _, relation := range []string{"replace", "correct"} {
 		t.Run(relation, func(t *testing.T) {
 			h := newCLI(t)
@@ -158,6 +169,7 @@ func TestAttributedReviseChain(t *testing.T) {
 				if !reflect.DeepEqual(agentprofile.Object(basis["body"])["premises"], []any{map[string]any{"kind": "source", "source": agentprofile.Ref(stem+":source", 1)}}) {
 					t.Fatal("basis inherited old premises", basis)
 				}
+				h.invoke(h.reader, 0, "sync")
 				check, _ := h.invoke(h.reader, 0, "check")
 				for _, space := range agentprofile.Array(agentprofile.Object(check["data"])["spaces"]) {
 					if len(agentprofile.Array(agentprofile.Object(space)["diagnostics"])) != 0 {
@@ -229,7 +241,7 @@ func TestAttributedReviseChain(t *testing.T) {
 // Input, CAS, relation, scanner and reserved auxiliary-ID failures preserve the
 // complete published state. Nearby valid attribution and challenge controls pass.
 func TestAttributedReviseRefusals(t *testing.T) {
-	enabled := enabledAttributionBuild(t)
+	enabled := binary
 	h := newCLI(t)
 	h.add(h.owner, "record:claim", "old claim")
 	excerpt := filepath.Join(h.root, "excerpt.txt")
@@ -310,7 +322,7 @@ func TestAttributedReviseRefusals(t *testing.T) {
 // Existing source refs can form a one-auxiliary basis without a new session;
 // restoration keeps the withdrawal's explicit expected-id CAS semantics.
 func TestAttributedReviseExistingSourcesAndRestore(t *testing.T) {
-	enabled := enabledAttributionBuild(t)
+	enabled := binary
 	h := newCLI(t)
 	id := "record:restore"
 	h.input(h.owner, "old source", 0, "add", "assertion", "--id", id, "--content", "old", "--idempotency-key", "restore-1", "--source-session", "R:S:M", "--source-text", "-")

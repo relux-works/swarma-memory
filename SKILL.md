@@ -83,7 +83,8 @@ view's `sources` table. An unavailable session may still have a retained excerpt
 
 ### Revise only the version you read
 
-Attributed revise arrives in the next release; this reader-first build refuses source flags with `feature_not_enabled`.
+Use attributed revise to update an assertion and attach the replacement's source.
+Both `replace` and `correct` accept source flags; `withdraw` and `challenge` refuse them.
 
 ```sh
 memory sync --json
@@ -99,7 +100,10 @@ version into the revision; **1 is not a default for an existing record**:
 ```sh
 memory revise record:queue-choice --relation replace \
   --content 'Decision: use a bounded durable queue with capacity 128' \
-  --expected-version 1 --idempotency-key queue-choice:capacity-128 --json
+  --expected-version 1 --idempotency-key queue-choice-2 \
+  --source-session "$runtime:$session:$message" --source-text - --json <<'EXCERPT'
+Decision: use a bounded durable queue with capacity 128
+EXCERPT
 ```
 
 Alternatively, pass that item's exact `write_token` as `--expected-token TOKEN`

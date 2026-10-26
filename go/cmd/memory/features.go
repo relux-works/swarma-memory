@@ -1,5 +1,5 @@
 package main
 
-// Enable only after every reader has upgraded to accept revision auxiliaries.
-// Tests exercise the enabled build with a compiler overlay, never a runtime flag.
-const attributedReviseEnabled = false
+// Reader upgrades permit emission. Set false to roll back CLI emission;
+// this constant is the single switch, with no runtime or configuration override.
+const attributedReviseEnabled = true

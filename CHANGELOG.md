@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 — CLI attributed revision enabled
+
+- Enable source-bearing `replace` and `correct` after the reader-first upgrade.
+  Replacement, revision, source and documentary basis share one atomic write.
+- Keep the single build-time constant as the emission rollback switch and test
+  its `feature_not_enabled` refusal before input or writes.
+- Document available attributed revise commands with readable retry keys.
+
 ## 0.3.1-draft — readers-first attributed revision
 
 - Accept atomic `revise.auxiliaries` source/justification proposals with closed
