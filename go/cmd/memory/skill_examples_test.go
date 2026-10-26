@@ -158,7 +158,7 @@ func TestSkillWorkedExamples(t *testing.T) {
 				t.Fatal("revision did not replace the observed content", revised)
 			}
 			before = h.writeState(h.owner)
-			run(mutate(blocks[2], "queue-choice:capacity-128", "queue-choice:stale-attempt"), 3, "version_conflict")
+			run(mutate(blocks[2], "queue-choice-2", "queue-choice-stale"), 3, "version_conflict")
 			h.unchanged(h.owner, before)
 			// The installed exact-dependency example accepts the revised record;
 			// a missing dependency refuses rather than becoming an empty success.
