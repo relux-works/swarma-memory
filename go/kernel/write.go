@@ -14,7 +14,7 @@ func (s *State) Write(input map[string]any) (map[string]any, *Refusal) {
 		return nil, refusal(UnsupportedOperation)
 	}
 	node := s.schemas.roots[packageSchema+"vector"].properties["operations"].items
-	if !node.matches(op, nil) {
+	if !node.matches(op, nil) || !revisionAuxiliaryShape(op) {
 		return nil, refusal(InvalidShape)
 	}
 	if kind != "admit" && kind != "admit_raw" && kind != "revise" && kind != "declassify" {
@@ -42,10 +42,7 @@ func (s *State) Write(input map[string]any) (map[string]any, *Refusal) {
 	ctx := obj(op["context"])
 	var batch []any
 	if op["op"] == "revise" {
-		if op["replacement"] != nil {
-			batch = append(batch, op["replacement"])
-		}
-		batch = append(batch, op["revision"])
+		batch = batchProposals(op)
 		if env(op["revision"])["kind"] != "revision" {
 			return nil, refusal(InvalidShape)
 		}
@@ -135,7 +132,7 @@ func (s *State) Write(input map[string]any) (map[string]any, *Refusal) {
 			return nil, refusal(ErasureFenced)
 		}
 	}
-	// Stamp private candidates, retaining proposal order (replacement, then revision).
+	// Stamp private candidates: replacement, revision, then auxiliary array order.
 	cut := s.runtime()["memory_cut"].(int64)
 	sequenceOverflow := int64(len(batch)) > maxJSONInteger-cut
 	for i, r := range batch {
@@ -177,6 +174,15 @@ func (s *State) Write(input map[string]any) (map[string]any, *Refusal) {
 		}
 	}
 	// CAS has priority over duplicate replacement IDs/versions.
+	if op["op"] == "revise" {
+		for _, auxiliary := range arr(op["auxiliaries"]) {
+			for _, old := range arr(s.snapshot["records"]) {
+				if env(old)["space"] == env(auxiliary)["space"] && env(old)["id"] == env(auxiliary)["id"] {
+					return nil, refusal(InvalidShape)
+				}
+			}
+		}
+	}
 	seen := map[string]bool{}
 	for _, r := range batch {
 		k := refKey(ref(r))
@@ -278,7 +284,7 @@ func batchProposals(op map[string]any) []any {
 		if op["replacement"] != nil {
 			a = append(a, op["replacement"])
 		}
-		return append(a, op["revision"])
+		return append(append(a, op["revision"]), arr(op["auxiliaries"])...)
 	}
 	return arr(op["proposals"])
 }

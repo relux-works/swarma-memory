@@ -130,6 +130,7 @@ func Configure(snapshot map[string]any, verified *space.VerifiedPolicy, operatio
 			batch = append(batch, operation["replacement"])
 		}
 		batch = append(batch, operation["revision"])
+		batch = append(batch, Array(operation["auxiliaries"])...)
 	}
 	known := map[string]bool{}
 	for _, f := range Array(p["lineage_facts"]) {

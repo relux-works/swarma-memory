@@ -60,7 +60,7 @@ def set_pointer(value,path,replacement):
 
 class Validator:
     """The exact JSON Schema subset used by this package, without remote resolution."""
-    supported={'$schema','$id','$ref','type','required','properties','additionalProperties','enum','const','items','oneOf'}
+    supported={'$schema','$id','$ref','type','required','properties','additionalProperties','enum','const','items','oneOf','minItems','maxItems'}
     def __init__(self,schemas): self.schemas=schemas
     def resolve(self,reference):
         uri,_,fragment=reference.partition('#')
@@ -85,8 +85,11 @@ class Validator:
             if schema.get('additionalProperties') is False and extra: raise Invalid(f'{path}: unknown fields {sorted(extra)}')
             for k,subschema in properties.items():
                 if k in value:self.check(value[k],subschema,path+'/'+k)
-        if isinstance(value,list) and 'items' in schema:
-            for i,v in enumerate(value):self.check(v,schema['items'],f'{path}/{i}')
+        if isinstance(value,list):
+            if len(value)<schema.get('minItems',0):raise Invalid(f'{path}: fewer than minItems')
+            if len(value)>schema.get('maxItems',len(value)):raise Invalid(f'{path}: more than maxItems')
+            if 'items' in schema:
+                for i,v in enumerate(value):self.check(v,schema['items'],f'{path}/{i}')
         if 'oneOf' in schema:
             successes=0; failures=[]
             for branch in schema['oneOf']:
@@ -97,6 +100,9 @@ class Validator:
         if not isinstance(schema,dict):raise Invalid(path+': schema must be an object')
         unknown=set(schema)-self.supported
         if unknown:raise Invalid(path+': unsupported schema keywords '+repr(sorted(unknown)))
+        for keyword in ('minItems','maxItems'):
+            if keyword in schema and (type(schema[keyword]) is not int or schema[keyword]<0):raise Invalid(path+': invalid array bound')
+        if schema.get('minItems',0)>schema.get('maxItems',schema.get('minItems',0)):raise Invalid(path+': reversed array bounds')
         if schema.get('type')=='object' or 'properties' in schema:
             if schema.get('additionalProperties') is not False:raise Invalid(path+': object is not closed')
             if schema.get('type')!='object':raise Invalid(path+': object lacks explicit type')
@@ -229,7 +235,11 @@ def check_admission_facts(v):
         op=operation['op'];proposals=[]
         if op=='admit':proposals=operation['proposals']
         elif op=='admit_raw':proposals=parse(operation['raw_json'])['proposals']
-        elif op=='revise':proposals=[operation['revision']]+([operation['replacement']] if operation['replacement'] else [])
+        elif op=='revise':proposals=[operation['revision']]+([operation['replacement']] if operation['replacement'] else [])+operation.get('auxiliaries',[])
+        elif op=='revise_raw':
+            request=parse(operation['raw_json'])
+            require(request.get('op')=='revise','raw revision stimulus is not revise')
+            proposals=[request['revision']]+([request['replacement']] if request['replacement'] else [])+request.get('auxiliaries',[])
         elif op=='declassify':proposals=operation['assessments']+[operation['output']]
         for proposal in proposals:
             require(ref_of(proposal) in facts,'accepted proposal missing integration fact '+str(ref_of(proposal)))
@@ -331,6 +341,14 @@ def controls(validator,vectors):
     rejected('floating-point',lambda:parse('{"a":1.0}'),'forbidden JSON number')
     v=copy.deepcopy(validator.schemas[BASE+'envelope']);v['additionalProperties']=True
     rejected('open-schema',lambda:validator.closed(v),'not closed')
+    bounded={'type':'array','items':{'type':'string'},'minItems':1,'maxItems':8}
+    validator.check(['valid'],bounded);validator.check(['valid']*8,bounded)
+    rejected('array-min-bound',lambda:validator.check([],bounded),'fewer than minItems')
+    rejected('array-max-bound',lambda:validator.check(['invalid']*9,bounded),'more than maxItems')
+    bounds_only={k:v for k,v in bounded.items() if k!='items'}
+    validator.check(['valid'],bounds_only);validator.check(['valid']*8,bounds_only)
+    rejected('array-min-bound-without-items',lambda:validator.check([],bounds_only),'fewer than minItems')
+    rejected('array-max-bound-without-items',lambda:validator.check(['invalid']*9,bounds_only),'more than maxItems')
     rejected('oneOf-overlap',lambda:validator.check('x',{'oneOf':[{'type':'string'},{'type':'string'}]}),'matched 2')
     rejected('out-of-package-reference',lambda:validator.resolve('https://invalid.example/schema'),'unknown package schema')
     v=copy.deepcopy(vector);v['expected']['result']['items'][0]['support']['witness']='present'
@@ -484,7 +502,7 @@ def main():
     for p,f in fixtures:
         try:validator.check(f,schemas[BASE+'fixture']);check_state(f['initial_state'],documents)
         except (Invalid,KeyError) as e:ERRORS.append(f'{p.relative_to(ROOT)}: {e}')
-    expected_ids={f'S{i:02d}' for i in range(1,54)}|{f'P{i:02d}' for i in range(1,16)}|{f'B{i:02d}' for i in range(1,18)}
+    expected_ids={f'S{i:02d}' for i in range(1,55)}|{f'P{i:02d}' for i in range(1,16)}|{f'B{i:02d}' for i in range(1,18)}
     if set(vectors)!=expected_ids:ERRORS.append('vector inventory mismatch: '+str(sorted(expected_ids^set(vectors))))
     try:check_issuer_local_pairs(vectors)
     except (Invalid,KeyError) as e:ERRORS.append('issuer-local invariance pair: '+str(e))

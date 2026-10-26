@@ -314,6 +314,40 @@ itself uses `--id` (or `record:KEY`), version 1, and the target's subject. Its i
 defaults to the local identity (`--issuer` and `--admission-class` are explicit
 inputs, subject to kernel authority).
 
+The parser recognizes `--sources FILE|-`, `--source-session R:S:M` and
+`--source-text FILE|-` for attributed replacement/correction. In this reader-first
+release, a single build-time constant (`attributedReviseEnabled = false`) gates
+emission: any source flag on `replace`/`correct` returns `feature_not_enabled`,
+exit 2, before reading input files or writing. No environment or home setting
+can enable it. New readers already verify old and extended transactions.
+Readers at 763e024 reject the extended operation, so the rollout owner must
+upgrade all readers before enabling writers in the next release.
+
+| Relation | Replacement | Source flags |
+| --- | --- | --- |
+| `replace` | Same assertion ID, next version | Recognized; phase 1 refuses `feature_not_enabled` |
+| `correct` | Same assertion ID, next version | Recognized; phase 1 refuses `feature_not_enabled` |
+| `withdraw` | None | `usage`, exit 2, before any write |
+| `challenge` | None; target remains current | `usage`, exit 2, before any write |
+
+When enabled in the next release, the same `loadWriteInput` pairing, locator,
+UTF-8 and single-stdin rules used by `add` apply. Source-bearing replacements
+must be assertions, including when a full `--body` is supplied; other kinds
+refuse `usage`. A session source and documentary basis are admitted with the
+revision and replacement in one CAS-protected transaction. `--sources` refs
+become premises of that basis. The new basis cites only the supplied new
+sources: an old basis targets the exact old assertion version, so history keeps
+it without treating it as evidence for newly supplied content.
+
+For replacement ID `ID` and version `N`, auxiliary IDs are
+`ID:vN:source` and `ID:vN:basis`, each at version 1; the retained excerpt uses
+`retention:ID:vN`. Original add IDs (`ID:source`, `ID:basis`) stay unchanged.
+Thus v1→v2→v3 cannot collide with its own prior auxiliaries. These are reserved
+IDs, not an escaping scheme: a pre-existing record with such an ID causes an
+atomic `invalid_shape` refusal; the CLI never silently chooses a different ID.
+Stale CAS or scanner quarantine leaves no replacement, revision or auxiliaries
+visible. Scanner refusals return the same redacted `findings` as `add`.
+
 Every `revise` relation and `assess` requires an explicit caller-observed
 `--expected-version N` or `--expected-token TOKEN`. Missing both gives `usage`,
 exit 2, with stderr naming these flags. They are mutually exclusive. A stale
@@ -422,6 +456,7 @@ receipt. This distinguishes publication identity from current sync position.
 | Code | Exit | Result |
 | --- | ---: | --- |
 | `version_conflict` | 3 | Stale/ambiguous CAS or duplicate output; no accepted write |
+| `feature_not_enabled` | 2 | Attributed revise emission awaits the reader upgrade gate |
 | `idempotency_conflict` | 3 | Same key, different complete intent |
 | `scan_refused` | 3 | `data: {findings: [...]}` with the scanner's fully redacted typed findings |
 | `not_authorized` | 3 | Missing operation/retain grant, or no source reader for promotion |
@@ -750,3 +785,15 @@ repoint and recheck. The original remains attributed. The Git profile has no
 authority events: `ambiguous_current` and canonical deciding-authority receipts
 are tested only with kernel vectors and test-profile snapshots. Receipt
 integration is out of scope; ordinary attributed decisions are not receipts.
+
+### Build version
+
+`memory version` prints `memory <module-version> revision <vcs-revision> modified
+<true|false|unknown>`. Values come from `debug.ReadBuildInfo`: the main module
+version, `vcs.revision` and `vcs.modified`. JSON mode (`memory --json version`)
+uses the normal result envelope and exactly three data fields: `version` (string),
+`vcs_revision` (string, empty if unavailable), and `vcs_modified` (boolean or null
+if unavailable/invalid). An unversioned local build reports `(devel)`; unavailable
+VCS metadata never claims a clean tree. Builds made with `-buildvcs=false` cannot
+report a revision. For rollout identification, build from a clean checkout with
+VCS metadata enabled (`go -C go build -buildvcs=true -o ../bin/memory ./cmd/memory`).

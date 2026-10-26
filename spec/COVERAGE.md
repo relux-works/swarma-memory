@@ -90,3 +90,4 @@ Every conformance vector and the normative clauses of `kernel/semantics.md` it e
 | S51 | semantic | K-SRC-1, K-REF-1, K-JSON-1, K-API-1 | Excerpt retention and digest algorithm refusals precede a valid source control |
 | S52 | semantic | K-SRC-1, K-ERASE-1 | A fence alone redacts source bytes at current and historical cuts |
 | S53 | semantic | K-SRC-1, K-EVAL-5, K-REC-3 | A retained excerpt cannot satisfy a current-required root |
+| S54 | semantic | K-REV-1, K-API-1, K-API-2, K-SRC-1 | Atomic revision auxiliaries, closed-shape refusals, stale CAS, quarantined excerpt and exact replay |

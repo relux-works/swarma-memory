@@ -27,8 +27,8 @@ func suite(t *testing.T) []Vector {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(vs) != 77 {
-		t.Fatalf("got %d vectors; want 77", len(vs))
+	if len(vs) != 78 {
+		t.Fatalf("got %d vectors; want 78", len(vs))
 	}
 	return vs
 }
@@ -64,7 +64,7 @@ func wanted(t *testing.T, v Vector, r Report, rule, pointer string) {
 	}
 }
 
-// TestOracle proves all 77 expected reports with valid generated handles pass
+// TestOracle proves all 78 expected reports with valid generated handles pass
 // through the runner, and execution-only inputs cannot mutate fixture data.
 func TestOracle(t *testing.T) {
 	vs := suite(t)
@@ -89,7 +89,7 @@ func TestOracle(t *testing.T) {
 			}
 		})
 	}
-	t.Logf("oracle: %d/77 pass", len(verdicts))
+	t.Logf("oracle: %d/78 pass", len(verdicts))
 }
 
 // TestMutationControls plants each applicable failure in every vector. Exact
@@ -258,7 +258,7 @@ func TestMutationControls(t *testing.T) {
 			}
 		})
 	}
-	expectedCounts := map[string]int{"leaf": 77, "removed": 77, "added": 77, "reorder": 33, "equal_handles": 72, "distinct_handles": 44, "fresh_handles": 77, "forbidden": 183, "inventory_missing": 90, "inventory_unsorted": 70}
+	expectedCounts := map[string]int{"leaf": 78, "removed": 78, "added": 78, "reorder": 34, "equal_handles": 73, "distinct_handles": 45, "fresh_handles": 78, "forbidden": 201, "inventory_missing": 91, "inventory_unsorted": 71}
 	if !reflect.DeepEqual(counts, expectedCounts) {
 		t.Fatalf("mutation applicability changed: %v; want %v", counts, expectedCounts)
 	}
@@ -360,7 +360,7 @@ func TestKernelWrites(t *testing.T) {
 		}
 	}
 	counts := CountParts(verdicts)
-	for kind, want := range map[string]Agreement{"admit": {48, 48}, "admit_raw": {3, 3}, "revise": {28, 28}, "load": {1, 1}} {
+	for kind, want := range map[string]Agreement{"admit": {48, 48}, "admit_raw": {3, 3}, "revise": {32, 32}, "revise_raw": {14, 14}, "load": {1, 1}} {
 		if counts[kind] != want {
 			t.Errorf("%s: %+v", kind, counts[kind])
 		}
@@ -458,6 +458,7 @@ func TestHarnessErrors(t *testing.T) {
 // These corpus witnesses name the first normative violation of the selected
 // swap: a forbidden value, missing declared handle, or typed field difference.
 var reorderWitnesses = map[string][2]string{
+	"S54": {"equality", "/operation_results/0/code"},
 	"S44": {"fresh_handles", "/operation_results/0/authorized_snapshot_handle"},
 	"S45": {"fresh_handles", "/operation_results/0/authorized_snapshot_handle"},
 	"S46": {"equivalent_outputs", "/operation_results/1/changes/state"},

@@ -1,5 +1,20 @@
 # Package releases
 
+## 0.3.1-draft
+
+K-REV-1 adds optional atomic source/justification revision auxiliaries for
+replacement and correction. S54 covers acceptance, exact replay, all closed-shape
+refusals, stale CAS and a protected scanner quarantine review. `revise_raw` is a
+fixture-only malformed-wire stimulus, never a persistent operation.
+
+The schema namespace and read `semantic_profile` intentionally remain 0.3.0:
+existing record, query and read-result shapes and meanings are unchanged. This
+patch release adds a write variant that old closed readers reject. Reader-first
+rollout is mandatory; the phase-1 CLI keeps emission disabled until all readers
+upgrade. Package release numbers identify this additive contract separately
+from the stable read profile.
+
+
 ## 0.3.0-draft
 
 K-SRC-1 adds the required, citation-closed source table with live and erased

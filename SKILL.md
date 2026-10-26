@@ -67,17 +67,23 @@ to `--source-text -` on stdin. No other input may consume stdin in that command.
 memory sync --json
 memory add assertion --id record:queue-choice \
   --content 'Decision: use a bounded durable queue' \
-  --idempotency-key "${runtime:?}:${session:?}:${message:?}:queue-choice" \
+  --idempotency-key queue-choice-1 \
   --source-session "$runtime:$session:$message" --source-text - --json <<'EXCERPT'
 Decision: use a bounded durable queue
 EXCERPT
 ```
+
+Use a short readable retry key such as `<slug>-1`. UUID-heavy session/message
+coordinates can trigger the idempotency metadata scanner (`entropy_base64`);
+put those coordinates in `--source-session`, not in the key.
 
 This records an attributed observation of a decision; it grants no decision
 authority. Readers see authorized source locators, availability and retained excerpts in the
 view's `sources` table. An unavailable session may still have a retained excerpt.
 
 ### Revise only the version you read
+
+Attributed revise arrives in the next release; this reader-first build refuses source flags with `feature_not_enabled`.
 
 ```sh
 memory sync --json

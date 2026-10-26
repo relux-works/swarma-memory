@@ -10,8 +10,8 @@ Memory reports evidence, not truth, and grants no authority: a record about yest
 
 The Go kernel implements the complete stage 1 semantic model: atomic writes, bounded evidence reads, disclosure, publication checks and erasure/restore accounting. The signing/policy trust layer, write scanner and git-space library adapter are implemented. This repository holds:
 
-- [`spec/`](spec/README.md) — the normative specification package (draft 0.3.0): the kernel semantics, 14 closed JSON Schemas, the decisions and synthetic profiles domain packages, the Swarma adapter contract and 85 conformance vectors (77 semantic, 8 protected-deployment). The Go evaluator matches all 77 semantic vectors; independent cross-evaluator agreement was established for the earlier 66-vector corpus; the deployment vectors require a real protected deployment and are not qualified.
-- The Go module in [`go/`](go/): package boundaries, the kernel interface, strict JSON intake, canonical bytes and digests, closed-schema validation, and a semantic conformance runner/CLI. All 77/77 semantic vectors, 79/79 admission results and all six inventories match. See [write admission](docs/write-admission.md), [read evaluation](docs/read-evaluation.md) and [disclosure and erasure](docs/disclosure-erasure.md) for APIs, scope and validation. These are semantic model results; the eight protected-deployment vectors remain unqualified. The [CLI](docs/cli.md) implements private homes, signed owner administration, verified sync/check, multi-space reads and `add`, `revise`, `assess`, `promote` writes with receipts, session excerpts and bounded retries. The root Curator skill packages this CLI for agents. The first working version's design is in [docs/architecture.md](docs/architecture.md).
+- [`spec/`](spec/README.md) — the normative specification package (draft 0.3.1): the kernel semantics, 14 closed JSON Schemas, the decisions and synthetic profiles domain packages, the Swarma adapter contract and 86 conformance vectors (78 semantic, 8 protected-deployment). The Go evaluator matches all 78 semantic vectors; independent cross-evaluator agreement was established for the earlier 66-vector corpus; the deployment vectors require a real protected deployment and are not qualified.
+- The Go module in [`go/`](go/): package boundaries, the kernel interface, strict JSON intake, canonical bytes and digests, closed-schema validation, and a semantic conformance runner/CLI. All 78/78 semantic vectors, 83/83 admission results and all six inventories match. See [write admission](docs/write-admission.md), [read evaluation](docs/read-evaluation.md) and [disclosure and erasure](docs/disclosure-erasure.md) for APIs, scope and validation. These are semantic model results; the eight protected-deployment vectors remain unqualified. The [CLI](docs/cli.md) implements private homes, signed owner administration, verified sync/check, multi-space reads and `add`, `revise`, `assess`, `promote` writes with receipts, session excerpts and bounded retries. The root Curator skill packages this CLI for agents. The first working version's design is in [docs/architecture.md](docs/architecture.md).
 
 The stage-2 [signing and policy API](docs/signing-policy.md) provides immutable canonical records, purpose-separated Ed25519 signatures, temporary per-identity keys, closed signed policies and owner-endorsed registries, authenticated policy chains and a verified kernel snapshot adapter. The [git-space adapter](docs/git-spaces.md) adds authenticated first-parent admission replay, immutable storage, bounded write retries, scans before signing, external anti-rollback cursors and multi-space reads. The CLI uses this adapter for all write commands. [Unresolved integration questions](UNRESOLVED_QUESTIONS.md) identify the remaining owner decisions.
 
@@ -32,7 +32,7 @@ Tools: Go 1.25 or later for the CLI, vet and tests; Python 3.10 or later for the
 ```sh
 go -C go build -o ../bin/memory ./cmd/memory
 ./bin/memory version
-./bin/memory conformance # exits 0: 77/77 semantic vectors pass
+./bin/memory conformance # exits 0: 78/78 semantic vectors pass
 go -C go vet ./...
 go -C go test -timeout=30m ./...
 python3 spec/checks/validate.py
@@ -44,7 +44,17 @@ The `kernel` input boundary exposes `DecodeJSON`, `CanonicalJSON`, `DigestJSON` 
 
 The conformance command runs from any working directory using embedded schemas, semantic vectors and ratchets. An optional vectors directory selects a different semantic suite: `memory conformance <vectors-dir>`. It prints one verdict per vector and a summary, exits 0 only if all vectors pass, 1 on conformance failures, and 2 on harness/input errors. The 8 deployment vectors remain out of scope. Malformed, empty or mixed-profile suites are harness errors.
 
-`conformance.Load` accepts an `io/fs.FS` and loaded kernel schemas. Executors receive independent copies of the initial snapshot, operations and query, without the expected report. `Compare` preserves typed JSON, ordered results and exact timestamps, checks forbidden predicates against actual values, and normalizes only declared handles. Oracle acceptance and mutation controls exercise all applicable semantic vectors; they establish comparator behavior, not kernel evaluation or statistical randomness. `go/conformance/passing.txt` lists required passing vector IDs (77 required vectors); `go/conformance/passing-ops.txt` lists all 79 matching admission results. Both ratchets reject regressions, duplicates or unknown entries and report newly passing IDs. The CLI also prints operation and inventory agreement; [write admission](docs/write-admission.md) explains partial-result handle checks; there are no admission exclusions.
+`conformance.Load` accepts an `io/fs.FS` and loaded kernel schemas. Executors receive independent copies of the initial snapshot, operations and query, without the expected report. `Compare` preserves typed JSON, ordered results and exact timestamps, checks forbidden predicates against actual values, and normalizes only declared handles. Oracle acceptance and mutation controls exercise all applicable semantic vectors; they establish comparator behavior, not kernel evaluation or statistical randomness. `go/conformance/passing.txt` lists required passing vector IDs (78 required vectors); `go/conformance/passing-ops.txt` lists all 83 matching admission results plus 14 malformed-revision stimuli. Both ratchets reject regressions, duplicates or unknown entries and report newly passing IDs. The CLI also prints operation and inventory agreement; [write admission](docs/write-admission.md) explains partial-result handle checks; there are no admission exclusions.
+
+Phase 1 of attributed revision upgrades readers to accept atomic revision
+auxiliaries. CLI emission stays gated off (`feature_not_enabled`, exit 2) until
+all readers upgrade; see [CLI rollout and version reporting](docs/cli.md) and
+[package release history](spec/RELEASES.md). `memory --json version` identifies
+the module version and embedded VCS metadata; use `-buildvcs=true` for rollout
+builds. The test-only compiler overlay exercises future emission without adding
+a runtime override. Spec authoring/checks use Python 3; `python3
+.scripts/sync-assets.py` refreshes embedded inputs after regenerating the spec.
+Temporary validation logs stay in `.temp/`.
 
 ## Curator skill
 

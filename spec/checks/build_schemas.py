@@ -95,6 +95,12 @@ OPS=[
  obj(op=const('set_availability'),actor=S,at=S,state=enum('available','degraded')),
  obj(op=const('load'),actor=S,hidden_work=I)
 ]
+# The existing operation is unchanged when the optional extension is absent.
+auxiliary = arr(choice(PROPOSALS[1], PROPOSALS[2]))
+auxiliary.update(minItems=1, maxItems=8)
+OPS[2]['properties']['auxiliaries'] = auxiliary
+# Harness-only malformed revision stimulus; never an accepted write operation.
+OPS.append(obj(op=const('revise_raw'),raw_json=S))
 # set_availability and load are test-harness stimuli, never writable kernel APIs.
 POST=obj(record_refs=arr(R),erased_refs=arr(R),custody_present=arr(S),dirty=arr(R),control_observations=arr(S),external_effects=arr(S))
 PRED=obj(path=S,test=enum('exists','equals','contains','size_equals'),value=choice(S,I,B,N,arr(S)))

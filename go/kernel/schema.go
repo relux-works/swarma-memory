@@ -25,6 +25,8 @@ type schemaNode struct {
 	items      *schemaNode
 	oneOf      []*schemaNode
 	hasOneOf   bool
+	minItems   int64
+	maxItems   *int64
 }
 
 type schemaCompiler struct {
@@ -172,6 +174,16 @@ func (c *schemaCompiler) compile(reference string) (*schemaNode, bool) {
 			if !ok {
 				return nil, false
 			}
+		case "minItems", "maxItems":
+			bound, valid := value.(int64)
+			if !valid || bound < 0 {
+				return nil, false
+			}
+			if keyword == "minItems" {
+				node.minItems = bound
+			} else {
+				node.maxItems = &bound
+			}
 		case "oneOf":
 			branches, ok := value.([]any)
 			if !ok {
@@ -198,6 +210,9 @@ func (c *schemaCompiler) compile(reference string) (*schemaNode, bool) {
 				return nil, false
 			}
 		}
+	}
+	if node.maxItems != nil && node.minItems > *node.maxItems {
+		return nil, false
 	}
 	return node, true
 }
@@ -328,10 +343,15 @@ func (n *schemaNode) matches(value any, active []*schemaNode) bool {
 			}
 		}
 	}
-	if array, ok := value.([]any); ok && n.items != nil {
-		for _, child := range array {
-			if !n.items.matches(child, nil) {
-				return false
+	if array, ok := value.([]any); ok {
+		if int64(len(array)) < n.minItems || n.maxItems != nil && int64(len(array)) > *n.maxItems {
+			return false
+		}
+		if n.items != nil {
+			for _, child := range array {
+				if !n.items.matches(child, nil) {
+					return false
+				}
 			}
 		}
 	}

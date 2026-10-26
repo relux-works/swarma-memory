@@ -12,8 +12,6 @@ import (
 	"github.com/relux-works/swarma-memory/go/kernel"
 )
 
-const version = "dev"
-
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
@@ -45,7 +43,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		usage(stderr)
 		return 2
 	}
-	fmt.Fprintf(stdout, "memory %s\n", version)
+	fmt.Fprintln(stdout, currentVersion())
 	return 0
 }
 

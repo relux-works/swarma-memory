@@ -8053,6 +8053,886 @@
               },
               "expected_generation": {
                 "type": "integer"
+              },
+              "auxiliaries": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "envelope": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "const": "source"
+                            },
+                            "schema": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "version": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "version"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "subject": {
+                              "type": "string"
+                            },
+                            "issuer": {
+                              "type": "string"
+                            },
+                            "representation_ref": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "version": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "version"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "perspective": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "own",
+                                    "observer",
+                                    "team"
+                                  ]
+                                },
+                                "principal": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "principal"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "space": {
+                              "type": "string"
+                            },
+                            "valid": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "const": "known"
+                                    },
+                                    "from": {
+                                      "type": "string"
+                                    },
+                                    "to": {
+                                      "oneOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "precision": {
+                                      "type": "string",
+                                      "const": "second"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "from",
+                                    "to",
+                                    "precision"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "const": "unknown"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "confirmed_at": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "lineage": {
+                              "oneOf": [
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "version": {
+                                        "type": "integer"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "version"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                {
+                                  "type": "string",
+                                  "const": "unknown"
+                                }
+                              ]
+                            },
+                            "disclosure": {
+                              "type": "object",
+                              "properties": {
+                                "audiences": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "purposes": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "retain_until": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "field_classes": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "public",
+                                      "restricted",
+                                      "sensitive"
+                                    ]
+                                  }
+                                },
+                                "declassification": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "version": {
+                                        "type": "integer"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "version"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "audiences",
+                                "purposes",
+                                "retain_until",
+                                "field_classes",
+                                "declassification"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "context": {
+                              "type": "string",
+                              "enum": [
+                                "real",
+                                "simulated"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "version",
+                            "kind",
+                            "schema",
+                            "subject",
+                            "issuer",
+                            "representation_ref",
+                            "perspective",
+                            "space",
+                            "valid",
+                            "confirmed_at",
+                            "lineage",
+                            "disclosure",
+                            "context"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "body": {
+                          "type": "object",
+                          "properties": {
+                            "owner": {
+                              "type": "string"
+                            },
+                            "source_kind": {
+                              "type": "string",
+                              "enum": [
+                                "document",
+                                "direct_declaration",
+                                "publication",
+                                "mirror",
+                                "artifact"
+                              ]
+                            },
+                            "object": {
+                              "type": "string"
+                            },
+                            "revision": {
+                              "type": "string"
+                            },
+                            "digest": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "algorithm": {
+                                      "type": "string",
+                                      "enum": [
+                                        "sha256-cjson-v1",
+                                        "sha256-bytes-v1"
+                                      ]
+                                    },
+                                    "value": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "algorithm",
+                                    "value"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "provenance": {
+                              "type": "string",
+                              "enum": [
+                                "canonical",
+                                "direct",
+                                "imported",
+                                "reported"
+                              ]
+                            },
+                            "availability": {
+                              "type": "string",
+                              "enum": [
+                                "resolvable",
+                                "unavailable",
+                                "erased"
+                              ]
+                            },
+                            "origin": {
+                              "type": "string"
+                            },
+                            "original_issuer": {
+                              "type": "string"
+                            },
+                            "carrier": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "excerpt": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "retention_admission": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "version": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "version"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "owner",
+                            "source_kind",
+                            "object",
+                            "revision",
+                            "digest",
+                            "provenance",
+                            "availability",
+                            "origin",
+                            "original_issuer",
+                            "carrier",
+                            "excerpt",
+                            "retention_admission"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "envelope",
+                        "body"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "envelope": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "const": "justification"
+                            },
+                            "schema": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "version": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "version"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "subject": {
+                              "type": "string"
+                            },
+                            "issuer": {
+                              "type": "string"
+                            },
+                            "representation_ref": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "version": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "version"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "perspective": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "own",
+                                    "observer",
+                                    "team"
+                                  ]
+                                },
+                                "principal": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "principal"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "space": {
+                              "type": "string"
+                            },
+                            "valid": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "const": "known"
+                                    },
+                                    "from": {
+                                      "type": "string"
+                                    },
+                                    "to": {
+                                      "oneOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "precision": {
+                                      "type": "string",
+                                      "const": "second"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "from",
+                                    "to",
+                                    "precision"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "const": "unknown"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "confirmed_at": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "lineage": {
+                              "oneOf": [
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "version": {
+                                        "type": "integer"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "version"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                {
+                                  "type": "string",
+                                  "const": "unknown"
+                                }
+                              ]
+                            },
+                            "disclosure": {
+                              "type": "object",
+                              "properties": {
+                                "audiences": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "purposes": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "retain_until": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "field_classes": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "public",
+                                      "restricted",
+                                      "sensitive"
+                                    ]
+                                  }
+                                },
+                                "declassification": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "version": {
+                                        "type": "integer"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "version"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "audiences",
+                                "purposes",
+                                "retain_until",
+                                "field_classes",
+                                "declassification"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "context": {
+                              "type": "string",
+                              "enum": [
+                                "real",
+                                "simulated"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "version",
+                            "kind",
+                            "schema",
+                            "subject",
+                            "issuer",
+                            "representation_ref",
+                            "perspective",
+                            "space",
+                            "valid",
+                            "confirmed_at",
+                            "lineage",
+                            "disclosure",
+                            "context"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "body": {
+                          "type": "object",
+                          "properties": {
+                            "target": {
+                              "type": "object",
+                              "properties": {
+                                "assertion": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "version": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "version"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "polarity": {
+                                  "type": "string",
+                                  "enum": [
+                                    "support",
+                                    "oppose"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "assertion",
+                                "polarity"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "premises": {
+                              "type": "array",
+                              "items": {
+                                "oneOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "assertion"
+                                      },
+                                      "literal": {
+                                        "type": "object",
+                                        "properties": {
+                                          "assertion": {
+                                            "type": "object",
+                                            "properties": {
+                                              "id": {
+                                                "type": "string"
+                                              },
+                                              "version": {
+                                                "type": "integer"
+                                              }
+                                            },
+                                            "required": [
+                                              "id",
+                                              "version"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          "polarity": {
+                                            "type": "string",
+                                            "enum": [
+                                              "support",
+                                              "oppose"
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "assertion",
+                                          "polarity"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "literal"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "source"
+                                      },
+                                      "source": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "version": {
+                                            "type": "integer"
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "version"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "source"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                ]
+                              }
+                            },
+                            "rule": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "version": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "version"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "rule_kind": {
+                              "type": "string",
+                              "enum": [
+                                "declared_rationale",
+                                "checked_entailment"
+                              ]
+                            },
+                            "role": {
+                              "type": "string",
+                              "enum": [
+                                "documentary_basis",
+                                "review_on_change",
+                                "sufficient_support"
+                              ]
+                            },
+                            "check": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "version": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "version"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "target",
+                            "premises",
+                            "rule",
+                            "rule_kind",
+                            "role",
+                            "check"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "envelope",
+                        "body"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 8
               }
             },
             "required": [
@@ -12949,6 +13829,23 @@
               "op",
               "actor",
               "hidden_work"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "revise_raw"
+              },
+              "raw_json": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "op",
+              "raw_json"
             ],
             "additionalProperties": false
           }

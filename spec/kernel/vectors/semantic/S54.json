@@ -1,0 +1,2207 @@
+{
+  "id": "S54",
+  "title": "Atomic revision auxiliaries preserve provenance, replay and refusal boundaries",
+  "profile": "semantic",
+  "clauses": [
+    "K-REV-1",
+    "K-API-1",
+    "K-API-2",
+    "K-SRC-1"
+  ],
+  "initial_state": {
+    "records": [
+      {
+        "envelope": {
+          "id": "rec:attributed",
+          "version": 1,
+          "kind": "assertion",
+          "schema": {
+            "id": "schema:assumption",
+            "version": 1
+          },
+          "subject": "subj:h1",
+          "issuer": "subj:h1",
+          "submitter": "subj:h1",
+          "representation_ref": null,
+          "perspective": {
+            "kind": "own",
+            "principal": "subj:h1"
+          },
+          "admission_class": "machine_observation",
+          "space": "space:main",
+          "valid": {
+            "kind": "known",
+            "from": "2026-09-01T00:00:00Z",
+            "to": null,
+            "precision": "second"
+          },
+          "confirmed_at": "2026-10-17T00:00:00Z",
+          "recorded": {
+            "sequence": 1,
+            "at": "2026-10-17T00:00:00Z"
+          },
+          "lineage": [],
+          "disclosure": {
+            "audiences": [
+              "aud:private",
+              "aud:public"
+            ],
+            "purposes": [
+              "purpose:publish",
+              "purpose:read"
+            ],
+            "retain_until": null,
+            "field_classes": [
+              "public"
+            ],
+            "declassification": []
+          },
+          "context": "real"
+        },
+        "body": {
+          "statement_kind": "fact",
+          "slot": "[]",
+          "content": [
+            {
+              "field": "value",
+              "value": "old"
+            }
+          ],
+          "authority_receipt": null
+        }
+      },
+      {
+        "envelope": {
+          "id": "rec:v1-source",
+          "version": 1,
+          "kind": "source",
+          "schema": null,
+          "subject": "subj:h1",
+          "issuer": "subj:h1",
+          "submitter": "subj:h1",
+          "representation_ref": null,
+          "perspective": {
+            "kind": "own",
+            "principal": "subj:h1"
+          },
+          "admission_class": "machine_observation",
+          "space": "space:main",
+          "valid": {
+            "kind": "known",
+            "from": "2026-09-01T00:00:00Z",
+            "to": null,
+            "precision": "second"
+          },
+          "confirmed_at": "2026-10-17T00:00:00Z",
+          "recorded": {
+            "sequence": 2,
+            "at": "2026-10-17T00:00:00Z"
+          },
+          "lineage": [],
+          "disclosure": {
+            "audiences": [
+              "aud:private",
+              "aud:public"
+            ],
+            "purposes": [
+              "purpose:publish",
+              "purpose:read"
+            ],
+            "retain_until": null,
+            "field_classes": [
+              "public"
+            ],
+            "declassification": []
+          },
+          "context": "real"
+        },
+        "body": {
+          "owner": "runtime:example",
+          "source_kind": "artifact",
+          "object": "session:planning",
+          "revision": "message:42",
+          "digest": {
+            "algorithm": "sha256-bytes-v1",
+            "value": "f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb"
+          },
+          "provenance": "reported",
+          "availability": "unavailable",
+          "origin": "{\"message\":\"42\",\"runtime\":\"example\",\"session\":\"planning\"}",
+          "original_issuer": "subj:h1",
+          "carrier": null,
+          "excerpt": "A retained observation: caf\u00e9, \u0540\u0561\u0575\u0565\u0580\u0565\u0576.\nSecond line.\n",
+          "retention_admission": {
+            "id": "retention:session",
+            "version": 1
+          }
+        }
+      },
+      {
+        "envelope": {
+          "id": "rec:v1-basis",
+          "version": 1,
+          "kind": "justification",
+          "schema": null,
+          "subject": "subj:h1",
+          "issuer": "subj:h1",
+          "submitter": "subj:h1",
+          "representation_ref": null,
+          "perspective": {
+            "kind": "own",
+            "principal": "subj:h1"
+          },
+          "admission_class": "machine_observation",
+          "space": "space:main",
+          "valid": {
+            "kind": "known",
+            "from": "2026-09-01T00:00:00Z",
+            "to": null,
+            "precision": "second"
+          },
+          "confirmed_at": "2026-10-17T00:00:00Z",
+          "recorded": {
+            "sequence": 3,
+            "at": "2026-10-17T00:00:00Z"
+          },
+          "lineage": [],
+          "disclosure": {
+            "audiences": [
+              "aud:private",
+              "aud:public"
+            ],
+            "purposes": [
+              "purpose:publish",
+              "purpose:read"
+            ],
+            "retain_until": null,
+            "field_classes": [
+              "public"
+            ],
+            "declassification": []
+          },
+          "context": "real"
+        },
+        "body": {
+          "target": {
+            "assertion": {
+              "id": "rec:attributed",
+              "version": 1
+            },
+            "polarity": "support"
+          },
+          "premises": [
+            {
+              "kind": "source",
+              "source": {
+                "id": "rec:v1-source",
+                "version": 1
+              }
+            }
+          ],
+          "rule": {
+            "id": "rule:v1-basis",
+            "version": 1
+          },
+          "rule_kind": "declared_rationale",
+          "role": "documentary_basis",
+          "check": null
+        }
+      }
+    ],
+    "domain_schemas": [
+      {
+        "id": "schema:assumption",
+        "version": 1,
+        "name": "assumption",
+        "statement_kind": "fact",
+        "semantics": {
+          "establishes": "An attributed statement only.",
+          "does_not_establish": [
+            "Unregistered dependencies",
+            "Truth from documentary attribution"
+          ]
+        },
+        "fields": [
+          {
+            "name": "value",
+            "type": "string",
+            "equality": "exact",
+            "required": true,
+            "disclosure_class": "public"
+          }
+        ],
+        "cardinality": {
+          "mode": "multi",
+          "slot_fields": []
+        },
+        "incompatibilities": [],
+        "freshness_default": {
+          "kind": "none"
+        },
+        "disclosure_defaults": [
+          {
+            "field_class": "public",
+            "audiences": [
+              "aud:public",
+              "aud:private"
+            ],
+            "purposes": [
+              "purpose:read",
+              "purpose:publish"
+            ]
+          },
+          {
+            "field_class": "restricted",
+            "audiences": [
+              "aud:private"
+            ],
+            "purposes": [
+              "purpose:read",
+              "purpose:publish"
+            ]
+          },
+          {
+            "field_class": "sensitive",
+            "audiences": [
+              "aud:private"
+            ],
+            "purposes": [
+              "purpose:read",
+              "purpose:publish"
+            ]
+          }
+        ],
+        "requirements": []
+      }
+    ],
+    "projection_rules": [
+      {
+        "id": "projection:main",
+        "version": 1,
+        "issuer": "subj:h1",
+        "perspective": {
+          "kind": "own",
+          "principal": "subj:h1"
+        },
+        "sequence_resolution": "issuer_and_authority",
+        "time_policy": "query_cut",
+        "freshness_policy": "query_override_else_schema",
+        "excluded_refs": [],
+        "family": "issuer_current",
+        "audience": null,
+        "purpose": null
+      }
+    ],
+    "policy": {
+      "subject_principals": [
+        {
+          "subject": "subj:h1",
+          "principal": "subj:h1"
+        }
+      ],
+      "revision": {
+        "id": "policy:1",
+        "version": 1
+      },
+      "owner": "subj:h1",
+      "lineage_facts": [
+        {
+          "output": {
+            "id": "rec:attributed",
+            "version": 1
+          },
+          "profile": {
+            "id": "integration:synthetic",
+            "version": 1
+          },
+          "kind": "direct",
+          "inputs": [],
+          "complete": true
+        },
+        {
+          "output": {
+            "id": "rec:attributed",
+            "version": 2
+          },
+          "profile": {
+            "id": "integration:synthetic",
+            "version": 1
+          },
+          "kind": "direct",
+          "inputs": [],
+          "complete": true
+        },
+        {
+          "output": {
+            "id": "rec:attributed-replace",
+            "version": 1
+          },
+          "profile": {
+            "id": "integration:synthetic",
+            "version": 1
+          },
+          "kind": "direct",
+          "inputs": [],
+          "complete": true
+        },
+        {
+          "output": {
+            "id": "rec:quarantined-basis",
+            "version": 1
+          },
+          "profile": {
+            "id": "integration:synthetic",
+            "version": 1
+          },
+          "kind": "direct",
+          "inputs": [],
+          "complete": true
+        },
+        {
+          "output": {
+            "id": "rec:quarantined-source",
+            "version": 1
+          },
+          "profile": {
+            "id": "integration:synthetic",
+            "version": 1
+          },
+          "kind": "direct",
+          "inputs": [],
+          "complete": true
+        },
+        {
+          "output": {
+            "id": "rec:v1-basis",
+            "version": 1
+          },
+          "profile": {
+            "id": "integration:synthetic",
+            "version": 1
+          },
+          "kind": "direct",
+          "inputs": [],
+          "complete": true
+        },
+        {
+          "output": {
+            "id": "rec:v1-source",
+            "version": 1
+          },
+          "profile": {
+            "id": "integration:synthetic",
+            "version": 1
+          },
+          "kind": "direct",
+          "inputs": [],
+          "complete": true
+        },
+        {
+          "output": {
+            "id": "rec:v2-basis",
+            "version": 1
+          },
+          "profile": {
+            "id": "integration:synthetic",
+            "version": 1
+          },
+          "kind": "direct",
+          "inputs": [],
+          "complete": true
+        },
+        {
+          "output": {
+            "id": "rec:v2-source",
+            "version": 1
+          },
+          "profile": {
+            "id": "integration:synthetic",
+            "version": 1
+          },
+          "kind": "direct",
+          "inputs": [],
+          "complete": true
+        }
+      ],
+      "constraint_owners": [],
+      "declassification_decisions": [],
+      "profile": "protected",
+      "grants": [
+        {
+          "principal": "subj:h1",
+          "space": "space:main",
+          "audience": "aud:private",
+          "purpose": "purpose:publish",
+          "rights": [
+            "admit",
+            "declassify",
+            "erase",
+            "forward",
+            "read",
+            "retain",
+            "revise",
+            "use"
+          ],
+          "records": [
+            "*"
+          ],
+          "metadata": true
+        },
+        {
+          "principal": "subj:h1",
+          "space": "space:main",
+          "audience": "aud:private",
+          "purpose": "purpose:read",
+          "rights": [
+            "admit",
+            "declassify",
+            "erase",
+            "forward",
+            "read",
+            "retain",
+            "revise",
+            "use"
+          ],
+          "records": [
+            "*"
+          ],
+          "metadata": true
+        },
+        {
+          "principal": "subj:h1",
+          "space": "space:main",
+          "audience": "aud:public",
+          "purpose": "purpose:publish",
+          "rights": [
+            "admit",
+            "declassify",
+            "erase",
+            "forward",
+            "read",
+            "retain",
+            "revise",
+            "use"
+          ],
+          "records": [
+            "*"
+          ],
+          "metadata": true
+        },
+        {
+          "principal": "subj:h1",
+          "space": "space:main",
+          "audience": "aud:public",
+          "purpose": "purpose:read",
+          "rights": [
+            "admit",
+            "declassify",
+            "erase",
+            "forward",
+            "read",
+            "retain",
+            "revise",
+            "use"
+          ],
+          "records": [
+            "*"
+          ],
+          "metadata": true
+        }
+      ],
+      "representations": [],
+      "reviews": [
+        {
+          "record": {
+            "id": "rec:attributed",
+            "version": 1
+          },
+          "reviewer": "subj:h1",
+          "result": "allow"
+        },
+        {
+          "record": {
+            "id": "rec:attributed",
+            "version": 2
+          },
+          "reviewer": "subj:h1",
+          "result": "allow"
+        },
+        {
+          "record": {
+            "id": "rec:attributed-replace",
+            "version": 1
+          },
+          "reviewer": "subj:h1",
+          "result": "allow"
+        },
+        {
+          "record": {
+            "id": "rec:quarantined-basis",
+            "version": 1
+          },
+          "reviewer": "subj:h1",
+          "result": "allow"
+        },
+        {
+          "record": {
+            "id": "rec:quarantined-source",
+            "version": 1
+          },
+          "reviewer": "subj:h1",
+          "result": "quarantine"
+        },
+        {
+          "record": {
+            "id": "rec:v1-basis",
+            "version": 1
+          },
+          "reviewer": "subj:h1",
+          "result": "allow"
+        },
+        {
+          "record": {
+            "id": "rec:v1-source",
+            "version": 1
+          },
+          "reviewer": "subj:h1",
+          "result": "allow"
+        },
+        {
+          "record": {
+            "id": "rec:v2-basis",
+            "version": 1
+          },
+          "reviewer": "subj:h1",
+          "result": "allow"
+        },
+        {
+          "record": {
+            "id": "rec:v2-source",
+            "version": 1
+          },
+          "reviewer": "subj:h1",
+          "result": "allow"
+        }
+      ],
+      "evidence": {
+        "ref": {
+          "id": "evidence:1",
+          "version": 1
+        },
+        "root_kinds": [
+          "formal_entailment",
+          "semantic_review",
+          "test_result"
+        ],
+        "policy_pin": {
+          "id": "evidence:1",
+          "version": 1
+        },
+        "environment_pin": {
+          "id": "environment:1",
+          "version": 1
+        }
+      },
+      "coverage": [],
+      "authority_events": [],
+      "handles": [],
+      "imports": [],
+      "public_availability": "available",
+      "availability_disclosure": "none",
+      "limits": {
+        "max_records": 1000,
+        "max_fan_in": 32,
+        "max_payload_bytes": 1000000,
+        "read": {
+          "roots": 32,
+          "rules": 32,
+          "source_resolutions": 32,
+          "explanations": 8
+        }
+      },
+      "source_access": [
+        {
+          "source": {
+            "id": "rec:v1-source",
+            "version": 1
+          },
+          "resolvable": false
+        }
+      ],
+      "external_effect_owners": [
+        "authority:external"
+      ]
+    },
+    "runtime": {
+      "dirty_causes": [],
+      "revoked_declassifications": [],
+      "committed_cuts": [
+        100
+      ],
+      "revocations": [],
+      "memory_cut": 100,
+      "source_cuts": [],
+      "dirty": [],
+      "erasure_generation": 0,
+      "erased": [],
+      "fences": [],
+      "custody": [],
+      "restore": {
+        "status": "open",
+        "external_witness": true,
+        "obligations": []
+      },
+      "idempotency": [],
+      "hidden_work": 0,
+      "memory_available": true,
+      "control_observations": [],
+      "external_effects": []
+    }
+  },
+  "operations": [
+    {
+      "op": "revise_raw",
+      "raw_json": "{\"op\":\"revise\",\"context\":{\"actor\":\"subj:h1\",\"at\":\"2026-10-17T00:00:00Z\",\"admission_class\":\"machine_observation\",\"retention_context\":{\"audience\":\"aud:public\",\"purpose\":\"purpose:read\"}},\"idempotency_key\":\"attributed-2\",\"revision\":{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"revision\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"relation\":\"replace\",\"target\":{\"id\":\"rec:attributed\",\"version\":1},\"replacement\":{\"id\":\"rec:attributed\",\"version\":2},\"availability\":null,\"authority_receipt\":null}},\"replacement\":{\"envelope\":{\"id\":\"rec:attributed\",\"version\":2,\"kind\":\"assertion\",\"schema\":{\"id\":\"schema:assumption\",\"version\":1},\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"statement_kind\":\"fact\",\"slot\":\"[]\",\"content\":[{\"field\":\"value\",\"value\":\"new\"}],\"authority_receipt\":null}},\"expected_version\":{\"id\":\"rec:attributed\",\"version\":1},\"expected_generation\":0,\"auxiliaries\":[]}"
+    },
+    {
+      "op": "revise_raw",
+      "raw_json": "{\"op\":\"revise\",\"context\":{\"actor\":\"subj:h1\",\"at\":\"2026-10-17T00:00:00Z\",\"admission_class\":\"machine_observation\",\"retention_context\":{\"audience\":\"aud:public\",\"purpose\":\"purpose:read\"}},\"idempotency_key\":\"attributed-2\",\"revision\":{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"revision\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"relation\":\"replace\",\"target\":{\"id\":\"rec:attributed\",\"version\":1},\"replacement\":{\"id\":\"rec:attributed\",\"version\":2},\"availability\":null,\"authority_receipt\":null}},\"replacement\":{\"envelope\":{\"id\":\"rec:attributed\",\"version\":2,\"kind\":\"assertion\",\"schema\":{\"id\":\"schema:assumption\",\"version\":1},\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"statement_kind\":\"fact\",\"slot\":\"[]\",\"content\":[{\"field\":\"value\",\"value\":\"new\"}],\"authority_receipt\":null}},\"expected_version\":{\"id\":\"rec:attributed\",\"version\":1},\"expected_generation\":0,\"auxiliaries\":[{\"envelope\":{\"id\":\"rec:v2-source\",\"version\":1,\"kind\":\"source\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"owner\":\"runtime:example\",\"source_kind\":\"artifact\",\"object\":\"session:planning\",\"revision\":\"message:42\",\"digest\":{\"algorithm\":\"sha256-bytes-v1\",\"value\":\"f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb\"},\"provenance\":\"reported\",\"availability\":\"unavailable\",\"origin\":\"{\\\"message\\\":\\\"42\\\",\\\"runtime\\\":\\\"example\\\",\\\"session\\\":\\\"planning\\\"}\",\"original_issuer\":\"subj:h1\",\"carrier\":null,\"excerpt\":\"A retained observation: caf\\u00e9, \\u0540\\u0561\\u0575\\u0565\\u0580\\u0565\\u0576.\\nSecond line.\\n\",\"retention_admission\":{\"id\":\"retention:session\",\"version\":1}}},{\"envelope\":{\"id\":\"rec:v2-basis\",\"version\":1,\"kind\":\"justification\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"target\":{\"assertion\":{\"id\":\"rec:attributed\",\"version\":2},\"polarity\":\"support\"},\"premises\":[{\"kind\":\"source\",\"source\":{\"id\":\"rec:v2-source\",\"version\":1}}],\"rule\":{\"id\":\"rule:v2-basis\",\"version\":1},\"rule_kind\":\"declared_rationale\",\"role\":\"documentary_basis\",\"check\":null}},{\"envelope\":{\"id\":\"rec:v2-source\",\"version\":1,\"kind\":\"source\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"owner\":\"runtime:example\",\"source_kind\":\"artifact\",\"object\":\"session:planning\",\"revision\":\"message:42\",\"digest\":{\"algorithm\":\"sha256-bytes-v1\",\"value\":\"f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb\"},\"provenance\":\"reported\",\"availability\":\"unavailable\",\"origin\":\"{\\\"message\\\":\\\"42\\\",\\\"runtime\\\":\\\"example\\\",\\\"session\\\":\\\"planning\\\"}\",\"original_issuer\":\"subj:h1\",\"carrier\":null,\"excerpt\":\"A retained observation: caf\\u00e9, \\u0540\\u0561\\u0575\\u0565\\u0580\\u0565\\u0576.\\nSecond line.\\n\",\"retention_admission\":{\"id\":\"retention:session\",\"version\":1}}},{\"envelope\":{\"id\":\"rec:v2-basis\",\"version\":1,\"kind\":\"justification\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"target\":{\"assertion\":{\"id\":\"rec:attributed\",\"version\":2},\"polarity\":\"support\"},\"premises\":[{\"kind\":\"source\",\"source\":{\"id\":\"rec:v2-source\",\"version\":1}}],\"rule\":{\"id\":\"rule:v2-basis\",\"version\":1},\"rule_kind\":\"declared_rationale\",\"role\":\"documentary_basis\",\"check\":null}},{\"envelope\":{\"id\":\"rec:v2-source\",\"version\":1,\"kind\":\"source\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"owner\":\"runtime:example\",\"source_kind\":\"artifact\",\"object\":\"session:planning\",\"revision\":\"message:42\",\"digest\":{\"algorithm\":\"sha256-bytes-v1\",\"value\":\"f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb\"},\"provenance\":\"reported\",\"availability\":\"unavailable\",\"origin\":\"{\\\"message\\\":\\\"42\\\",\\\"runtime\\\":\\\"example\\\",\\\"session\\\":\\\"planning\\\"}\",\"original_issuer\":\"subj:h1\",\"carrier\":null,\"excerpt\":\"A retained observation: caf\\u00e9, \\u0540\\u0561\\u0575\\u0565\\u0580\\u0565\\u0576.\\nSecond line.\\n\",\"retention_admission\":{\"id\":\"retention:session\",\"version\":1}}},{\"envelope\":{\"id\":\"rec:v2-basis\",\"version\":1,\"kind\":\"justification\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"target\":{\"assertion\":{\"id\":\"rec:attributed\",\"version\":2},\"polarity\":\"support\"},\"premises\":[{\"kind\":\"source\",\"source\":{\"id\":\"rec:v2-source\",\"version\":1}}],\"rule\":{\"id\":\"rule:v2-basis\",\"version\":1},\"rule_kind\":\"declared_rationale\",\"role\":\"documentary_basis\",\"check\":null}},{\"envelope\":{\"id\":\"rec:v2-source\",\"version\":1,\"kind\":\"source\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"owner\":\"runtime:example\",\"source_kind\":\"artifact\",\"object\":\"session:planning\",\"revision\":\"message:42\",\"digest\":{\"algorithm\":\"sha256-bytes-v1\",\"value\":\"f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb\"},\"provenance\":\"reported\",\"availability\":\"unavailable\",\"origin\":\"{\\\"message\\\":\\\"42\\\",\\\"runtime\\\":\\\"example\\\",\\\"session\\\":\\\"planning\\\"}\",\"original_issuer\":\"subj:h1\",\"carrier\":null,\"excerpt\":\"A retained observation: caf\\u00e9, \\u0540\\u0561\\u0575\\u0565\\u0580\\u0565\\u0576.\\nSecond line.\\n\",\"retention_admission\":{\"id\":\"retention:session\",\"version\":1}}},{\"envelope\":{\"id\":\"rec:v2-basis\",\"version\":1,\"kind\":\"justification\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"target\":{\"assertion\":{\"id\":\"rec:attributed\",\"version\":2},\"polarity\":\"support\"},\"premises\":[{\"kind\":\"source\",\"source\":{\"id\":\"rec:v2-source\",\"version\":1}}],\"rule\":{\"id\":\"rule:v2-basis\",\"version\":1},\"rule_kind\":\"declared_rationale\",\"role\":\"documentary_basis\",\"check\":null}},{\"envelope\":{\"id\":\"rec:v2-source\",\"version\":1,\"kind\":\"source\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"owner\":\"runtime:example\",\"source_kind\":\"artifact\",\"object\":\"session:planning\",\"revision\":\"message:42\",\"digest\":{\"algorithm\":\"sha256-bytes-v1\",\"value\":\"f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb\"},\"provenance\":\"reported\",\"availability\":\"unavailable\",\"origin\":\"{\\\"message\\\":\\\"42\\\",\\\"runtime\\\":\\\"example\\\",\\\"session\\\":\\\"planning\\\"}\",\"original_issuer\":\"subj:h1\",\"carrier\":null,\"excerpt\":\"A retained observation: caf\\u00e9, \\u0540\\u0561\\u0575\\u0565\\u0580\\u0565\\u0576.\\nSecond line.\\n\",\"retention_admission\":{\"id\":\"retention:session\",\"version\":1}}},{\"envelope\":{\"id\":\"rec:v2-basis\",\"version\":1,\"kind\":\"justification\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"target\":{\"assertion\":{\"id\":\"rec:attributed\",\"version\":2},\"polarity\":\"support\"},\"premises\":[{\"kind\":\"source\",\"source\":{\"id\":\"rec:v2-source\",\"version\":1}}],\"rule\":{\"id\":\"rule:v2-basis\",\"version\":1},\"rule_kind\":\"declared_rationale\",\"role\":\"documentary_basis\",\"check\":null}}]}"
+    },
+    {
+      "op": "revise_raw",
+      "raw_json": "{\"op\":\"revise\",\"context\":{\"actor\":\"subj:h1\",\"at\":\"2026-10-17T00:00:00Z\",\"admission_class\":\"machine_observation\",\"retention_context\":{\"audience\":\"aud:public\",\"purpose\":\"purpose:read\"}},\"idempotency_key\":\"attributed-2\",\"revision\":{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"revision\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"relation\":\"replace\",\"target\":{\"id\":\"rec:attributed\",\"version\":1},\"replacement\":{\"id\":\"rec:attributed\",\"version\":2},\"availability\":null,\"authority_receipt\":null}},\"replacement\":{\"envelope\":{\"id\":\"rec:attributed\",\"version\":2,\"kind\":\"assertion\",\"schema\":{\"id\":\"schema:assumption\",\"version\":1},\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"statement_kind\":\"fact\",\"slot\":\"[]\",\"content\":[{\"field\":\"value\",\"value\":\"new\"}],\"authority_receipt\":null}},\"expected_version\":{\"id\":\"rec:attributed\",\"version\":1},\"expected_generation\":0,\"auxiliaries\":[{\"envelope\":{\"id\":\"rec:attributed\",\"version\":2,\"kind\":\"assertion\",\"schema\":{\"id\":\"schema:assumption\",\"version\":1},\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"statement_kind\":\"fact\",\"slot\":\"[]\",\"content\":[{\"field\":\"value\",\"value\":\"new\"}],\"authority_receipt\":null}}]}"
+    },
+    {
+      "op": "revise_raw",
+      "raw_json": "{\"op\":\"revise\",\"context\":{\"actor\":\"subj:h1\",\"at\":\"2026-10-17T00:00:00Z\",\"admission_class\":\"machine_observation\",\"retention_context\":{\"audience\":\"aud:public\",\"purpose\":\"purpose:read\"}},\"idempotency_key\":\"attributed-2\",\"revision\":{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"revision\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"relation\":\"replace\",\"target\":{\"id\":\"rec:attributed\",\"version\":1},\"replacement\":{\"id\":\"rec:attributed\",\"version\":2},\"availability\":null,\"authority_receipt\":null}},\"replacement\":{\"envelope\":{\"id\":\"rec:attributed\",\"version\":2,\"kind\":\"assertion\",\"schema\":{\"id\":\"schema:assumption\",\"version\":1},\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"statement_kind\":\"fact\",\"slot\":\"[]\",\"content\":[{\"field\":\"value\",\"value\":\"new\"}],\"authority_receipt\":null}},\"expected_version\":{\"id\":\"rec:attributed\",\"version\":1},\"expected_generation\":0,\"auxiliaries\":[{\"envelope\":{\"id\":\"rec:forbidden-assessment\",\"version\":1,\"kind\":\"assessment\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"check_kind\":\"semantic_review\",\"executor\":\"human\",\"result\":\"pass\",\"pins\":{\"subject\":{\"id\":\"rec:attributed\",\"version\":2},\"rule\":{\"id\":\"check:semantic_review\",\"version\":1},\"policy\":{\"id\":\"evidence:1\",\"version\":1},\"environment\":{\"id\":\"environment:1\",\"version\":1}},\"target\":{\"assertion\":{\"id\":\"rec:attributed\",\"version\":2},\"polarity\":\"support\"},\"sources\":[],\"origin\":\"origin:forbidden-assessment\",\"source_requirement\":\"current\",\"usable_until\":null,\"declassification\":null}}]}"
+    },
+    {
+      "op": "revise_raw",
+      "raw_json": "{\"op\":\"revise\",\"context\":{\"actor\":\"subj:h1\",\"at\":\"2026-10-17T00:00:00Z\",\"admission_class\":\"machine_observation\",\"retention_context\":{\"audience\":\"aud:public\",\"purpose\":\"purpose:read\"}},\"idempotency_key\":\"attributed-2\",\"revision\":{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"revision\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"relation\":\"replace\",\"target\":{\"id\":\"rec:attributed\",\"version\":1},\"replacement\":{\"id\":\"rec:attributed\",\"version\":2},\"availability\":null,\"authority_receipt\":null}},\"replacement\":{\"envelope\":{\"id\":\"rec:attributed\",\"version\":2,\"kind\":\"assertion\",\"schema\":{\"id\":\"schema:assumption\",\"version\":1},\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"statement_kind\":\"fact\",\"slot\":\"[]\",\"content\":[{\"field\":\"value\",\"value\":\"new\"}],\"authority_receipt\":null}},\"expected_version\":{\"id\":\"rec:attributed\",\"version\":1},\"expected_generation\":0,\"auxiliaries\":[{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"revision\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"relation\":\"replace\",\"target\":{\"id\":\"rec:attributed\",\"version\":1},\"replacement\":{\"id\":\"rec:attributed\",\"version\":2},\"availability\":null,\"authority_receipt\":null}}]}"
+    },
+    {
+      "op": "revise_raw",
+      "raw_json": "{\"op\":\"revise\",\"context\":{\"actor\":\"subj:h1\",\"at\":\"2026-10-17T00:00:00Z\",\"admission_class\":\"machine_observation\",\"retention_context\":{\"audience\":\"aud:public\",\"purpose\":\"purpose:read\"}},\"idempotency_key\":\"attributed-2\",\"revision\":{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"revision\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"relation\":\"replace\",\"target\":{\"id\":\"rec:attributed\",\"version\":1},\"replacement\":{\"id\":\"rec:attributed\",\"version\":2},\"availability\":null,\"authority_receipt\":null}},\"replacement\":{\"envelope\":{\"id\":\"rec:attributed\",\"version\":2,\"kind\":\"assertion\",\"schema\":{\"id\":\"schema:assumption\",\"version\":1},\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"statement_kind\":\"fact\",\"slot\":\"[]\",\"content\":[{\"field\":\"value\",\"value\":\"new\"}],\"authority_receipt\":null}},\"expected_version\":{\"id\":\"rec:attributed\",\"version\":1},\"expected_generation\":0,\"auxiliaries\":[{\"envelope\":{\"id\":\"rec:v2-source\",\"version\":2,\"kind\":\"source\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"owner\":\"runtime:example\",\"source_kind\":\"artifact\",\"object\":\"session:planning\",\"revision\":\"message:42\",\"digest\":{\"algorithm\":\"sha256-bytes-v1\",\"value\":\"f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb\"},\"provenance\":\"reported\",\"availability\":\"unavailable\",\"origin\":\"{\\\"message\\\":\\\"42\\\",\\\"runtime\\\":\\\"example\\\",\\\"session\\\":\\\"planning\\\"}\",\"original_issuer\":\"subj:h1\",\"carrier\":null,\"excerpt\":\"A retained observation: caf\\u00e9, \\u0540\\u0561\\u0575\\u0565\\u0580\\u0565\\u0576.\\nSecond line.\\n\",\"retention_admission\":{\"id\":\"retention:session\",\"version\":1}}},{\"envelope\":{\"id\":\"rec:v2-basis\",\"version\":1,\"kind\":\"justification\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"target\":{\"assertion\":{\"id\":\"rec:attributed\",\"version\":2},\"polarity\":\"support\"},\"premises\":[{\"kind\":\"source\",\"source\":{\"id\":\"rec:v2-source\",\"version\":1}}],\"rule\":{\"id\":\"rule:v2-basis\",\"version\":1},\"rule_kind\":\"declared_rationale\",\"role\":\"documentary_basis\",\"check\":null}}]}"
+    },
+    {
+      "op": "revise_raw",
+      "raw_json": "{\"op\":\"revise\",\"context\":{\"actor\":\"subj:h1\",\"at\":\"2026-10-17T00:00:00Z\",\"admission_class\":\"machine_observation\",\"retention_context\":{\"audience\":\"aud:public\",\"purpose\":\"purpose:read\"}},\"idempotency_key\":\"attributed-2\",\"revision\":{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"revision\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"relation\":\"replace\",\"target\":{\"id\":\"rec:attributed\",\"version\":1},\"replacement\":{\"id\":\"rec:attributed\",\"version\":2},\"availability\":null,\"authority_receipt\":null}},\"replacement\":{\"envelope\":{\"id\":\"rec:attributed\",\"version\":2,\"kind\":\"assertion\",\"schema\":{\"id\":\"schema:assumption\",\"version\":1},\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"statement_kind\":\"fact\",\"slot\":\"[]\",\"content\":[{\"field\":\"value\",\"value\":\"new\"}],\"authority_receipt\":null}},\"expected_version\":{\"id\":\"rec:attributed\",\"version\":1},\"expected_generation\":0,\"auxiliaries\":[{\"envelope\":{\"id\":\"rec:v2-source\",\"version\":1,\"kind\":\"source\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"owner\":\"runtime:example\",\"source_kind\":\"artifact\",\"object\":\"session:planning\",\"revision\":\"message:42\",\"digest\":{\"algorithm\":\"sha256-bytes-v1\",\"value\":\"f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb\"},\"provenance\":\"reported\",\"availability\":\"unavailable\",\"origin\":\"{\\\"message\\\":\\\"42\\\",\\\"runtime\\\":\\\"example\\\",\\\"session\\\":\\\"planning\\\"}\",\"original_issuer\":\"subj:h1\",\"carrier\":null,\"excerpt\":\"A retained observation: caf\\u00e9, \\u0540\\u0561\\u0575\\u0565\\u0580\\u0565\\u0576.\\nSecond line.\\n\",\"retention_admission\":{\"id\":\"retention:session\",\"version\":1}}},{\"envelope\":{\"id\":\"rec:v2-source\",\"version\":1,\"kind\":\"justification\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"target\":{\"assertion\":{\"id\":\"rec:attributed\",\"version\":2},\"polarity\":\"support\"},\"premises\":[{\"kind\":\"source\",\"source\":{\"id\":\"rec:v2-source\",\"version\":1}}],\"rule\":{\"id\":\"rule:v2-basis\",\"version\":1},\"rule_kind\":\"declared_rationale\",\"role\":\"documentary_basis\",\"check\":null}}]}"
+    },
+    {
+      "op": "revise_raw",
+      "raw_json": "{\"op\":\"revise\",\"context\":{\"actor\":\"subj:h1\",\"at\":\"2026-10-17T00:00:00Z\",\"admission_class\":\"machine_observation\",\"retention_context\":{\"audience\":\"aud:public\",\"purpose\":\"purpose:read\"}},\"idempotency_key\":\"attributed-2\",\"revision\":{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"revision\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"relation\":\"replace\",\"target\":{\"id\":\"rec:attributed\",\"version\":1},\"replacement\":{\"id\":\"rec:attributed\",\"version\":2},\"availability\":null,\"authority_receipt\":null}},\"replacement\":{\"envelope\":{\"id\":\"rec:attributed\",\"version\":2,\"kind\":\"assertion\",\"schema\":{\"id\":\"schema:assumption\",\"version\":1},\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"statement_kind\":\"fact\",\"slot\":\"[]\",\"content\":[{\"field\":\"value\",\"value\":\"new\"}],\"authority_receipt\":null}},\"expected_version\":{\"id\":\"rec:attributed\",\"version\":1},\"expected_generation\":0,\"auxiliaries\":[{\"envelope\":{\"id\":\"rec:attributed\",\"version\":1,\"kind\":\"source\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"owner\":\"runtime:example\",\"source_kind\":\"artifact\",\"object\":\"session:planning\",\"revision\":\"message:42\",\"digest\":{\"algorithm\":\"sha256-bytes-v1\",\"value\":\"f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb\"},\"provenance\":\"reported\",\"availability\":\"unavailable\",\"origin\":\"{\\\"message\\\":\\\"42\\\",\\\"runtime\\\":\\\"example\\\",\\\"session\\\":\\\"planning\\\"}\",\"original_issuer\":\"subj:h1\",\"carrier\":null,\"excerpt\":\"A retained observation: caf\\u00e9, \\u0540\\u0561\\u0575\\u0565\\u0580\\u0565\\u0576.\\nSecond line.\\n\",\"retention_admission\":{\"id\":\"retention:session\",\"version\":1}}},{\"envelope\":{\"id\":\"rec:v2-basis\",\"version\":1,\"kind\":\"justification\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"target\":{\"assertion\":{\"id\":\"rec:attributed\",\"version\":2},\"polarity\":\"support\"},\"premises\":[{\"kind\":\"source\",\"source\":{\"id\":\"rec:v2-source\",\"version\":1}}],\"rule\":{\"id\":\"rule:v2-basis\",\"version\":1},\"rule_kind\":\"declared_rationale\",\"role\":\"documentary_basis\",\"check\":null}}]}"
+    },
+    {
+      "op": "revise_raw",
+      "raw_json": "{\"op\":\"revise\",\"context\":{\"actor\":\"subj:h1\",\"at\":\"2026-10-17T00:00:00Z\",\"admission_class\":\"machine_observation\",\"retention_context\":{\"audience\":\"aud:public\",\"purpose\":\"purpose:read\"}},\"idempotency_key\":\"attributed-2\",\"revision\":{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"revision\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"relation\":\"replace\",\"target\":{\"id\":\"rec:attributed\",\"version\":1},\"replacement\":{\"id\":\"rec:attributed\",\"version\":2},\"availability\":null,\"authority_receipt\":null}},\"replacement\":{\"envelope\":{\"id\":\"rec:attributed\",\"version\":2,\"kind\":\"assertion\",\"schema\":{\"id\":\"schema:assumption\",\"version\":1},\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"statement_kind\":\"fact\",\"slot\":\"[]\",\"content\":[{\"field\":\"value\",\"value\":\"new\"}],\"authority_receipt\":null}},\"expected_version\":{\"id\":\"rec:attributed\",\"version\":1},\"expected_generation\":0,\"auxiliaries\":[{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"source\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"owner\":\"runtime:example\",\"source_kind\":\"artifact\",\"object\":\"session:planning\",\"revision\":\"message:42\",\"digest\":{\"algorithm\":\"sha256-bytes-v1\",\"value\":\"f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb\"},\"provenance\":\"reported\",\"availability\":\"unavailable\",\"origin\":\"{\\\"message\\\":\\\"42\\\",\\\"runtime\\\":\\\"example\\\",\\\"session\\\":\\\"planning\\\"}\",\"original_issuer\":\"subj:h1\",\"carrier\":null,\"excerpt\":\"A retained observation: caf\\u00e9, \\u0540\\u0561\\u0575\\u0565\\u0580\\u0565\\u0576.\\nSecond line.\\n\",\"retention_admission\":{\"id\":\"retention:session\",\"version\":1}}},{\"envelope\":{\"id\":\"rec:v2-basis\",\"version\":1,\"kind\":\"justification\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"target\":{\"assertion\":{\"id\":\"rec:attributed\",\"version\":2},\"polarity\":\"support\"},\"premises\":[{\"kind\":\"source\",\"source\":{\"id\":\"rec:v2-source\",\"version\":1}}],\"rule\":{\"id\":\"rule:v2-basis\",\"version\":1},\"rule_kind\":\"declared_rationale\",\"role\":\"documentary_basis\",\"check\":null}}]}"
+    },
+    {
+      "op": "revise_raw",
+      "raw_json": "{\"op\":\"revise\",\"context\":{\"actor\":\"subj:h1\",\"at\":\"2026-10-17T00:00:00Z\",\"admission_class\":\"machine_observation\",\"retention_context\":{\"audience\":\"aud:public\",\"purpose\":\"purpose:read\"}},\"idempotency_key\":\"attributed-2\",\"revision\":{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"revision\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"relation\":\"replace\",\"target\":{\"id\":\"rec:attributed\",\"version\":1},\"replacement\":{\"id\":\"rec:attributed\",\"version\":2},\"availability\":null,\"authority_receipt\":null}},\"replacement\":{\"envelope\":{\"id\":\"rec:attributed\",\"version\":2,\"kind\":\"assertion\",\"schema\":{\"id\":\"schema:assumption\",\"version\":1},\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"statement_kind\":\"fact\",\"slot\":\"[]\",\"content\":[{\"field\":\"value\",\"value\":\"new\"}],\"authority_receipt\":null}},\"expected_version\":{\"id\":\"rec:attributed\",\"version\":1},\"expected_generation\":0,\"auxiliaries\":[{\"envelope\":{\"id\":\"rec:v2-source\",\"version\":1,\"kind\":\"source\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"owner\":\"runtime:example\",\"source_kind\":\"artifact\",\"object\":\"session:planning\",\"revision\":\"message:42\",\"digest\":{\"algorithm\":\"sha256-bytes-v1\",\"value\":\"f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb\"},\"provenance\":\"reported\",\"availability\":\"unavailable\",\"origin\":\"{\\\"message\\\":\\\"42\\\",\\\"runtime\\\":\\\"example\\\",\\\"session\\\":\\\"planning\\\"}\",\"original_issuer\":\"subj:h1\",\"carrier\":null,\"excerpt\":\"A retained observation: caf\\u00e9, \\u0540\\u0561\\u0575\\u0565\\u0580\\u0565\\u0576.\\nSecond line.\\n\",\"retention_admission\":{\"id\":\"retention:session\",\"version\":1}}},{\"envelope\":{\"id\":\"rec:v2-basis\",\"version\":1,\"kind\":\"justification\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"target\":{\"assertion\":{\"id\":\"rec:attributed\",\"version\":1},\"polarity\":\"support\"},\"premises\":[{\"kind\":\"source\",\"source\":{\"id\":\"rec:v2-source\",\"version\":1}}],\"rule\":{\"id\":\"rule:v2-basis\",\"version\":1},\"rule_kind\":\"declared_rationale\",\"role\":\"documentary_basis\",\"check\":null}}]}"
+    },
+    {
+      "op": "revise_raw",
+      "raw_json": "{\"op\":\"revise\",\"context\":{\"actor\":\"subj:h1\",\"at\":\"2026-10-17T00:00:00Z\",\"admission_class\":\"machine_observation\",\"retention_context\":{\"audience\":\"aud:public\",\"purpose\":\"purpose:read\"}},\"idempotency_key\":\"attributed-2\",\"revision\":{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"revision\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"relation\":\"replace\",\"target\":{\"id\":\"rec:attributed\",\"version\":1},\"replacement\":{\"id\":\"rec:attributed\",\"version\":2},\"availability\":null,\"authority_receipt\":null}},\"replacement\":{\"envelope\":{\"id\":\"rec:attributed\",\"version\":2,\"kind\":\"assertion\",\"schema\":{\"id\":\"schema:assumption\",\"version\":1},\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"statement_kind\":\"fact\",\"slot\":\"[]\",\"content\":[{\"field\":\"value\",\"value\":\"new\"}],\"authority_receipt\":null}},\"expected_version\":{\"id\":\"rec:attributed\",\"version\":1},\"expected_generation\":0,\"auxiliaries\":[{\"envelope\":{\"id\":\"rec:v2-source\",\"version\":1,\"kind\":\"source\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"owner\":\"runtime:example\",\"source_kind\":\"artifact\",\"object\":\"session:planning\",\"revision\":\"message:42\",\"digest\":{\"algorithm\":\"sha256-bytes-v1\",\"value\":\"f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb\"},\"provenance\":\"reported\",\"availability\":\"unavailable\",\"origin\":\"{\\\"message\\\":\\\"42\\\",\\\"runtime\\\":\\\"example\\\",\\\"session\\\":\\\"planning\\\"}\",\"original_issuer\":\"subj:h1\",\"carrier\":null,\"excerpt\":\"A retained observation: caf\\u00e9, \\u0540\\u0561\\u0575\\u0565\\u0580\\u0565\\u0576.\\nSecond line.\\n\",\"retention_admission\":{\"id\":\"retention:session\",\"version\":1}}}]}"
+    },
+    {
+      "op": "revise_raw",
+      "raw_json": "{\"op\":\"revise\",\"context\":{\"actor\":\"subj:h1\",\"at\":\"2026-10-17T00:00:00Z\",\"admission_class\":\"machine_observation\",\"retention_context\":{\"audience\":\"aud:public\",\"purpose\":\"purpose:read\"}},\"idempotency_key\":\"attributed-2\",\"revision\":{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"revision\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"relation\":\"withdraw\",\"target\":{\"id\":\"rec:attributed\",\"version\":1},\"replacement\":null,\"availability\":null,\"authority_receipt\":null}},\"replacement\":null,\"expected_version\":{\"id\":\"rec:attributed\",\"version\":1},\"expected_generation\":0,\"auxiliaries\":[{\"envelope\":{\"id\":\"rec:v2-source\",\"version\":1,\"kind\":\"source\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"owner\":\"runtime:example\",\"source_kind\":\"artifact\",\"object\":\"session:planning\",\"revision\":\"message:42\",\"digest\":{\"algorithm\":\"sha256-bytes-v1\",\"value\":\"f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb\"},\"provenance\":\"reported\",\"availability\":\"unavailable\",\"origin\":\"{\\\"message\\\":\\\"42\\\",\\\"runtime\\\":\\\"example\\\",\\\"session\\\":\\\"planning\\\"}\",\"original_issuer\":\"subj:h1\",\"carrier\":null,\"excerpt\":\"A retained observation: caf\\u00e9, \\u0540\\u0561\\u0575\\u0565\\u0580\\u0565\\u0576.\\nSecond line.\\n\",\"retention_admission\":{\"id\":\"retention:session\",\"version\":1}}},{\"envelope\":{\"id\":\"rec:v2-basis\",\"version\":1,\"kind\":\"justification\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"target\":{\"assertion\":{\"id\":\"rec:attributed\",\"version\":2},\"polarity\":\"support\"},\"premises\":[{\"kind\":\"source\",\"source\":{\"id\":\"rec:v2-source\",\"version\":1}}],\"rule\":{\"id\":\"rule:v2-basis\",\"version\":1},\"rule_kind\":\"declared_rationale\",\"role\":\"documentary_basis\",\"check\":null}}]}"
+    },
+    {
+      "op": "revise_raw",
+      "raw_json": "{\"op\":\"revise\",\"context\":{\"actor\":\"subj:h1\",\"at\":\"2026-10-17T00:00:00Z\",\"admission_class\":\"machine_observation\",\"retention_context\":{\"audience\":\"aud:public\",\"purpose\":\"purpose:read\"}},\"idempotency_key\":\"attributed-2\",\"revision\":{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"revision\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"relation\":\"challenge\",\"target\":{\"id\":\"rec:attributed\",\"version\":1},\"replacement\":null,\"availability\":null,\"authority_receipt\":null}},\"replacement\":null,\"expected_version\":{\"id\":\"rec:attributed\",\"version\":1},\"expected_generation\":0,\"auxiliaries\":[{\"envelope\":{\"id\":\"rec:v2-source\",\"version\":1,\"kind\":\"source\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"owner\":\"runtime:example\",\"source_kind\":\"artifact\",\"object\":\"session:planning\",\"revision\":\"message:42\",\"digest\":{\"algorithm\":\"sha256-bytes-v1\",\"value\":\"f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb\"},\"provenance\":\"reported\",\"availability\":\"unavailable\",\"origin\":\"{\\\"message\\\":\\\"42\\\",\\\"runtime\\\":\\\"example\\\",\\\"session\\\":\\\"planning\\\"}\",\"original_issuer\":\"subj:h1\",\"carrier\":null,\"excerpt\":\"A retained observation: caf\\u00e9, \\u0540\\u0561\\u0575\\u0565\\u0580\\u0565\\u0576.\\nSecond line.\\n\",\"retention_admission\":{\"id\":\"retention:session\",\"version\":1}}},{\"envelope\":{\"id\":\"rec:v2-basis\",\"version\":1,\"kind\":\"justification\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"target\":{\"assertion\":{\"id\":\"rec:attributed\",\"version\":2},\"polarity\":\"support\"},\"premises\":[{\"kind\":\"source\",\"source\":{\"id\":\"rec:v2-source\",\"version\":1}}],\"rule\":{\"id\":\"rule:v2-basis\",\"version\":1},\"rule_kind\":\"declared_rationale\",\"role\":\"documentary_basis\",\"check\":null}}]}"
+    },
+    {
+      "op": "revise_raw",
+      "raw_json": "{\"op\":\"revise\",\"context\":{\"actor\":\"subj:h1\",\"at\":\"2026-10-17T00:00:00Z\",\"admission_class\":\"machine_observation\",\"retention_context\":{\"audience\":\"aud:public\",\"purpose\":\"purpose:read\"}},\"idempotency_key\":\"attributed-2\",\"revision\":{\"envelope\":{\"id\":\"rec:attributed-replace\",\"version\":1,\"kind\":\"revision\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"relation\":\"replace\",\"target\":{\"id\":\"rec:attributed\",\"version\":1},\"replacement\":{\"id\":\"rec:attributed\",\"version\":2},\"availability\":null,\"authority_receipt\":null}},\"replacement\":{\"envelope\":{\"id\":\"rec:attributed\",\"version\":2,\"kind\":\"assertion\",\"schema\":{\"id\":\"schema:assumption\",\"version\":1},\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"statement_kind\":\"fact\",\"slot\":\"[]\",\"content\":[{\"field\":\"value\",\"value\":\"new\"}],\"authority_receipt\":null}},\"expected_version\":{\"id\":\"rec:attributed\",\"version\":1},\"expected_generation\":0,\"auxiliaries\":[{\"envelope\":{\"id\":\"rec:v1-source\",\"version\":1,\"kind\":\"source\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"owner\":\"runtime:example\",\"source_kind\":\"artifact\",\"object\":\"session:planning\",\"revision\":\"message:42\",\"digest\":{\"algorithm\":\"sha256-bytes-v1\",\"value\":\"f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb\"},\"provenance\":\"reported\",\"availability\":\"unavailable\",\"origin\":\"{\\\"message\\\":\\\"42\\\",\\\"runtime\\\":\\\"example\\\",\\\"session\\\":\\\"planning\\\"}\",\"original_issuer\":\"subj:h1\",\"carrier\":null,\"excerpt\":\"A retained observation: caf\\u00e9, \\u0540\\u0561\\u0575\\u0565\\u0580\\u0565\\u0576.\\nSecond line.\\n\",\"retention_admission\":{\"id\":\"retention:session\",\"version\":1}}},{\"envelope\":{\"id\":\"rec:v2-basis\",\"version\":1,\"kind\":\"justification\",\"schema\":null,\"subject\":\"subj:h1\",\"issuer\":\"subj:h1\",\"representation_ref\":null,\"perspective\":{\"kind\":\"own\",\"principal\":\"subj:h1\"},\"space\":\"space:main\",\"valid\":{\"kind\":\"known\",\"from\":\"2026-09-01T00:00:00Z\",\"to\":null,\"precision\":\"second\"},\"confirmed_at\":\"2026-10-17T00:00:00Z\",\"lineage\":[],\"disclosure\":{\"audiences\":[\"aud:private\",\"aud:public\"],\"purposes\":[\"purpose:publish\",\"purpose:read\"],\"retain_until\":null,\"field_classes\":[\"public\"],\"declassification\":[]},\"context\":\"real\"},\"body\":{\"target\":{\"assertion\":{\"id\":\"rec:attributed\",\"version\":2},\"polarity\":\"support\"},\"premises\":[{\"kind\":\"source\",\"source\":{\"id\":\"rec:v1-source\",\"version\":1}}],\"rule\":{\"id\":\"rule:v2-basis\",\"version\":1},\"rule_kind\":\"declared_rationale\",\"role\":\"documentary_basis\",\"check\":null}}]}"
+    },
+    {
+      "op": "revise",
+      "context": {
+        "actor": "subj:h1",
+        "at": "2026-10-17T00:00:00Z",
+        "admission_class": "machine_observation",
+        "retention_context": {
+          "audience": "aud:public",
+          "purpose": "purpose:read"
+        }
+      },
+      "idempotency_key": "attributed-2",
+      "revision": {
+        "envelope": {
+          "id": "rec:attributed-replace",
+          "version": 1,
+          "kind": "revision",
+          "schema": null,
+          "subject": "subj:h1",
+          "issuer": "subj:h1",
+          "representation_ref": null,
+          "perspective": {
+            "kind": "own",
+            "principal": "subj:h1"
+          },
+          "space": "space:main",
+          "valid": {
+            "kind": "known",
+            "from": "2026-09-01T00:00:00Z",
+            "to": null,
+            "precision": "second"
+          },
+          "confirmed_at": "2026-10-17T00:00:00Z",
+          "lineage": [],
+          "disclosure": {
+            "audiences": [
+              "aud:private",
+              "aud:public"
+            ],
+            "purposes": [
+              "purpose:publish",
+              "purpose:read"
+            ],
+            "retain_until": null,
+            "field_classes": [
+              "public"
+            ],
+            "declassification": []
+          },
+          "context": "real"
+        },
+        "body": {
+          "relation": "replace",
+          "target": {
+            "id": "rec:attributed",
+            "version": 1
+          },
+          "replacement": {
+            "id": "rec:attributed",
+            "version": 2
+          },
+          "availability": null,
+          "authority_receipt": null
+        }
+      },
+      "replacement": {
+        "envelope": {
+          "id": "rec:attributed",
+          "version": 2,
+          "kind": "assertion",
+          "schema": {
+            "id": "schema:assumption",
+            "version": 1
+          },
+          "subject": "subj:h1",
+          "issuer": "subj:h1",
+          "representation_ref": null,
+          "perspective": {
+            "kind": "own",
+            "principal": "subj:h1"
+          },
+          "space": "space:main",
+          "valid": {
+            "kind": "known",
+            "from": "2026-09-01T00:00:00Z",
+            "to": null,
+            "precision": "second"
+          },
+          "confirmed_at": "2026-10-17T00:00:00Z",
+          "lineage": [],
+          "disclosure": {
+            "audiences": [
+              "aud:private",
+              "aud:public"
+            ],
+            "purposes": [
+              "purpose:publish",
+              "purpose:read"
+            ],
+            "retain_until": null,
+            "field_classes": [
+              "public"
+            ],
+            "declassification": []
+          },
+          "context": "real"
+        },
+        "body": {
+          "statement_kind": "fact",
+          "slot": "[]",
+          "content": [
+            {
+              "field": "value",
+              "value": "new"
+            }
+          ],
+          "authority_receipt": null
+        }
+      },
+      "expected_version": {
+        "id": "rec:attributed",
+        "version": 99
+      },
+      "expected_generation": 0,
+      "auxiliaries": [
+        {
+          "envelope": {
+            "id": "rec:v2-source",
+            "version": 1,
+            "kind": "source",
+            "schema": null,
+            "subject": "subj:h1",
+            "issuer": "subj:h1",
+            "representation_ref": null,
+            "perspective": {
+              "kind": "own",
+              "principal": "subj:h1"
+            },
+            "space": "space:main",
+            "valid": {
+              "kind": "known",
+              "from": "2026-09-01T00:00:00Z",
+              "to": null,
+              "precision": "second"
+            },
+            "confirmed_at": "2026-10-17T00:00:00Z",
+            "lineage": [],
+            "disclosure": {
+              "audiences": [
+                "aud:private",
+                "aud:public"
+              ],
+              "purposes": [
+                "purpose:publish",
+                "purpose:read"
+              ],
+              "retain_until": null,
+              "field_classes": [
+                "public"
+              ],
+              "declassification": []
+            },
+            "context": "real"
+          },
+          "body": {
+            "owner": "runtime:example",
+            "source_kind": "artifact",
+            "object": "session:planning",
+            "revision": "message:42",
+            "digest": {
+              "algorithm": "sha256-bytes-v1",
+              "value": "f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb"
+            },
+            "provenance": "reported",
+            "availability": "unavailable",
+            "origin": "{\"message\":\"42\",\"runtime\":\"example\",\"session\":\"planning\"}",
+            "original_issuer": "subj:h1",
+            "carrier": null,
+            "excerpt": "A retained observation: caf\u00e9, \u0540\u0561\u0575\u0565\u0580\u0565\u0576.\nSecond line.\n",
+            "retention_admission": {
+              "id": "retention:session",
+              "version": 1
+            }
+          }
+        },
+        {
+          "envelope": {
+            "id": "rec:v2-basis",
+            "version": 1,
+            "kind": "justification",
+            "schema": null,
+            "subject": "subj:h1",
+            "issuer": "subj:h1",
+            "representation_ref": null,
+            "perspective": {
+              "kind": "own",
+              "principal": "subj:h1"
+            },
+            "space": "space:main",
+            "valid": {
+              "kind": "known",
+              "from": "2026-09-01T00:00:00Z",
+              "to": null,
+              "precision": "second"
+            },
+            "confirmed_at": "2026-10-17T00:00:00Z",
+            "lineage": [],
+            "disclosure": {
+              "audiences": [
+                "aud:private",
+                "aud:public"
+              ],
+              "purposes": [
+                "purpose:publish",
+                "purpose:read"
+              ],
+              "retain_until": null,
+              "field_classes": [
+                "public"
+              ],
+              "declassification": []
+            },
+            "context": "real"
+          },
+          "body": {
+            "target": {
+              "assertion": {
+                "id": "rec:attributed",
+                "version": 2
+              },
+              "polarity": "support"
+            },
+            "premises": [
+              {
+                "kind": "source",
+                "source": {
+                  "id": "rec:v2-source",
+                  "version": 1
+                }
+              }
+            ],
+            "rule": {
+              "id": "rule:v2-basis",
+              "version": 1
+            },
+            "rule_kind": "declared_rationale",
+            "role": "documentary_basis",
+            "check": null
+          }
+        }
+      ]
+    },
+    {
+      "op": "revise",
+      "context": {
+        "actor": "subj:h1",
+        "at": "2026-10-17T00:00:00Z",
+        "admission_class": "machine_observation",
+        "retention_context": {
+          "audience": "aud:public",
+          "purpose": "purpose:read"
+        }
+      },
+      "idempotency_key": "attributed-2",
+      "revision": {
+        "envelope": {
+          "id": "rec:attributed-replace",
+          "version": 1,
+          "kind": "revision",
+          "schema": null,
+          "subject": "subj:h1",
+          "issuer": "subj:h1",
+          "representation_ref": null,
+          "perspective": {
+            "kind": "own",
+            "principal": "subj:h1"
+          },
+          "space": "space:main",
+          "valid": {
+            "kind": "known",
+            "from": "2026-09-01T00:00:00Z",
+            "to": null,
+            "precision": "second"
+          },
+          "confirmed_at": "2026-10-17T00:00:00Z",
+          "lineage": [],
+          "disclosure": {
+            "audiences": [
+              "aud:private",
+              "aud:public"
+            ],
+            "purposes": [
+              "purpose:publish",
+              "purpose:read"
+            ],
+            "retain_until": null,
+            "field_classes": [
+              "public"
+            ],
+            "declassification": []
+          },
+          "context": "real"
+        },
+        "body": {
+          "relation": "replace",
+          "target": {
+            "id": "rec:attributed",
+            "version": 1
+          },
+          "replacement": {
+            "id": "rec:attributed",
+            "version": 2
+          },
+          "availability": null,
+          "authority_receipt": null
+        }
+      },
+      "replacement": {
+        "envelope": {
+          "id": "rec:attributed",
+          "version": 2,
+          "kind": "assertion",
+          "schema": {
+            "id": "schema:assumption",
+            "version": 1
+          },
+          "subject": "subj:h1",
+          "issuer": "subj:h1",
+          "representation_ref": null,
+          "perspective": {
+            "kind": "own",
+            "principal": "subj:h1"
+          },
+          "space": "space:main",
+          "valid": {
+            "kind": "known",
+            "from": "2026-09-01T00:00:00Z",
+            "to": null,
+            "precision": "second"
+          },
+          "confirmed_at": "2026-10-17T00:00:00Z",
+          "lineage": [],
+          "disclosure": {
+            "audiences": [
+              "aud:private",
+              "aud:public"
+            ],
+            "purposes": [
+              "purpose:publish",
+              "purpose:read"
+            ],
+            "retain_until": null,
+            "field_classes": [
+              "public"
+            ],
+            "declassification": []
+          },
+          "context": "real"
+        },
+        "body": {
+          "statement_kind": "fact",
+          "slot": "[]",
+          "content": [
+            {
+              "field": "value",
+              "value": "new"
+            }
+          ],
+          "authority_receipt": null
+        }
+      },
+      "expected_version": {
+        "id": "rec:attributed",
+        "version": 1
+      },
+      "expected_generation": 0,
+      "auxiliaries": [
+        {
+          "envelope": {
+            "id": "rec:quarantined-source",
+            "version": 1,
+            "kind": "source",
+            "schema": null,
+            "subject": "subj:h1",
+            "issuer": "subj:h1",
+            "representation_ref": null,
+            "perspective": {
+              "kind": "own",
+              "principal": "subj:h1"
+            },
+            "space": "space:main",
+            "valid": {
+              "kind": "known",
+              "from": "2026-09-01T00:00:00Z",
+              "to": null,
+              "precision": "second"
+            },
+            "confirmed_at": "2026-10-17T00:00:00Z",
+            "lineage": [],
+            "disclosure": {
+              "audiences": [
+                "aud:private",
+                "aud:public"
+              ],
+              "purposes": [
+                "purpose:publish",
+                "purpose:read"
+              ],
+              "retain_until": null,
+              "field_classes": [
+                "public"
+              ],
+              "declassification": []
+            },
+            "context": "real"
+          },
+          "body": {
+            "owner": "runtime:example",
+            "source_kind": "artifact",
+            "object": "session:planning",
+            "revision": "message:42",
+            "digest": {
+              "algorithm": "sha256-bytes-v1",
+              "value": "3021d90eb9437b2d8f30e8363695c4418b5e5f1870801b5c317e9398ee0f572d"
+            },
+            "provenance": "reported",
+            "availability": "unavailable",
+            "origin": "{\"message\":\"42\",\"runtime\":\"example\",\"session\":\"planning\"}",
+            "original_issuer": "subj:h1",
+            "carrier": null,
+            "excerpt": "-----BEGIN PRIVATE KEY-----",
+            "retention_admission": {
+              "id": "retention:session",
+              "version": 1
+            }
+          }
+        },
+        {
+          "envelope": {
+            "id": "rec:quarantined-basis",
+            "version": 1,
+            "kind": "justification",
+            "schema": null,
+            "subject": "subj:h1",
+            "issuer": "subj:h1",
+            "representation_ref": null,
+            "perspective": {
+              "kind": "own",
+              "principal": "subj:h1"
+            },
+            "space": "space:main",
+            "valid": {
+              "kind": "known",
+              "from": "2026-09-01T00:00:00Z",
+              "to": null,
+              "precision": "second"
+            },
+            "confirmed_at": "2026-10-17T00:00:00Z",
+            "lineage": [],
+            "disclosure": {
+              "audiences": [
+                "aud:private",
+                "aud:public"
+              ],
+              "purposes": [
+                "purpose:publish",
+                "purpose:read"
+              ],
+              "retain_until": null,
+              "field_classes": [
+                "public"
+              ],
+              "declassification": []
+            },
+            "context": "real"
+          },
+          "body": {
+            "target": {
+              "assertion": {
+                "id": "rec:attributed",
+                "version": 2
+              },
+              "polarity": "support"
+            },
+            "premises": [
+              {
+                "kind": "source",
+                "source": {
+                  "id": "rec:quarantined-source",
+                  "version": 1
+                }
+              }
+            ],
+            "rule": {
+              "id": "rule:quarantined-basis",
+              "version": 1
+            },
+            "rule_kind": "declared_rationale",
+            "role": "documentary_basis",
+            "check": null
+          }
+        }
+      ]
+    },
+    {
+      "op": "revise",
+      "context": {
+        "actor": "subj:h1",
+        "at": "2026-10-17T00:00:00Z",
+        "admission_class": "machine_observation",
+        "retention_context": {
+          "audience": "aud:public",
+          "purpose": "purpose:read"
+        }
+      },
+      "idempotency_key": "attributed-2",
+      "revision": {
+        "envelope": {
+          "id": "rec:attributed-replace",
+          "version": 1,
+          "kind": "revision",
+          "schema": null,
+          "subject": "subj:h1",
+          "issuer": "subj:h1",
+          "representation_ref": null,
+          "perspective": {
+            "kind": "own",
+            "principal": "subj:h1"
+          },
+          "space": "space:main",
+          "valid": {
+            "kind": "known",
+            "from": "2026-09-01T00:00:00Z",
+            "to": null,
+            "precision": "second"
+          },
+          "confirmed_at": "2026-10-17T00:00:00Z",
+          "lineage": [],
+          "disclosure": {
+            "audiences": [
+              "aud:private",
+              "aud:public"
+            ],
+            "purposes": [
+              "purpose:publish",
+              "purpose:read"
+            ],
+            "retain_until": null,
+            "field_classes": [
+              "public"
+            ],
+            "declassification": []
+          },
+          "context": "real"
+        },
+        "body": {
+          "relation": "replace",
+          "target": {
+            "id": "rec:attributed",
+            "version": 1
+          },
+          "replacement": {
+            "id": "rec:attributed",
+            "version": 2
+          },
+          "availability": null,
+          "authority_receipt": null
+        }
+      },
+      "replacement": {
+        "envelope": {
+          "id": "rec:attributed",
+          "version": 2,
+          "kind": "assertion",
+          "schema": {
+            "id": "schema:assumption",
+            "version": 1
+          },
+          "subject": "subj:h1",
+          "issuer": "subj:h1",
+          "representation_ref": null,
+          "perspective": {
+            "kind": "own",
+            "principal": "subj:h1"
+          },
+          "space": "space:main",
+          "valid": {
+            "kind": "known",
+            "from": "2026-09-01T00:00:00Z",
+            "to": null,
+            "precision": "second"
+          },
+          "confirmed_at": "2026-10-17T00:00:00Z",
+          "lineage": [],
+          "disclosure": {
+            "audiences": [
+              "aud:private",
+              "aud:public"
+            ],
+            "purposes": [
+              "purpose:publish",
+              "purpose:read"
+            ],
+            "retain_until": null,
+            "field_classes": [
+              "public"
+            ],
+            "declassification": []
+          },
+          "context": "real"
+        },
+        "body": {
+          "statement_kind": "fact",
+          "slot": "[]",
+          "content": [
+            {
+              "field": "value",
+              "value": "new"
+            }
+          ],
+          "authority_receipt": null
+        }
+      },
+      "expected_version": {
+        "id": "rec:attributed",
+        "version": 1
+      },
+      "expected_generation": 0,
+      "auxiliaries": [
+        {
+          "envelope": {
+            "id": "rec:v2-source",
+            "version": 1,
+            "kind": "source",
+            "schema": null,
+            "subject": "subj:h1",
+            "issuer": "subj:h1",
+            "representation_ref": null,
+            "perspective": {
+              "kind": "own",
+              "principal": "subj:h1"
+            },
+            "space": "space:main",
+            "valid": {
+              "kind": "known",
+              "from": "2026-09-01T00:00:00Z",
+              "to": null,
+              "precision": "second"
+            },
+            "confirmed_at": "2026-10-17T00:00:00Z",
+            "lineage": [],
+            "disclosure": {
+              "audiences": [
+                "aud:private",
+                "aud:public"
+              ],
+              "purposes": [
+                "purpose:publish",
+                "purpose:read"
+              ],
+              "retain_until": null,
+              "field_classes": [
+                "public"
+              ],
+              "declassification": []
+            },
+            "context": "real"
+          },
+          "body": {
+            "owner": "runtime:example",
+            "source_kind": "artifact",
+            "object": "session:planning",
+            "revision": "message:42",
+            "digest": {
+              "algorithm": "sha256-bytes-v1",
+              "value": "f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb"
+            },
+            "provenance": "reported",
+            "availability": "unavailable",
+            "origin": "{\"message\":\"42\",\"runtime\":\"example\",\"session\":\"planning\"}",
+            "original_issuer": "subj:h1",
+            "carrier": null,
+            "excerpt": "A retained observation: caf\u00e9, \u0540\u0561\u0575\u0565\u0580\u0565\u0576.\nSecond line.\n",
+            "retention_admission": {
+              "id": "retention:session",
+              "version": 1
+            }
+          }
+        },
+        {
+          "envelope": {
+            "id": "rec:v2-basis",
+            "version": 1,
+            "kind": "justification",
+            "schema": null,
+            "subject": "subj:h1",
+            "issuer": "subj:h1",
+            "representation_ref": null,
+            "perspective": {
+              "kind": "own",
+              "principal": "subj:h1"
+            },
+            "space": "space:main",
+            "valid": {
+              "kind": "known",
+              "from": "2026-09-01T00:00:00Z",
+              "to": null,
+              "precision": "second"
+            },
+            "confirmed_at": "2026-10-17T00:00:00Z",
+            "lineage": [],
+            "disclosure": {
+              "audiences": [
+                "aud:private",
+                "aud:public"
+              ],
+              "purposes": [
+                "purpose:publish",
+                "purpose:read"
+              ],
+              "retain_until": null,
+              "field_classes": [
+                "public"
+              ],
+              "declassification": []
+            },
+            "context": "real"
+          },
+          "body": {
+            "target": {
+              "assertion": {
+                "id": "rec:attributed",
+                "version": 2
+              },
+              "polarity": "support"
+            },
+            "premises": [
+              {
+                "kind": "source",
+                "source": {
+                  "id": "rec:v2-source",
+                  "version": 1
+                }
+              }
+            ],
+            "rule": {
+              "id": "rule:v2-basis",
+              "version": 1
+            },
+            "rule_kind": "declared_rationale",
+            "role": "documentary_basis",
+            "check": null
+          }
+        }
+      ]
+    },
+    {
+      "op": "revise",
+      "context": {
+        "actor": "subj:h1",
+        "at": "2026-10-17T00:00:00Z",
+        "admission_class": "machine_observation",
+        "retention_context": {
+          "audience": "aud:public",
+          "purpose": "purpose:read"
+        }
+      },
+      "idempotency_key": "attributed-2",
+      "revision": {
+        "envelope": {
+          "id": "rec:attributed-replace",
+          "version": 1,
+          "kind": "revision",
+          "schema": null,
+          "subject": "subj:h1",
+          "issuer": "subj:h1",
+          "representation_ref": null,
+          "perspective": {
+            "kind": "own",
+            "principal": "subj:h1"
+          },
+          "space": "space:main",
+          "valid": {
+            "kind": "known",
+            "from": "2026-09-01T00:00:00Z",
+            "to": null,
+            "precision": "second"
+          },
+          "confirmed_at": "2026-10-17T00:00:00Z",
+          "lineage": [],
+          "disclosure": {
+            "audiences": [
+              "aud:private",
+              "aud:public"
+            ],
+            "purposes": [
+              "purpose:publish",
+              "purpose:read"
+            ],
+            "retain_until": null,
+            "field_classes": [
+              "public"
+            ],
+            "declassification": []
+          },
+          "context": "real"
+        },
+        "body": {
+          "relation": "replace",
+          "target": {
+            "id": "rec:attributed",
+            "version": 1
+          },
+          "replacement": {
+            "id": "rec:attributed",
+            "version": 2
+          },
+          "availability": null,
+          "authority_receipt": null
+        }
+      },
+      "replacement": {
+        "envelope": {
+          "id": "rec:attributed",
+          "version": 2,
+          "kind": "assertion",
+          "schema": {
+            "id": "schema:assumption",
+            "version": 1
+          },
+          "subject": "subj:h1",
+          "issuer": "subj:h1",
+          "representation_ref": null,
+          "perspective": {
+            "kind": "own",
+            "principal": "subj:h1"
+          },
+          "space": "space:main",
+          "valid": {
+            "kind": "known",
+            "from": "2026-09-01T00:00:00Z",
+            "to": null,
+            "precision": "second"
+          },
+          "confirmed_at": "2026-10-17T00:00:00Z",
+          "lineage": [],
+          "disclosure": {
+            "audiences": [
+              "aud:private",
+              "aud:public"
+            ],
+            "purposes": [
+              "purpose:publish",
+              "purpose:read"
+            ],
+            "retain_until": null,
+            "field_classes": [
+              "public"
+            ],
+            "declassification": []
+          },
+          "context": "real"
+        },
+        "body": {
+          "statement_kind": "fact",
+          "slot": "[]",
+          "content": [
+            {
+              "field": "value",
+              "value": "new"
+            }
+          ],
+          "authority_receipt": null
+        }
+      },
+      "expected_version": {
+        "id": "rec:attributed",
+        "version": 1
+      },
+      "expected_generation": 0,
+      "auxiliaries": [
+        {
+          "envelope": {
+            "id": "rec:v2-source",
+            "version": 1,
+            "kind": "source",
+            "schema": null,
+            "subject": "subj:h1",
+            "issuer": "subj:h1",
+            "representation_ref": null,
+            "perspective": {
+              "kind": "own",
+              "principal": "subj:h1"
+            },
+            "space": "space:main",
+            "valid": {
+              "kind": "known",
+              "from": "2026-09-01T00:00:00Z",
+              "to": null,
+              "precision": "second"
+            },
+            "confirmed_at": "2026-10-17T00:00:00Z",
+            "lineage": [],
+            "disclosure": {
+              "audiences": [
+                "aud:private",
+                "aud:public"
+              ],
+              "purposes": [
+                "purpose:publish",
+                "purpose:read"
+              ],
+              "retain_until": null,
+              "field_classes": [
+                "public"
+              ],
+              "declassification": []
+            },
+            "context": "real"
+          },
+          "body": {
+            "owner": "runtime:example",
+            "source_kind": "artifact",
+            "object": "session:planning",
+            "revision": "message:42",
+            "digest": {
+              "algorithm": "sha256-bytes-v1",
+              "value": "f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb"
+            },
+            "provenance": "reported",
+            "availability": "unavailable",
+            "origin": "{\"message\":\"42\",\"runtime\":\"example\",\"session\":\"planning\"}",
+            "original_issuer": "subj:h1",
+            "carrier": null,
+            "excerpt": "A retained observation: caf\u00e9, \u0540\u0561\u0575\u0565\u0580\u0565\u0576.\nSecond line.\n",
+            "retention_admission": {
+              "id": "retention:session",
+              "version": 1
+            }
+          }
+        },
+        {
+          "envelope": {
+            "id": "rec:v2-basis",
+            "version": 1,
+            "kind": "justification",
+            "schema": null,
+            "subject": "subj:h1",
+            "issuer": "subj:h1",
+            "representation_ref": null,
+            "perspective": {
+              "kind": "own",
+              "principal": "subj:h1"
+            },
+            "space": "space:main",
+            "valid": {
+              "kind": "known",
+              "from": "2026-09-01T00:00:00Z",
+              "to": null,
+              "precision": "second"
+            },
+            "confirmed_at": "2026-10-17T00:00:00Z",
+            "lineage": [],
+            "disclosure": {
+              "audiences": [
+                "aud:private",
+                "aud:public"
+              ],
+              "purposes": [
+                "purpose:publish",
+                "purpose:read"
+              ],
+              "retain_until": null,
+              "field_classes": [
+                "public"
+              ],
+              "declassification": []
+            },
+            "context": "real"
+          },
+          "body": {
+            "target": {
+              "assertion": {
+                "id": "rec:attributed",
+                "version": 2
+              },
+              "polarity": "support"
+            },
+            "premises": [
+              {
+                "kind": "source",
+                "source": {
+                  "id": "rec:v2-source",
+                  "version": 1
+                }
+              }
+            ],
+            "rule": {
+              "id": "rule:v2-basis",
+              "version": 1
+            },
+            "rule_kind": "declared_rationale",
+            "role": "documentary_basis",
+            "check": null
+          }
+        }
+      ]
+    }
+  ],
+  "query": {
+    "kind": "recall",
+    "principal": "subj:h1",
+    "purpose": "purpose:read",
+    "audience": "aud:public",
+    "scope": {
+      "space": "space:main",
+      "subject": "subj:h1",
+      "schema": {
+        "id": "schema:assumption",
+        "version": 1
+      },
+      "targets": [
+        {
+          "id": "rec:attributed",
+          "version": 2
+        }
+      ]
+    },
+    "projection_rule": {
+      "id": "projection:main",
+      "version": 1
+    },
+    "evidence_policy": {
+      "id": "evidence:1",
+      "version": 1
+    },
+    "policy": {
+      "id": "policy:1",
+      "version": 1
+    },
+    "cut": {
+      "memory": 104,
+      "sources": []
+    },
+    "valid_at": "2026-10-17T00:00:00Z",
+    "now": "2026-10-17T00:00:00Z",
+    "mode": "real",
+    "bounds": {
+      "roots": 32,
+      "rules": 32,
+      "source_resolutions": 32,
+      "explanations": 8
+    },
+    "usable_until": null,
+    "render": "full",
+    "since": null
+  },
+  "expected": {
+    "operation_results": [
+      {
+        "type": "refusal",
+        "code": "invalid_shape",
+        "retryable": false
+      },
+      {
+        "type": "refusal",
+        "code": "invalid_shape",
+        "retryable": false
+      },
+      {
+        "type": "refusal",
+        "code": "invalid_shape",
+        "retryable": false
+      },
+      {
+        "type": "refusal",
+        "code": "invalid_shape",
+        "retryable": false
+      },
+      {
+        "type": "refusal",
+        "code": "invalid_shape",
+        "retryable": false
+      },
+      {
+        "type": "refusal",
+        "code": "invalid_shape",
+        "retryable": false
+      },
+      {
+        "type": "refusal",
+        "code": "invalid_shape",
+        "retryable": false
+      },
+      {
+        "type": "refusal",
+        "code": "invalid_shape",
+        "retryable": false
+      },
+      {
+        "type": "refusal",
+        "code": "invalid_shape",
+        "retryable": false
+      },
+      {
+        "type": "refusal",
+        "code": "invalid_shape",
+        "retryable": false
+      },
+      {
+        "type": "refusal",
+        "code": "invalid_shape",
+        "retryable": false
+      },
+      {
+        "type": "refusal",
+        "code": "invalid_shape",
+        "retryable": false
+      },
+      {
+        "type": "refusal",
+        "code": "invalid_shape",
+        "retryable": false
+      },
+      {
+        "type": "refusal",
+        "code": "invalid_shape",
+        "retryable": false
+      },
+      {
+        "type": "refusal",
+        "code": "version_conflict",
+        "retryable": true
+      },
+      {
+        "type": "refusal",
+        "code": "quarantined",
+        "retryable": false
+      },
+      {
+        "type": "receipt",
+        "operation": "revise",
+        "outcome": "revised",
+        "receipt_handle": "@h1",
+        "refs": [
+          {
+            "id": "rec:attributed",
+            "version": 2
+          },
+          {
+            "id": "rec:attributed-replace",
+            "version": 1
+          },
+          {
+            "id": "rec:v2-basis",
+            "version": 1
+          },
+          {
+            "id": "rec:v2-source",
+            "version": 1
+          }
+        ],
+        "custody": [],
+        "erasure_status": null
+      },
+      {
+        "type": "receipt",
+        "operation": "revise",
+        "outcome": "revised",
+        "receipt_handle": "@h1",
+        "refs": [
+          {
+            "id": "rec:attributed",
+            "version": 2
+          },
+          {
+            "id": "rec:attributed-replace",
+            "version": 1
+          },
+          {
+            "id": "rec:v2-basis",
+            "version": 1
+          },
+          {
+            "id": "rec:v2-source",
+            "version": 1
+          }
+        ],
+        "custody": [],
+        "erasure_status": null
+      }
+    ],
+    "result": {
+      "type": "view",
+      "semantic_profile": "0.3.0-draft",
+      "projection_rule": {
+        "id": "projection:main",
+        "version": 1
+      },
+      "evidence_policy": {
+        "id": "evidence:1",
+        "version": 1
+      },
+      "policy": {
+        "id": "policy:1",
+        "version": 1
+      },
+      "authorized_snapshot_handle": "@h3",
+      "data_classification": "data",
+      "items": [
+        {
+          "ref": {
+            "id": "rec:attributed",
+            "version": 2
+          },
+          "subject": "subj:h1",
+          "issuer": "subj:h1",
+          "submitter": "subj:h1",
+          "perspective": {
+            "kind": "own",
+            "principal": "subj:h1"
+          },
+          "representation_ref": null,
+          "admission_class": "machine_observation",
+          "statement_kind": "fact",
+          "content": [
+            {
+              "field": "value",
+              "value": "new"
+            }
+          ],
+          "valid": {
+            "kind": "known",
+            "from": "2026-09-01T00:00:00Z",
+            "to": null,
+            "precision": "second"
+          },
+          "confirmed_at": "2026-10-17T00:00:00Z",
+          "usable_until": null,
+          "currentness": "current",
+          "authority_receipt": null,
+          "incompatible_with": [],
+          "needs_review": false,
+          "source_refs": [
+            {
+              "id": "rec:v2-source",
+              "version": 1
+            }
+          ],
+          "support": {
+            "witness": "not_found",
+            "evaluation": "complete",
+            "corpus_coverage": {
+              "kind": "unknown"
+            },
+            "premise_quality": "not_fully_checked",
+            "evidence_qualification": [],
+            "source_state": "prior_assessment_only",
+            "freshness": "not_applicable",
+            "authorized_snapshot_handle": "@h3",
+            "dependency_coverage": "registered_only",
+            "witness_roots": [],
+            "independent_root_count": 0
+          },
+          "oppose": {
+            "witness": "not_found",
+            "evaluation": "complete",
+            "corpus_coverage": {
+              "kind": "unknown"
+            },
+            "premise_quality": "not_fully_checked",
+            "evidence_qualification": [],
+            "source_state": "prior_assessment_only",
+            "freshness": "not_applicable",
+            "authorized_snapshot_handle": "@h3",
+            "dependency_coverage": "registered_only",
+            "witness_roots": [],
+            "independent_root_count": 0
+          }
+        }
+      ],
+      "sources": [
+        {
+          "ref": {
+            "id": "rec:v2-source",
+            "version": 1
+          },
+          "issuer": "subj:h1",
+          "submitter": "subj:h1",
+          "representation_ref": null,
+          "admission_class": "machine_observation",
+          "owner": "runtime:example",
+          "source_kind": "artifact",
+          "provenance": "reported",
+          "original_issuer": "subj:h1",
+          "carrier": null,
+          "availability": "unavailable",
+          "object": "session:planning",
+          "revision": "message:42",
+          "digest": {
+            "algorithm": "sha256-bytes-v1",
+            "value": "f8c997ead91e12ba3eb7644d4817e68db1fa2b88c85f31aeaf76bf91a5b1b5fb"
+          },
+          "origin": "{\"message\":\"42\",\"runtime\":\"example\",\"session\":\"planning\"}",
+          "excerpt": {
+            "state": "present",
+            "text": "A retained observation: caf\u00e9, \u0540\u0561\u0575\u0565\u0580\u0565\u0576.\nSecond line.\n"
+          }
+        }
+      ],
+      "currentness": "current",
+      "historical": [
+        {
+          "id": "rec:attributed",
+          "version": 1
+        }
+      ],
+      "review_required": [],
+      "explanation": {
+        "status": "complete",
+        "paths": [],
+        "reason": null
+      },
+      "cutoffs": [],
+      "changes": {
+        "state": "initial",
+        "refs": []
+      }
+    },
+    "postconditions": {
+      "record_refs": [
+        {
+          "id": "rec:attributed",
+          "version": 1
+        },
+        {
+          "id": "rec:attributed",
+          "version": 2
+        },
+        {
+          "id": "rec:attributed-replace",
+          "version": 1
+        },
+        {
+          "id": "rec:v1-basis",
+          "version": 1
+        },
+        {
+          "id": "rec:v1-source",
+          "version": 1
+        },
+        {
+          "id": "rec:v2-basis",
+          "version": 1
+        },
+        {
+          "id": "rec:v2-source",
+          "version": 1
+        }
+      ],
+      "erased_refs": [],
+      "custody_present": [],
+      "dirty": [],
+      "control_observations": [],
+      "external_effects": []
+    }
+  },
+  "forbidden": [
+    {
+      "path": "/operation_results/0/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/operation_results/1/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/operation_results/2/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/operation_results/3/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/operation_results/4/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/operation_results/5/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/operation_results/6/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/operation_results/7/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/operation_results/8/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/operation_results/9/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/operation_results/10/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/operation_results/11/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/operation_results/12/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/operation_results/13/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/operation_results/14/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/operation_results/15/type",
+      "test": "equals",
+      "value": "receipt"
+    },
+    {
+      "path": "/result/items/0/support/witness",
+      "test": "equals",
+      "value": "present"
+    },
+    {
+      "path": "/result/sources/1",
+      "test": "exists",
+      "value": null
+    }
+  ],
+  "normalization": {
+    "scheme": "fresh_uniform_128_bit_hex",
+    "fresh_handles": [
+      "/operation_results/16/receipt_handle",
+      "/operation_results/17/receipt_handle",
+      "/result/authorized_snapshot_handle",
+      "/result/items/0/support/authorized_snapshot_handle",
+      "/result/items/0/oppose/authorized_snapshot_handle"
+    ],
+    "equal_handles": [
+      [
+        "/result/authorized_snapshot_handle",
+        "/result/items/0/support/authorized_snapshot_handle",
+        "/result/items/0/oppose/authorized_snapshot_handle"
+      ],
+      [
+        "/operation_results/16/receipt_handle",
+        "/operation_results/17/receipt_handle"
+      ]
+    ],
+    "distinct_handles": [
+      [
+        "/operation_results/16/receipt_handle",
+        "/result/authorized_snapshot_handle"
+      ]
+    ],
+    "equivalent_outputs": [],
+    "timestamps": "exact",
+    "timing_claim": "none"
+  }
+}

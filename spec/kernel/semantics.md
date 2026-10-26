@@ -1,4 +1,4 @@
-# Bounded evidence memory 0.3.0-draft
+# Bounded evidence memory 0.3.1-draft
 
 This document and the closed schemas and vectors are one contract. MUST, MUST NOT,
 REQUIRED, SHALL, SHALL NOT, SHOULD and MAY have their RFC 2119 meanings. A heading
@@ -199,6 +199,23 @@ objects never overwrite old bytes. Two representatives racing from the same
 head have one success and one conflict. Expected-version checks are performed
 after exact idempotency replay detection and before checking whether the proposed
 replacement id/version already exists.
+
+A `revise` operation MAY carry optional `auxiliaries`, an array of one to eight
+new `source` or `justification` proposals, only for `replace` and `correct`.
+Absent `auxiliaries` preserves the previous operation shape. Each auxiliary MUST
+have version 1 and an ID absent from the space (at every version), distinct from
+every other batch ID. Every auxiliary justification MUST target the exact
+replacement assertion created by this operation. Its premises MAY name sources
+in the batch or previously admitted records, subject to the normal reference,
+retention, representation and rule checks. Each auxiliary source MUST be cited
+by at least one justification in the same auxiliary array. Empty/oversized arrays,
+other kinds, noninitial versions, repeated/existing IDs, wrong justification
+targets, uncited sources and auxiliaries on nonreplacement relations MUST yield
+`invalid_shape`. Existing-ID checks follow exact replay and CAS, so a valid
+retry replays its original receipt and stale CAS retains its existing priority.
+All proposals pass the same issuer/checked-representative and submitter rules;
+auxiliaries grant no additional authority. One failed proposal MUST refuse the
+whole batch. Receipts include every admitted auxiliary reference.
 
 ### K-REV-2 — Revision effects
 
@@ -848,7 +865,7 @@ authorized. Different request is
 or idempotency entries. A successful batch commits records, lineage/custody
 entries and dirty marking atomically. No received receipt means no assumed commit;
 retry resolves uncertainty. For revise, admission sequence assignment orders the replacement (if any) before
-the revision. Declassify orders the assessments in proposal-array order before its output. Other writes
+the revision, then auxiliaries in their array order. Declassify orders the assessments in proposal-array order before its output. Other writes
 that create no semantic record do not advance the record sequence.
 Receipts MUST disclose only authorized record refs and
 no writer sequence. Input arrays of proposals are transaction order, not sets.
@@ -857,7 +874,11 @@ no writer sequence. Input arrays of proposals are transaction order, not sets.
 
 The semantic write API is admit, revise, declassify, erase and revoke; recall,
 explain and changes are reads. `capture` is a harness read saved for later
-comparison/delivery. `admit_raw` is the malformed-wire test variant of admit:
+comparison/delivery. `revise_raw` is a fixture-only malformed revision stimulus: decode its raw_json
+as a complete revise operation and invoke the ordinary write boundary. A
+non-object or non-revise payload yields `invalid_shape`; malformed JSON yields
+`invalid_json`. It is not a kernel operation or a persistent write shape.
+`admit_raw` is the malformed-wire test variant of admit:
 parse raw_json as an object containing only a proposals array, then use the
 surrounding authenticated context, key and generation exactly as for admit. Restore, reconciliation, delivery and request_check exercise
 boundary contracts; revoke_declassification records an external policy event;

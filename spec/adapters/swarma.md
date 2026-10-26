@@ -1,4 +1,4 @@
-# Swarma adapter contract — 0.3.0-draft
+# Swarma adapter contract — 0.3.1-draft
 
 This contract binds the portable kernel to the Swarma platform. It does not change
 any platform module. The kernel remains portable and owns only its

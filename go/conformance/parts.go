@@ -16,7 +16,9 @@ type PartVerdict struct {
 	Pointer, Reason string
 }
 
-func admission(kind string) bool { return kind == "admit" || kind == "admit_raw" || kind == "revise" }
+func admission(kind string) bool {
+	return kind == "admit" || kind == "admit_raw" || kind == "revise" || kind == "revise_raw"
+}
 
 // CompareParts enforces exact typed shape and declared handle constraints for
 // each part. It normalizes only valid declared fresh-handle slots inside that

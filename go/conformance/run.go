@@ -100,6 +100,18 @@ func (e KernelExecutor) Execute(input Input) (Report, error) {
 		op := raw.(map[string]any)
 		var result map[string]any
 		switch op["op"] {
+		case "revise_raw":
+			value, refusal := kernel.DecodeJSON([]byte(op["raw_json"].(string)))
+			request, ok := value.(map[string]any)
+			if refusal == nil && (!ok || request["op"] != "revise") {
+				refusal, _ = kernel.NewRefusal(kernel.InvalidShape)
+			}
+			if refusal == nil {
+				result, refusal = state.Write(request)
+			}
+			if refusal != nil {
+				result = refusalTree(refusal)
+			}
 		case "admit", "admit_raw", "revise", "erase", "restore", "reconcile_restore", "deliver", "revoke", "declassify", "revoke_declassification", "control", "request_check":
 			var r *kernel.Refusal
 			result, r = state.Write(op)

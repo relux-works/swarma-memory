@@ -152,12 +152,20 @@ func writeCLI(ctx context.Context, h home, c localConfig, a arguments) (any, err
 	case "assess":
 		common = append(common, "version", "expected-version", "expected-id", "expected-token", "issuer", "perspective", "perspective-principal", "admission-class", "kind", "executor", "result", "polarity", "origin", "source-requirement", "sources", "source-session", "source-text")
 	case "revise":
-		common = append(common, "version", "relation", "expected-version", "expected-id", "expected-token", "issuer", "admission-class")
+		common = append(common, "version", "relation", "expected-version", "expected-id", "expected-token", "issuer", "admission-class", "sources", "source-session", "source-text")
 	case "promote":
 		common = []string{"space", "to", "id", "idempotency-key", "at", "expected-generation", "version"}
 	}
 	if e := a.allow(common...); e != nil {
 		return nil, e
+	}
+	if cmd == "revise" && hasSourceFlags(a) {
+		if a.flags["relation"] != "replace" && a.flags["relation"] != "correct" {
+			return nil, cliError{"usage", 2}
+		}
+		if !attributedReviseEnabled {
+			return nil, cliError{"feature_not_enabled", 2}
+		}
 	}
 	if cmd == "revise" || cmd == "assess" {
 		_, number := a.flags["expected-version"]
@@ -299,42 +307,26 @@ func writeCLI(ctx context.Context, h home, c localConfig, a arguments) (any, err
 		if cmd == "revise" {
 			if replacement := agentprofile.Object(operation["replacement"]); replacement != nil {
 				primaryID = agentprofile.Object(replacement["envelope"])["id"].(string)
+				if hasSourceFlags(a) {
+					env := agentprofile.Object(replacement["envelope"])
+					if env["kind"] != "assertion" {
+						return nil, cliError{"usage", 2}
+					}
+					stem := primaryID + ":v" + strconv.FormatInt(env["version"].(int64), 10)
+					batch, e := in.attributedRecords(replacement, stem, k.Identity(), nil)
+					if e != nil {
+						return nil, e
+					}
+					if len(batch) > 1 {
+						operation["auxiliaries"] = batch[1:]
+					}
+				}
 			}
 			return operation, nil
 		}
-		batch := []any{record}
-		if in.session != nil || citation != nil {
-			body := citation
-			if in.session != nil {
-				locator, refusal := kernel.CanonicalJSON(map[string]any{"runtime": in.session["runtime"], "session": in.session["session"], "message": in.session["message"]})
-				if refusal != nil {
-					return nil, refusal
-				}
-				body = sourceBody(k.Identity(), "session:"+in.session["session"].(string), sessionRevision(in.session["message"].(string)))
-				body["owner"] = "runtime:" + in.session["runtime"].(string)
-				body["provenance"] = "reported"
-				body["digest"] = map[string]any{"algorithm": "sha256-bytes-v1", "value": strings.TrimPrefix(in.session["digest"].(string), "sha256:")}
-				body["origin"] = string(locator)
-				body["excerpt"] = in.text
-				body["retention_admission"] = agentprofile.Ref("retention:"+id, 1)
-			}
-			source := map[string]any{"envelope": auxiliaryEnvelope(record, id+":source", "source"), "body": body}
-			batch = append(batch, source)
-			in.sources = append(in.sources, recordRef(source))
-		}
-		if len(in.sources) > 0 {
-			if agentprofile.Object(record["envelope"])["kind"] == "assessment" {
-				body := agentprofile.Object(record["body"])
-				body["sources"] = append(agentprofile.Array(body["sources"]), in.sources...)
-			} else if agentprofile.Object(record["envelope"])["kind"] == "assertion" {
-				premises := []any{}
-				for _, source := range in.sources {
-					premises = append(premises, map[string]any{"kind": "source", "source": source})
-				}
-				batch = append(batch, map[string]any{"envelope": auxiliaryEnvelope(record, id+":basis", "justification"), "body": map[string]any{"target": map[string]any{"assertion": recordRef(record), "polarity": "support"}, "premises": premises, "rule": agentprofile.Ref("rule:documentary-citation", 1), "rule_kind": "declared_rationale", "role": "documentary_basis", "check": nil}})
-			} else {
-				return nil, cliError{"usage", 2}
-			}
+		batch, e := in.attributedRecords(record, id, k.Identity(), citation)
+		if e != nil {
+			return nil, e
 		}
 		operation["proposals"] = batch
 		return operation, nil
@@ -476,6 +468,7 @@ func proposalFindings(operation map[string]any, limits space.Limits) []scan.Find
 		if operation["replacement"] != nil {
 			records = append(records, operation["replacement"])
 		}
+		records = append(records, agentprofile.Array(operation["auxiliaries"])...)
 	}
 	findings := []scan.Finding{}
 	for _, record := range records {
@@ -645,4 +638,54 @@ func sessionRevision(message string) string {
 		return "index:" + message
 	}
 	return "message:" + message
+}
+
+func hasSourceFlags(a arguments) bool {
+	for _, name := range []string{"sources", "source-session", "source-text"} {
+		if _, present := a.flags[name]; present {
+			return true
+		}
+	}
+	return false
+}
+
+// attributedRecords is shared by add, assess, promotion and gated replacement
+// writes. The caller chooses the auxiliary namespace; input sources stay immutable.
+func (in writeInput) attributedRecords(record map[string]any, stem, actor string, citation map[string]any) ([]any, error) {
+	sources := append([]any{}, in.sources...)
+	batch := []any{record}
+	if in.session != nil || citation != nil {
+		body := citation
+		if in.session != nil {
+			locator, refusal := kernel.CanonicalJSON(map[string]any{"runtime": in.session["runtime"], "session": in.session["session"], "message": in.session["message"]})
+			if refusal != nil {
+				return nil, refusal
+			}
+			body = sourceBody(actor, "session:"+in.session["session"].(string), sessionRevision(in.session["message"].(string)))
+			body["owner"] = "runtime:" + in.session["runtime"].(string)
+			body["provenance"] = "reported"
+			body["digest"] = map[string]any{"algorithm": "sha256-bytes-v1", "value": strings.TrimPrefix(in.session["digest"].(string), "sha256:")}
+			body["origin"] = string(locator)
+			body["excerpt"] = in.text
+			body["retention_admission"] = agentprofile.Ref("retention:"+stem, 1)
+		}
+		source := map[string]any{"envelope": auxiliaryEnvelope(record, stem+":source", "source"), "body": body}
+		batch = append(batch, source)
+		sources = append(sources, recordRef(source))
+	}
+	if len(sources) > 0 {
+		if agentprofile.Object(record["envelope"])["kind"] == "assessment" {
+			body := agentprofile.Object(record["body"])
+			body["sources"] = append(agentprofile.Array(body["sources"]), sources...)
+		} else if agentprofile.Object(record["envelope"])["kind"] == "assertion" {
+			premises := []any{}
+			for _, source := range sources {
+				premises = append(premises, map[string]any{"kind": "source", "source": source})
+			}
+			batch = append(batch, map[string]any{"envelope": auxiliaryEnvelope(record, stem+":basis", "justification"), "body": map[string]any{"target": map[string]any{"assertion": recordRef(record), "polarity": "support"}, "premises": premises, "rule": agentprofile.Ref("rule:documentary-citation", 1), "rule_kind": "declared_rationale", "role": "documentary_basis", "check": nil}})
+		} else {
+			return nil, cliError{"usage", 2}
+		}
+	}
+	return batch, nil
 }

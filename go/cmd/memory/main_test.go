@@ -9,7 +9,8 @@ import (
 	"testing"
 )
 
-// TestCLI proves the built CLI exits 0 for version and 2 with stderr-only usage for missing, unknown or extra arguments.
+// TestCLI proves missing, unknown or extra arguments exit 2 with stderr-only usage.
+// Version metadata is covered separately by TestVersionCommand.
 func TestCLI(t *testing.T) {
 	for _, test := range []struct {
 		name   string
@@ -18,7 +19,6 @@ func TestCLI(t *testing.T) {
 		stdout string
 		stderr string
 	}{
-		{name: "version", args: []string{"version"}, code: 0, stdout: "memory dev\n"},
 		{name: "no arguments", code: 2, stderr: "Usage: memory [--home DIR] [--json] <keys|spaces|directory|policy|sync|check|recall|explain|changes|add|revise|assess|promote|version|conformance> [arguments]\n"},
 		{name: "unknown command", args: []string{"unknown"}, code: 2, stderr: "memory: unknown command \"unknown\"\nUsage: memory [--home DIR] [--json] <keys|spaces|directory|policy|sync|check|recall|explain|changes|add|revise|assess|promote|version|conformance> [arguments]\n"},
 		{name: "extra argument", args: []string{"version", "extra"}, code: 2, stderr: "memory: version takes no arguments\nUsage: memory [--home DIR] [--json] <keys|spaces|directory|policy|sync|check|recall|explain|changes|add|revise|assess|promote|version|conformance> [arguments]\n"},
@@ -42,7 +42,7 @@ func TestCLI(t *testing.T) {
 	}
 }
 
-// TestConformanceCLI proves the built command reports 77/77 semantic agreement and
+// TestConformanceCLI proves the built command reports 78/78 semantic agreement and
 // exits 0 from an unrelated cwd (embedded default and explicit source directory),
 // while harness/usage errors exit 2
 // without success output. Deployment vectors are explicitly excluded.
@@ -83,12 +83,12 @@ func TestConformanceCLI(t *testing.T) {
 			}
 			if tc.code == 0 {
 				lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
-				if len(lines) < 87 || lines[77] != "77/77 semantic vectors pass" || lines[78] != "admission ops matched: 79/79 (admit 48/48, admit_raw 3/3, revise 28/28)" || lines[len(lines)-1] != "8 deployment vectors are out of scope." || stderr.Len() != 0 {
+				if len(lines) < 87 || lines[78] != "78/78 semantic vectors pass" || lines[79] != "admission ops matched: 83/83 (admit 48/48, admit_raw 3/3, revise 32/32)" || lines[len(lines)-1] != "8 deployment vectors are out of scope." || stderr.Len() != 0 {
 					t.Fatal(stdout.String(), stderr.String())
 				}
 				ids := map[string]bool{}
 				passed := 0
-				for _, line := range lines[:77] {
+				for _, line := range lines[:78] {
 					fields := strings.Fields(line)
 					if len(fields) < 2 || (fields[0] != "PASS" && fields[0] != "FAIL") || ids[fields[1]] {
 						t.Fatal(line)
@@ -100,7 +100,7 @@ func TestConformanceCLI(t *testing.T) {
 						t.Fatal(line)
 					}
 				}
-				if passed != 77 {
+				if passed != 78 {
 					t.Fatal("passing whole-vector count", passed)
 				}
 

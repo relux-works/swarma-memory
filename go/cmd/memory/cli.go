@@ -207,7 +207,7 @@ func runCLI(args []string, out, errout io.Writer) int {
 		if len(a.pos) != 1 || len(a.flags) != 0 {
 			return emit(out, errout, a.json, command, nil, cliError{"usage", 2})
 		}
-		return emit(out, errout, a.json, command, map[string]any{"version": version}, nil)
+		return emit(out, errout, a.json, command, currentVersion(), nil)
 	}
 	if command == "conformance" {
 		if len(a.flags) != 0 {
