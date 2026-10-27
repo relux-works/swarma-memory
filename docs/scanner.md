@@ -47,7 +47,7 @@ entropy exemption only when all components match one of these forms:
 
 - `matrix:<room>:<event>` with the exact room/event grammars above. The final
   `:$` separates the event; a room server and port remain part of the session.
-- `codex:<uuid>:<message>` or `claude:<uuid>:<message>`. The message is a UUID,
+- `codex:<uuid>:<message>` or `claude-code:<uuid>:<message>`. The message is a UUID,
   `message:<uuid>`, unsigned decimal index, or `index:<unsigned decimal index>`.
   UUID and index grammars are as above.
 

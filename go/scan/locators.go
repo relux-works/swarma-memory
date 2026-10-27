@@ -22,7 +22,7 @@ func ParseSessionLocator(text string) (runtime, session, message string, ok bool
 		return "matrix", session, message, matrixRoom(session) && matrixEvent(message)
 	}
 	parts := strings.SplitN(text, ":", 3)
-	if len(parts) != 3 || (parts[0] != "codex" && parts[0] != "claude") || !uuidPattern.MatchString(parts[1]) {
+	if len(parts) != 3 || (parts[0] != "codex" && parts[0] != "claude-code") || !uuidPattern.MatchString(parts[1]) {
 		return "", "", "", false
 	}
 	message = parts[2]

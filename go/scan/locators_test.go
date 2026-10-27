@@ -167,7 +167,7 @@ func TestSessionLocatorGrammar(t *testing.T) {
 	for _, row := range []struct{ runtime, session, message string }{
 		{"matrix", room, event}, {"matrix", "!room:[2001:db8::1]:8448", event},
 		{"matrix", "!room:[2001:db8::1]", event}, {"matrix", "!room:127.0.0.1", event},
-		{"codex", uuid, uuid}, {"claude", uuid, "message:" + uuid}, {"codex", uuid, "index:17"}, {"claude", uuid, "0"},
+		{"codex", uuid, uuid}, {"claude-code", uuid, "message:" + uuid}, {"codex", uuid, "index:17"}, {"claude-code", uuid, "0"},
 	} {
 		r, s, m, ok := scan.ParseSessionLocator(row.runtime + ":" + row.session + ":" + row.message)
 		if !ok || r != row.runtime || s != row.session || m != row.message {
@@ -180,7 +180,7 @@ func TestSessionLocatorGrammar(t *testing.T) {
 		"matrix:!room:bad..server:" + event, "matrix:!room:[not-ip]:" + event, "matrix:!room:[not-ip]:80:" + event,
 		"matrix:!room:[127.0.0.1]:80:" + event, "matrix:!room:[fe80::1%zone]:80:" + event,
 		"matrix:!room:2001:db8::1:" + event, "matrix:!room:server:" + event[:43] + "+",
-		"codex:" + uuid + "x:0", "claude:" + uuid + ":index:-1", "claude:" + uuid + ":index:18446744073709551616",
+		"codex:" + uuid + "x:0", "claude-code:" + uuid + ":index:-1", "claude-code:" + uuid + ":index:18446744073709551616",
 		"runtime:session:message", "codex:" + uuid + ":message:arbitrary",
 	} {
 		if _, _, _, ok := scan.ParseSessionLocator(input); ok {
