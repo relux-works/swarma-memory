@@ -4,7 +4,8 @@
 
 - Preserve full Matrix source coordinates and exempt only closed artifact-source
   locator shapes from entropy checks, including enabled attributed revision;
-  retain named-token and strict free-text checks.
+  retain named-token and strict free-text checks. Reject malformed Matrix session
+  coordinates as value-free usage errors before admission.
 - Avoid entropy false positives from complete task-ID path segments beside short
   engineering text, retaining original checks for long residual candidates.
 

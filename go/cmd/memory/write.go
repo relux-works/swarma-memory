@@ -128,6 +128,9 @@ func loadWriteInput(a arguments) (writeInput, error) {
 		parts := strings.SplitN(locator, ":", 3)
 		if runtime, session, message, ok := scan.ParseSessionLocator(locator); ok {
 			parts = []string{runtime, session, message}
+		} else if parts[0] == "matrix" {
+			// Matrix room colons cannot be reinterpreted as message separators.
+			return in, invalidSourceSession{}
 		}
 		if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
 			return in, invalidSourceSession{}

@@ -169,10 +169,6 @@ func TestWriteLocatorRefusals(t *testing.T) {
 		h.unchanged(h.owner, before)
 	}
 	for i, row := range []struct{ name, locator, content, excerpt, detector string }{
-		{"short", "matrix:" + room + ":" + event[:43], "benign", "benign", "entropy_base64"},
-		{"long", "matrix:" + room + ":" + event + "x", "benign", "benign", "entropy_base64"},
-		{"alphabet", "matrix:" + room + ":" + event[:43] + "+", "benign", "benign", "entropy_base64"},
-		{"suffix", "matrix:" + room + ":" + event + ".extra", "benign", "benign", "entropy_base64"},
 		{"named-invalid", "runtime:session:" + secret, "benign", "benign", "github_token"},
 		{"named-lookalike", "matrix:!prefix" + secret + "suffix:example.invalid:" + event, "benign", "benign", "github_token"},
 		{"jwt-lookalike", "matrix:!room:prefix" + jwt + "x:" + event, "benign", "benign", "jwt"},
@@ -201,4 +197,66 @@ func TestWriteLocatorRefusals(t *testing.T) {
 		h.unchanged(h.owner, before)
 	}
 	h.input(h.owner, "Benign multiline\nexcerpt.\n", 0, "add", "assertion", "--idempotency-key", "locator-control", "--content", "Valid after refusals", "--source-session", "matrix:"+room+":"+event, "--source-text", "-")
+}
+
+// Malformed Matrix coordinates fail as value-free usage/2 before admission on
+// add and enabled replace/correct, preserving complete write state. Low-entropy
+// witnesses isolate parsing from scanning; valid hostname/IPv6 neighbors then
+// persist the exact room/server/port/event without repartitioning.
+func TestMalformedMatrixSessionUsage(t *testing.T) {
+	for _, mode := range []string{"add", "replace", "correct"} {
+		t.Run(mode, func(t *testing.T) {
+			h := newCLI(t)
+			id := "record:matrix-grammar"
+			if mode != "add" {
+				h.add(h.owner, id, "Initial observation")
+			}
+			event := "$" + strings.Repeat("a", 43)
+			high := "$ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq"
+			malformed := []string{
+				"matrix:!room:example.invalid:65536:" + event,
+				"matrix:!room:bad..host:" + event,
+				"matrix:!room:example.invalid:$short",
+				"matrix:!room:[not-ip]:" + event,
+				"matrix:!room:example.invalid:" + high[:43],
+				"matrix:!room:example.invalid:" + high + "x",
+				"matrix:!room:example.invalid:" + high[:43] + "+",
+				"matrix:!room:example.invalid:" + high + ".extra",
+			}
+			args := func(key string, version int) []string {
+				if mode == "add" {
+					return []string{"add", "assertion", "--id", id + ":" + key, "--content", "An observation", "--idempotency-key", key}
+				}
+				return []string{"revise", id, "--relation", mode, "--expected-version", strconv64(int64(version)), "--content", "A revision", "--idempotency-key", key}
+			}
+			for i, locator := range malformed {
+				before := h.writeState(h.owner)
+				flags := append(args("malformed-"+strconv64(int64(i)), 1), "--source-session", locator, "--source-text", "-")
+				m, out, stderr := h.input(h.owner, "benign", 2, flags...)
+				if errorCodeOf(m) != "usage" || string(stderr) != "memory: usage: --source-session requires runtime:session:message and --source-text FILE|-\n" || strings.Contains(string(out), locator) || m["data"] != nil {
+					t.Fatal("wrong or unsafe Matrix usage rejection", i, m)
+				}
+				h.unchanged(h.owner, before)
+			}
+			for i, room := range []string{"!room:example.invalid:65535", "!room:[2001:db8::1]:8448"} {
+				key := "valid-matrix-" + strconv64(int64(i))
+				flags := append(args(key, i+1), "--source-session", "matrix:"+room+":"+event, "--source-text", "-")
+				h.input(h.owner, "benign", 0, flags...)
+				sourceID := id + ":" + key + ":source"
+				if mode != "add" {
+					sourceID = id + ":v" + strconv64(int64(i+2)) + ":source"
+				}
+				raw := h.git(h.remote, "show", "main:records/source/"+hex.EncodeToString([]byte(sourceID))+"/1.json")
+				stored, refusal := kernel.DecodeJSON([]byte(raw))
+				if refusal != nil {
+					t.Fatal("invalid stored source", refusal)
+				}
+				body := agentprofile.Object(agentprofile.Object(agentprofile.Object(stored)["record"])["body"])
+				origin := `{"message":"` + event + `","runtime":"matrix","session":"` + room + `"}`
+				if body["object"] != "session:"+room || body["revision"] != "message:"+event || body["origin"] != origin {
+					t.Fatal("valid Matrix coordinates changed", body)
+				}
+			}
+		})
+	}
 }

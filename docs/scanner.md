@@ -57,8 +57,11 @@ keys. Its owner, object and revision must agree with its components. Explicit
 `message:`/`index:` prefixes survive; a bare decimal becomes `index:<n>` and a
 bare UUID or Matrix event becomes `message:<id>`. A wrong role, inconsistent
 component, malformed JSON or noncanonical representation receives ordinary
-scanning. An unsupported CLI locator retains the legacy first-two-colons split
-and ordinary scanner behavior, rather than gaining an exemption.
+scanning. At CLI intake, a locator claiming the `matrix` runtime must match
+its complete room/event grammar; otherwise it returns value-free `usage` (exit
+2) naming `--source-session`, before any write. It never falls back to splitting
+the room's colons. Other unsupported CLI locator forms retain the legacy
+first-two-colons split and ordinary scanner behavior, without an exemption.
 
 This changes neither the record format nor the meaning of provenance. Session
 sources remain reported, unavailable documentary references with exact retained
