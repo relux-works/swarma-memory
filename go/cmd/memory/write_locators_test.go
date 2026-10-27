@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -200,8 +202,9 @@ func TestWriteLocatorRefusals(t *testing.T) {
 }
 
 // Malformed Matrix coordinates fail as value-free usage/2 before admission on
-// add and enabled replace/correct, preserving complete write state. Low-entropy
-// witnesses isolate parsing from scanning; valid hostname/IPv6 neighbors then
+// add and enabled replace/correct, preserving write state and every cache byte.
+// Low-entropy witnesses isolate parsing from scanning; valid hostname/IPv6
+// neighbors then
 // persist the exact room/server/port/event without repartitioning.
 func TestMalformedMatrixSessionUsage(t *testing.T) {
 	for _, mode := range []string{"add", "replace", "correct"} {
@@ -210,6 +213,30 @@ func TestMalformedMatrixSessionUsage(t *testing.T) {
 			id := "record:matrix-grammar"
 			if mode != "add" {
 				h.add(h.owner, id, "Initial observation")
+			}
+			cacheState := func() map[string]string {
+				t.Helper()
+				space, e := selectSpace(h.config(h.owner), "space:test")
+				if e != nil {
+					t.Fatal(e)
+				}
+				files := map[string]string{}
+				e = filepath.WalkDir(space.CachePath, func(path string, d os.DirEntry, e error) error {
+					if e != nil {
+						return e
+					}
+					if d.IsDir() {
+						files[path] = "directory"
+						return nil
+					}
+					b, e := os.ReadFile(path)
+					files[path] = "file:" + string(b)
+					return e
+				})
+				if e != nil {
+					t.Fatal(e)
+				}
+				return files
 			}
 			event := "$" + strings.Repeat("a", 43)
 			high := "$ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq"
@@ -231,12 +258,16 @@ func TestMalformedMatrixSessionUsage(t *testing.T) {
 			}
 			for i, locator := range malformed {
 				before := h.writeState(h.owner)
+				cacheBefore := cacheState()
 				flags := append(args("malformed-"+strconv64(int64(i)), 1), "--source-session", locator, "--source-text", "-")
 				m, out, stderr := h.input(h.owner, "benign", 2, flags...)
 				if errorCodeOf(m) != "usage" || string(stderr) != "memory: usage: --source-session requires runtime:session:message and --source-text FILE|-\n" || strings.Contains(string(out), locator) || m["data"] != nil {
 					t.Fatal("wrong or unsafe Matrix usage rejection", i, m)
 				}
 				h.unchanged(h.owner, before)
+				if !reflect.DeepEqual(cacheState(), cacheBefore) {
+					t.Fatal("Matrix usage refusal changed cache files or bytes", i)
+				}
 			}
 			for i, room := range []string{"!room:example.invalid:65535", "!room:[2001:db8::1]:8448"} {
 				key := "valid-matrix-" + strconv64(int64(i))
