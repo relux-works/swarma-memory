@@ -38,7 +38,7 @@ type stringScan struct {
 	secrets   []string
 }
 
-func stringDetectors(text string, oversized, exemptEntropy bool) stringScan {
+func stringDetectors(text string, oversized, exemptEntropy, inKey bool) stringScan {
 	var secrets []string
 	found := make(map[Detector]bool)
 	if oversized {
@@ -91,7 +91,7 @@ func stringDetectors(text string, oversized, exemptEntropy bool) stringScan {
 		start = loc[0] + strings.IndexByte(candidate, '.') + 1
 	}
 	if !exemptEntropy {
-		for _, candidate := range entropyPattern.FindAllString(text, -1) {
+		for _, candidate := range entropyCandidates(text, inKey) {
 			if len(candidate) < 32 || uuidPattern.MatchString(candidate) {
 				continue
 			}

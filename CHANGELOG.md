@@ -12,6 +12,8 @@
 
 - Preserve full Matrix source coordinates and exempt only closed artifact-source
   locator shapes from entropy checks; retain named-token and strict free-text checks.
+- Avoid entropy false positives from complete task-ID path segments beside short
+  engineering text, retaining original checks for long residual candidates.
 
 - Accept atomic `revise.auxiliaries` source/justification proposals with closed
   shape, reference, authority, CAS, receipt and replay checks.

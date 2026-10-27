@@ -76,14 +76,47 @@ and retain a valid signature prefix when an adjoining character invalidates its
 base64 length; the room grammar bounds each label to 63 bytes. Nonmatching values receive the original scanning rules;
 malformed syntax alone does not guarantee a secret finding.
 
-`--content`, `--source-text`, arbitrary metadata and keys gain no new exemptions.
+`--content` and `--source-text` gain no Matrix, commit or digest atom exemption.
 Full high-entropy IDs there can still be refused, even beside a valid locator.
 Keep exact coordinates in locator fields and retain only non-sensitive excerpts.
-We deliberately keep free text strict: syntax cannot distinguish an arbitrary
-40-hex or 43-base64url secret from an identifier, so a general delimited-token
-exception would create a secret channel. A locator exemption likewise recognizes
-a declared role and syntax, not the absence of a secret; never use it to store
-credentials.
+For these locator kinds we choose strict free text: syntax cannot distinguish an
+arbitrary 40-hex or 43-base64url secret from an identifier, so a general
+delimited-token exception would create a secret channel. A locator exemption
+likewise recognizes a declared role and syntax, not the absence of a secret;
+never use it to store credentials.
+
+## Task-ID boundaries in engineering text
+
+Entropy candidates normally join ASCII words containing `/`, `-` and `_`.
+A compound of short engineering words and identifiers can therefore reach the
+32-byte minimum and 4.5-bit threshold even when each component is short. A Go
+pseudoversion such as `v0.0.0-20260102030405-123456abcdef` is not such a trigger
+on its own: its dots split it, leaving a longest candidate of 29 bytes. Short
+7–12-hex SHAs, PR numbers and eight-character event prefixes are likewise below
+the minimum when separated normally.
+
+In string **values**, a whole slash-delimited segment matching exactly
+`TASK-[0-9]{6}-[a-z0-9]{6}` is an entropy token boundary. This closed 18-byte
+syntax recognizes no authority and consults no board. After removing only those
+segments from the candidate, every remaining contiguous slash-joined run is
+checked, as is each individual non-task segment. If any remaining run reaches
+32 bytes, the **original combined candidate is checked too**, so removing the
+ID cannot lower a long possible secret's entropy below the threshold. Only when
+all remaining runs are shorter than 32 can the original combined candidate be
+discarded. No whitespace, prefix, suffix, case or alphabet near miss qualifies.
+Keys retain their original tokenization, and named-token/size checks always see
+the complete original value. This applies equally to content, excerpts and
+metadata values.
+
+For example, `scan_refused3/TASK-123456-ghijkl` passes without granting an
+exception to arbitrary hex or base64 tokens. A 32-byte base64url token cannot
+cross a slash; a canonical standard-base64 token cannot cross the hyphens in a
+task-ID segment. Any such long token is therefore in a remaining run of at least
+32 bytes, retaining the original checks as well as the residual checks. A long
+secret alone, joined to an ordinary word, or beside a valid task ID still
+refuses when it meets the detector thresholds. Slashes inside other base64
+candidates are preserved, not generally split. Other long prose compounds can
+still trigger the original heuristic; there is no general path or word exemption.
 
 Complete UUID candidates already bypassed entropy checks before this change,
 including in idempotency metadata. UUID keys therefore need no additional

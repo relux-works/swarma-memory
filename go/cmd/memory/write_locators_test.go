@@ -25,7 +25,11 @@ func TestWriteMatrixSessionLocator(t *testing.T) {
 	if len(agentprofile.Array(agentprofile.Object(agentprofile.Object(m["data"])["receipt"])["refs"])) != 3 {
 		t.Fatal("source transaction was not atomic")
 	}
-	h.invoke(h.reader, 0, "sync", "--space", "space:test")
+	synced, _ := h.invoke(h.reader, 0, "sync", "--space", "space:test")
+	syncSpaces := agentprofile.Array(agentprofile.Object(synced["data"])["spaces"])
+	if len(syncSpaces) != 1 || agentprofile.Object(syncSpaces[0])["diagnostic_count"] != int64(0) || len(agentprofile.Array(agentprofile.Object(syncSpaces[0])["diagnostics"])) != 0 {
+		t.Fatal("reader sync diagnostics", synced)
+	}
 	for _, command := range []string{"recall", "explain"} {
 		target := "*"
 		if command == "explain" {

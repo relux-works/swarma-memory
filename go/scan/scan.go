@@ -92,7 +92,7 @@ func Scan(value any, limits Limits) []Finding {
 	sensitive := make(map[string]bool)
 	unsafeKeys := make(map[string]bool)
 	scanString := func(text string, path []string, inKey, exempt bool) {
-		result := stringDetectors(text, len(text) > limits.MaxStringBytes, exempt)
+		result := stringDetectors(text, len(text) > limits.MaxStringBytes, exempt, inKey)
 		if inKey && len(result.detectors) > 0 {
 			unsafeKeys[text] = true
 		}
