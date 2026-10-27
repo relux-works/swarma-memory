@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.2 — scanner source locators
 
 - Preserve full Matrix source coordinates and exempt only closed artifact-source
   locator shapes from entropy checks, including enabled attributed revision;
