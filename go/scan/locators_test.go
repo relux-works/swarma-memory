@@ -1,6 +1,7 @@
 package scan_test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"regexp"
 	"strings"
@@ -185,5 +186,39 @@ func TestSessionLocatorGrammar(t *testing.T) {
 		if _, _, _, ok := scan.ParseSessionLocator(input); ok {
 			t.Fatal("nonmatching grammar accepted", input)
 		}
+	}
+}
+
+// A compact JWT in a valid DNS-shaped room server remains a named secret even
+// when identifier characters touch its header/signature. Ordinary malformed
+// headers remain non-JWTs; recognition is not a signature-validity claim.
+func TestLocatorJWTLookalikes(t *testing.T) {
+	encode := base64.RawURLEncoding.EncodeToString
+	header := encode([]byte(`{"alg":"HS256"}`))
+	claims := encode([]byte(`{"sub":"synthetic"}`))
+	signature := encode([]byte(strings.Repeat("x", 24)))
+	_, event := locatorFixture()
+	for _, prefix := range []string{"", "prefix"} {
+		for _, suffix := range []string{"", "x", "xy", "xyz"} {
+			room := "!room:" + prefix + header + "." + claims + "." + signature + suffix
+			if _, _, _, ok := scan.ParseSessionLocator("matrix:" + room + ":" + event); !ok {
+				t.Fatal("JWT lookalike plant not applied")
+			}
+			for _, field := range []string{"object", "origin", "revision"} {
+				r := locatorRecord()
+				locatorBody(r)[field] = room
+				if !has(scan.Scan(r, roomy), scan.JWT) {
+					t.Fatal("embedded JWT missed", field, len(prefix), len(suffix))
+				}
+			}
+			if !has(scan.Scan(sessionRecord(room, event), roomy), scan.JWT) {
+				t.Fatal("structured origin hid JWT")
+			}
+		}
+	}
+	r := locatorRecord()
+	locatorBody(r)["object"] = "!room:prefix-not-json." + claims + "." + signature
+	if has(scan.Scan(r, roomy), scan.JWT) {
+		t.Fatal("malformed header qualified as JWT")
 	}
 }

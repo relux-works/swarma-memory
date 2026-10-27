@@ -78,9 +78,15 @@ func stringDetectors(text string, oversized, exemptEntropy bool) stringScan {
 		loc[0] += start
 		loc[1] += start
 		candidate := text[loc[0]:loc[1]]
-		if (exemptEntropy || bounded(text, loc)) && validJWT(candidate) {
+		matched := ""
+		if exemptEntropy {
+			matched = exemptLocatorJWT(candidate)
+		} else if bounded(text, loc) && validJWT(candidate) {
+			matched = candidate
+		}
+		if matched != "" {
 			found[JWT] = true
-			secrets = append(secrets, candidate)
+			secrets = append(secrets, matched)
 		}
 		start = loc[0] + strings.IndexByte(candidate, '.') + 1
 	}
@@ -116,6 +122,28 @@ func bounded(text string, loc []int) bool {
 
 func tokenByte(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || strings.ContainsRune("_-+=", rune(c))
+}
+
+// Dotted entropy-exempt forms are Matrix room servers: each DNS label is at
+// most 63 bytes. Search header starts inside that bounded label because the JWT
+// regex otherwise swallows an adjoining identifier prefix. A trailing character
+// may make the signature's base64 length invalid, while a valid JWT prefix still
+// exists. Ordinary free-text JWT matching keeps its original boundaries.
+func exemptLocatorJWT(text string) string {
+	dot := strings.IndexByte(text, '.')
+	if dot < 1 || dot > 63 {
+		return ""
+	}
+	last := strings.LastIndexByte(text, '.')
+	for start := 0; start < dot; start++ {
+		for trim := 0; trim <= 1 && len(text)-trim > last; trim++ {
+			candidate := text[start : len(text)-trim]
+			if validJWT(candidate) {
+				return candidate
+			}
+		}
+	}
+	return ""
 }
 
 func validJWT(text string) bool {

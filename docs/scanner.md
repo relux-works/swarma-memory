@@ -71,7 +71,9 @@ their existing record-reference shape.
 These are **entropy-only** exemptions. Every known-format detector and every size
 limit still runs. In an entropy-exempt string, known-token patterns also match
 without identifier boundaries: prefixing/suffixing a token inside a valid room
-localpart cannot hide it. Nonmatching values receive the original scanning rules;
+localpart cannot hide it. JWT checks also search bounded DNS-label header starts
+and retain a valid signature prefix when an adjoining character invalidates its
+base64 length; the room grammar bounds each label to 63 bytes. Nonmatching values receive the original scanning rules;
 malformed syntax alone does not guarantee a secret finding.
 
 `--content`, `--source-text`, arbitrary metadata and keys gain no new exemptions.

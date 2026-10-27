@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"reflect"
 	"strings"
@@ -75,6 +76,8 @@ func TestWriteLocatorRefusals(t *testing.T) {
 	room := "!" + alphabet[:43] + ":example.invalid"
 	event := "$" + alphabet[:43]
 	secret := "gh" + "p_" + strings.Repeat("aB2cD3", 6)
+	encode := base64.RawURLEncoding.EncodeToString
+	jwt := encode([]byte(`{"alg":"HS256"}`)) + "." + encode([]byte(`{"sub":"synthetic"}`)) + "." + encode([]byte(strings.Repeat("x", 24)))
 	// Malformed or unpaired source flags retain usage/2 and name the flag without
 	// reflecting the supplied value. These refusals also leave state unchanged.
 	for _, flags := range [][]string{
@@ -97,6 +100,7 @@ func TestWriteLocatorRefusals(t *testing.T) {
 		{"suffix", "matrix:" + room + ":" + event + ".extra", "benign", "benign", "entropy_base64"},
 		{"named-invalid", "runtime:session:" + secret, "benign", "benign", "github_token"},
 		{"named-lookalike", "matrix:!prefix" + secret + "suffix:example.invalid:" + event, "benign", "benign", "github_token"},
+		{"jwt-lookalike", "matrix:!room:prefix" + jwt + "x:" + event, "benign", "benign", "jwt"},
 		{"content-neighbour", "matrix:" + room + ":" + event, "locator " + event + " secret " + secret, "benign", "github_token"},
 		{"excerpt-neighbour", "matrix:" + room + ":" + event, "benign", "locator " + event + " secret " + secret, "github_token"},
 		{"strict-locator-excerpt", "matrix:" + room + ":" + event, "benign", event, "entropy_base64"},
@@ -114,8 +118,10 @@ func TestWriteLocatorRefusals(t *testing.T) {
 		if !found {
 			t.Fatal(row.name, "missing expected detector", row.detector, m)
 		}
-		if strings.Contains(string(out), secret) || strings.Contains(string(stderr), secret) {
-			t.Fatal(row.name, "secret leaked")
+		for _, value := range []string{secret, jwt} {
+			if strings.Contains(string(out), value) || strings.Contains(string(stderr), value) {
+				t.Fatal(row.name, "secret leaked")
+			}
 		}
 		h.unchanged(h.owner, before)
 	}
