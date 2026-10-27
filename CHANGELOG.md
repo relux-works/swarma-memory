@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Preserve full Matrix source coordinates and exempt only closed artifact-source
+  locator shapes from entropy checks, including enabled attributed revision;
+  retain named-token and strict free-text checks.
+- Avoid entropy false positives from complete task-ID path segments beside short
+  engineering text, retaining original checks for long residual candidates.
+
 ## 0.2.0 — CLI attributed revision enabled
 
 - Enable source-bearing `replace` and `correct` after the reader-first upgrade.
@@ -9,11 +17,6 @@
 - Document available attributed revise commands with readable retry keys.
 
 ## 0.3.1-draft — readers-first attributed revision
-
-- Preserve full Matrix source coordinates and exempt only closed artifact-source
-  locator shapes from entropy checks; retain named-token and strict free-text checks.
-- Avoid entropy false positives from complete task-ID path segments beside short
-  engineering text, retaining original checks for long residual candidates.
 
 - Accept atomic `revise.auxiliaries` source/justification proposals with closed
   shape, reference, authority, CAS, receipt and replay checks.

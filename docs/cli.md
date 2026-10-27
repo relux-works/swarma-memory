@@ -401,7 +401,8 @@ memory add assertion --space project:example --idempotency-key session:one \
   --source-session runtime:session:message --source-text excerpt.txt
 ```
 
-For `add assertion` and `assess`, `--source-session runtime:session:message` requires
+For `add assertion`, `assess` and source-bearing `revise` (`replace`/`correct`),
+`--source-session runtime:session:message` requires
 `--source-text FILE|-`; malformed or unpaired source flags return `usage` (exit 2)
 with a flag-specific stderr hint that does not echo the input. The first two colons normally delimit runtime and session;
 the rest is the exact message ID or index. A recognized Matrix locator instead

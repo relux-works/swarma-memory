@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/relux-works/swarma-memory/go/agentprofile"
+	"github.com/relux-works/swarma-memory/go/kernel"
 )
 
 // A full Matrix room/event locator and benign multiline excerpt survive signed
@@ -68,6 +69,76 @@ func TestWriteMatrixSessionLocator(t *testing.T) {
 		if src["origin"] != want {
 			t.Fatal("locator changed", src["origin"])
 		}
+	}
+}
+
+// Enabled attributed replacement preserves a full Matrix locator in its source
+// auxiliary and independent-reader view. Named secrets in that auxiliary's room
+// or excerpt still refuse atomically; the following valid replacement succeeds.
+func TestReviseMatrixSessionLocator(t *testing.T) {
+	h := newCLI(t)
+	h.connectReader()
+	id := "record:matrix-revise"
+	h.add(h.owner, id, "Initial observation")
+	alphabet := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
+	room := "!" + alphabet[:43] + ":example.invalid:8448"
+	event := "$" + alphabet[:43]
+	secret := "gh" + "p_" + strings.Repeat("aB2cD3", 6)
+	for i, row := range []struct{ room, excerpt string }{
+		{"!prefix" + secret + "suffix:example.invalid:8448", "benign"},
+		{room, "benign " + secret},
+	} {
+		before := h.writeState(h.owner)
+		m, out, stderr := h.input(h.owner, row.excerpt, 3, "revise", id, "--relation", "replace", "--expected-version", "1", "--idempotency-key", "matrix-revise-refused-"+strconv64(int64(i)), "--content", "Replacement observation", "--source-session", "matrix:"+row.room+":"+event, "--source-text", "-")
+		found := false
+		for _, raw := range agentprofile.Array(agentprofile.Object(m["data"])["findings"]) {
+			found = found || agentprofile.Object(raw)["detector"] == "github_token"
+		}
+		if errorCodeOf(m) != "scan_refused" || !found || strings.Contains(string(out), secret) || strings.Contains(string(stderr), secret) {
+			t.Fatal("wrong or unsafe attributed replacement refusal", i)
+		}
+		h.unchanged(h.owner, before)
+	}
+	excerpt := "Synthetic revision observation\nwith exact trailing newline.\n"
+	before := h.git(h.remote, "rev-parse", "main")
+	m, _, _ := h.input(h.owner, excerpt, 0, "revise", id, "--relation", "replace", "--expected-version", "1", "--idempotency-key", "matrix-revise-valid", "--content", "Replacement observation", "--source-session", "matrix:"+room+":"+event, "--source-text", "-")
+	data := agentprofile.Object(m["data"])
+	if data["version"] != int64(2) || len(agentprofile.Array(agentprofile.Object(data["receipt"])["refs"])) != 4 || h.git(h.remote, "rev-list", "--count", before+"..main") != "1" {
+		t.Fatal("replacement and auxiliaries were not one atomic admission", m)
+	}
+	raw := h.git(h.remote, "show", "main:records/source/"+hex.EncodeToString([]byte(id+":v2:source"))+"/1.json")
+	stored, refusal := kernel.DecodeJSON([]byte(raw))
+	if refusal != nil {
+		t.Fatal("invalid stored source", refusal)
+	}
+	body := agentprofile.Object(agentprofile.Object(agentprofile.Object(stored)["record"])["body"])
+	origin := `{"message":"` + event + `","runtime":"matrix","session":"` + room + `"}`
+	sum := sha256.Sum256([]byte(excerpt))
+	digest := map[string]any{"algorithm": "sha256-bytes-v1", "value": hex.EncodeToString(sum[:])}
+	if body["object"] != "session:"+room || body["revision"] != "message:"+event || body["origin"] != origin || body["excerpt"] != excerpt || !reflect.DeepEqual(body["digest"], digest) {
+		t.Fatal("replacement source coordinates or exact excerpt changed", body)
+	}
+	synced, _ := h.invoke(h.reader, 0, "sync", "--space", "space:test")
+	spaces := agentprofile.Array(agentprofile.Object(synced["data"])["spaces"])
+	if len(spaces) != 1 || agentprofile.Object(spaces[0])["diagnostic_count"] != int64(0) || len(agentprofile.Array(agentprofile.Object(spaces[0])["diagnostics"])) != 0 {
+		t.Fatal("replacement reader sync diagnostics", synced)
+	}
+	read, _ := h.invoke(h.reader, 0, "explain", id, "--version", "2", "--space", "space:test")
+	spaces = agentprofile.Array(agentprofile.Object(read["data"])["spaces"])
+	if len(spaces) != 1 || len(agentprofile.Array(agentprofile.Object(spaces[0])["diagnostics"])) != 0 {
+		t.Fatal("replacement reader diagnostics", read)
+	}
+	views := agentprofile.Array(agentprofile.Object(spaces[0])["views"])
+	if len(views) != 1 {
+		t.Fatal("replacement view missing", read)
+	}
+	items, sources := agentprofile.Array(agentprofile.Object(views[0])["items"]), agentprofile.Array(agentprofile.Object(views[0])["sources"])
+	if len(items) != 1 || agentprofile.Object(agentprofile.Object(items[0])["ref"])["version"] != int64(2) || len(sources) != 1 {
+		t.Fatal("replacement version or source missing", read)
+	}
+	source := agentprofile.Object(sources[0])
+	if source["object"] != "session:"+room || source["revision"] != "message:"+event || source["origin"] != origin || source["availability"] != "unavailable" || !reflect.DeepEqual(source["digest"], digest) || !reflect.DeepEqual(source["excerpt"], map[string]any{"state": "present", "text": excerpt}) {
+		t.Fatal("replacement source read changed", source)
 	}
 }
 

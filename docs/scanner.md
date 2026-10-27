@@ -42,8 +42,9 @@ There is no substring exemption and no trimming of whitespace or suffixes.
 `--source-session` builds a source with `owner: runtime:<runtime>`,
 `object: session:<session>`, a message/index revision, and an `origin` string
 containing canonical JSON with exactly three string keys: `runtime`, `session`
-and `message`. This structured origin and its `session:` object receive an
-entropy exemption only when all components match one of these forms:
+and `message`. Add, assess and enabled attributed replace/correct share this
+session-input and source-scanning path. This structured origin and its `session:`
+object receive an entropy exemption only when all components match one of these forms:
 
 - `matrix:<room>:<event>` with the exact room/event grammars above. The final
   `:$` separates the event; a room server and port remain part of the session.
